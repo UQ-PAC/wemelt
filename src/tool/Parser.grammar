@@ -4,7 +4,7 @@
 %import "java.util.Set";
 
 %embed {:
-    Set<VarDef> variables;
+    Set<Variable> variables;
 :};
 
 /* %terminals UNDERSCORE;
@@ -119,30 +119,22 @@ exprs = expr @ ASG | exprs COMMA expr;
 //terms = term | terms COMMA term;
 
 global
-    = type.t REG_ID.n SEMICOLON lpred.l                 {: VarDef v = new VarDef(t, n, l);
-                                                            variables.add(v);
-                                                            return v; :}
-    | type.t REG_ID.n ASG expr.e SEMICOLON lpred.l      {: VarDef v = new VarDef(t, n, e, l);
-                                                            variables.add(v);
-                                                            return v; :}
-    | type.t REG_ID.n SEMICOLON                         {: VarDef v = new VarDef(t, n);
-                                                            variables.add(v);
-                                                            return v; :}
-    | type.t REG_ID.n ASG expr.e SEMICOLON              {: VarDef v = new VarDef(t, n, e);
-                                                            variables.add(v);
-                                                            return v; :}
-    | type.t ID.n SEMICOLON lpred.l mode.m              {: VarDef v = new VarDef(t, n, l, m);
-                                                            variables.add(v);
-                                                            return v; :}
-    | type.t ID.n ASG expr.e SEMICOLON lpred.l mode.m   {: VarDef v = new VarDef(t, n, e, l, m);
-                                                            variables.add(v);
-                                                            return v; :}
-    | type.t ID.n SEMICOLON mode.m                      {: VarDef v = new VarDef(t, n, m);
-                                                            variables.add(v);
-                                                            return v; :}
-    | type.t ID.n ASG expr.e SEMICOLON mode.m           {: VarDef v = new VarDef(t, n, e, m);
-                                                            variables.add(v);
-                                                            return v; :}
+    = type.t REG_ID.n SEMICOLON lpred.l                 {: variables.add(new Variable(n, l));
+                                                            return new VarDef(t, n); :}
+    | type.t REG_ID.n ASG expr.e SEMICOLON lpred.l      {: variables.add(new Variable(n, l));
+                                                            return new VarDef(t, n, e); :}
+    | type.t REG_ID.n SEMICOLON                         {: variables.add(new Variable(n));
+                                                            return new VarDef(t, n); :}
+    | type.t REG_ID.n ASG expr.e SEMICOLON              {: variables.add(new Variable(n));
+                                                            return new VarDef(t, n, e); :}
+    | type.t ID.n SEMICOLON lpred.l mode.m              {:  variables.add(new Variable(n, l, m));
+                                                            return new VarDef(t, n); :}
+    | type.t ID.n ASG expr.e SEMICOLON lpred.l mode.m   {: variables.add(new Variable(n, l, m));
+                                                            return new VarDef(t, n, e); :}
+    | type.t ID.n SEMICOLON mode.m                      {: variables.add(new Variable(n, m));
+                                                            return new VarDef(t, n); :}
+    | type.t ID.n ASG expr.e SEMICOLON mode.m           {: variables.add(new Variable(n, m));
+                                                            return new VarDef(t, n, e); :}
     | type.t ID.n LPAREN RPAREN SEMICOLON                    {: return new FunDef(t, n); :}
     | type.t ID.n LPAREN VOID RPAREN SEMICOLON                    {: return new FunDef(t, n); :}
     | type.t ID.n LPAREN params.xs RPAREN SEMICOLON {: return new FunDef(t, n, xs); :}
@@ -176,30 +168,22 @@ local1
     | BREAK    SEMICOLON                {: return Break.self();  :}
     | CONTINUE SEMICOLON                {: return Continue.self(); :}
     | FENCE SEMICOLON                   {: return Fence.self();  :}
-    | type.t REG_ID.n SEMICOLON lpred.l                 {: VarDef v = new VarDef(t, n, l);
-                                                            variables.add(v);
-                                                            return v; :}
-    | type.t REG_ID.n ASG expr.e SEMICOLON lpred.l      {: VarDef v = new VarDef(t, n, e, l);
-                                                            variables.add(v);
-                                                            return v; :}
-    | type.t REG_ID.n SEMICOLON                         {: VarDef v = new VarDef(t, n);
-                                                            variables.add(v);
-                                                            return v; :}
-    | type.t REG_ID.n ASG expr.e SEMICOLON              {: VarDef v = new VarDef(t, n, e);
-                                                            variables.add(v);
-                                                            return v; :}
-    | type.t ID.n SEMICOLON lpred.l mode.m              {: VarDef v = new VarDef(t, n, l, m);
-                                                            variables.add(v);
-                                                            return v; :}
-    | type.t ID.n ASG expr.e SEMICOLON lpred.l mode.m   {: VarDef v = new VarDef(t, n, e, l, m);
-                                                            variables.add(v);
-                                                            return v; :}
-    | type.t ID.n SEMICOLON mode.m                      {: VarDef v = new VarDef(t, n, m);
-                                                            variables.add(v);
-                                                            return v; :}
-    | type.t ID.n ASG expr.e SEMICOLON mode.m           {: VarDef v = new VarDef(t, n, e, m);
-                                                            variables.add(v);
-                                                            return v; :}
+    | type.t REG_ID.n SEMICOLON lpred.l                 {: variables.add(new Variable(n, l));
+                                                            return new VarDef(t, n); :}
+    | type.t REG_ID.n ASG expr.e SEMICOLON lpred.l      {: variables.add(new Variable(n, l));
+                                                            return new VarDef(t, n, e); :}
+    | type.t REG_ID.n SEMICOLON                         {: variables.add(new Variable(n));
+                                                            return new VarDef(t, n); :}
+    | type.t REG_ID.n ASG expr.e SEMICOLON              {: variables.add(new Variable(n));
+                                                            return new VarDef(t, n, e); :}
+    | type.t ID.n SEMICOLON lpred.l mode.m              {:  variables.add(new Variable(n, l, m));
+                                                            return new VarDef(t, n); :}
+    | type.t ID.n ASG expr.e SEMICOLON lpred.l mode.m   {: variables.add(new Variable(n, l, m));
+                                                            return new VarDef(t, n, e); :}
+    | type.t ID.n SEMICOLON mode.m                      {: variables.add(new Variable(n, m));
+                                                            return new VarDef(t, n); :}
+    | type.t ID.n ASG expr.e SEMICOLON mode.m           {: variables.add(new Variable(n, m));
+                                                            return new VarDef(t, n, e); :}
     | IF LPAREN expr.a RPAREN local.b   {: return new If(a, b);  :}
     | IF LPAREN expr.a RPAREN local.b ELSE local.c     {: return new If(a, b, c);   :}
     | WHILE LPAREN expr.a RPAREN /*invars.i */ local.b      {: return new While(a, /*i,*/ b);   :}
@@ -254,49 +238,6 @@ expr
     | LPAREN expr.e RPAREN              {: return (Symbol) e;           :}
     | expr.a QUESTION expr.b COLON expr.c    {: return new Question(a, b, c); :}
     ;
-
-/*
-term
-    = ID.n                              {: return new Var(n); :}
-    | NUM.n                             {: return new Lit(n); :}
-	| LPAREN term.a RPAREN              {: return (Symbol)a;  :}
-    | PLUS   term.a @ PREFIX            {: return (Symbol) a; :}
-    //| FUN.n                             {: return Term.app(n); :}
-    //| FUN.n LPAREN RPAREN               {: return Term.app(n); :}
-    //| FUN.n LPAREN terms.as RPAREN      {: return Term.app(n, as); :}
-    //| AMP   term.a @ PREFIX             {: return Term.ref(a); :}
-    | MINUS term.a @ PREFIX             {: return Term.app("-", a);    :}
-    | TILDE term.a @ PREFIX             {: return Term.app("~", a);    :}
-    // | SIZEOF LPAREN term.e RPAREN       {: return new SizeOfExpr(e);    :}
-    | term.a STAR   term.b              {: return Term.app("*", a, b); :}
-    | term.a DIV    term.b              {: return Term.app("/", a, b); :}
-    | term.a MOD    term.b              {: return Term.app("%", a, b); :}
-    | term.a PLUS   term.b              {: return Term.app("+", a, b); :}
-    | term.a MINUS  term.b              {: return Term.app("-", a, b); :}
-    | term.a SHL    term.b              {: return Term.app("<<", a, b); :}
-    | term.a SHR    term.b              {: return Term.app(">>", a, b); :}
-    | term.a LT     term.b              {: return Term.app("<", a, b); :}
-    | term.a LE     term.b              {: return Term.app("<=", a, b); :}
-    | term.a GE     term.b              {: return Term.app(">=",a, b); :}
-    | term.a GT     term.b              {: return Term.app(">", a, b); :}
-    | term.a EQ     term.b              {: return Term.app("==", a, b); :}
-    | term.a NEQ    term.b              {: return Term.app("!", Term.app("==", a, b)); :}
-    | term.a AMP    term.b              {: return Term.app("&", a, b); :}
-    | term.a CARET  term.b              {: return Term.app("^", a, b); :}
-    | term.a PIPE   term.b              {: return Term.app("|", a, b); :}
-    | BANG  term.a @ PREFIX             {: return Term.not(a);    :}
-    | term.a AND    term.b              {: return Term.and(a, b); :}
-    | term.a OR     term.b              {: return Term.or(a, b);  :}
-    // | LPAREN type.t RPAREN term.a       {: return new Cast(t, a);
-    | term.a QUESTION term.b COLON term.c  {: return Term.question(a, b, c); :}
-    //| STAR term.a @ PREFIX              {: return Term.deref(a); :}
-    // | term.a LBRACK term.i RBRACK       {: return Term.deref(Term.app("+", a, i)); :}
-    //| term.a ARROW  ID.f                {: return Term.deref(a, f); :}
-    //| term.a DOT    ID.f                {: return Term.deref(Term.ref(a), f); :}
-    ;
-    */
-
-//pred = term;
 
 // for _L(x): pred construction to set predicate for variable security level
 lpred

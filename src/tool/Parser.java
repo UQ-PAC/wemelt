@@ -170,7 +170,7 @@ public class Parser extends beaver.Parser {
 		"XZqYcAexkvUk8jqeFRM4uNmNUrFlG#bCpiwqkMBgZcHJecAFYCGCkrVtC4V7EV#Df4fO9Dl" +
 		"G$P9LGv8j644HiTYGGkRcIPV$0C3yzci=");
 
-    Set<VarDef> variables;
+    Set<Variable> variables;
 
 	private final Action[] actions;
 
@@ -227,9 +227,8 @@ public class Parser extends beaver.Parser {
 					final String n = (String) _symbol_n.value;
 					final Symbol _symbol_l = _symbols[offset + 4];
 					final Predicate l = (Predicate) _symbol_l.value;
-					 VarDef v = new VarDef(t, n, l);
-                                                            variables.add(v);
-                                                            return v;
+					 variables.add(new Variable(n, l));
+                                                            return new VarDef(t, n);
 				}
 			},
 			new Action() {	// [11] global = type.t REG_ID.n ASG expr.e SEMICOLON lpred.l
@@ -242,9 +241,8 @@ public class Parser extends beaver.Parser {
 					final Expression e = (Expression) _symbol_e.value;
 					final Symbol _symbol_l = _symbols[offset + 6];
 					final Predicate l = (Predicate) _symbol_l.value;
-					 VarDef v = new VarDef(t, n, e, l);
-                                                            variables.add(v);
-                                                            return v;
+					 variables.add(new Variable(n, l));
+                                                            return new VarDef(t, n, e);
 				}
 			},
 			new Action() {	// [12] global = type.t REG_ID.n SEMICOLON
@@ -253,9 +251,8 @@ public class Parser extends beaver.Parser {
 					final Type t = (Type) _symbol_t.value;
 					final Symbol _symbol_n = _symbols[offset + 2];
 					final String n = (String) _symbol_n.value;
-					 VarDef v = new VarDef(t, n);
-                                                            variables.add(v);
-                                                            return v;
+					 variables.add(new Variable(n));
+                                                            return new VarDef(t, n);
 				}
 			},
 			new Action() {	// [13] global = type.t REG_ID.n ASG expr.e SEMICOLON
@@ -266,9 +263,8 @@ public class Parser extends beaver.Parser {
 					final String n = (String) _symbol_n.value;
 					final Symbol _symbol_e = _symbols[offset + 4];
 					final Expression e = (Expression) _symbol_e.value;
-					 VarDef v = new VarDef(t, n, e);
-                                                            variables.add(v);
-                                                            return v;
+					 variables.add(new Variable(n));
+                                                            return new VarDef(t, n, e);
 				}
 			},
 			new Action() {	// [14] global = type.t ID.n SEMICOLON lpred.l mode.m
@@ -281,9 +277,8 @@ public class Parser extends beaver.Parser {
 					final Predicate l = (Predicate) _symbol_l.value;
 					final Symbol _symbol_m = _symbols[offset + 5];
 					final Mode m = (Mode) _symbol_m.value;
-					 VarDef v = new VarDef(t, n, l, m);
-                                                            variables.add(v);
-                                                            return v;
+					  variables.add(new Variable(n, l, m));
+                                                            return new VarDef(t, n);
 				}
 			},
 			new Action() {	// [15] global = type.t ID.n ASG expr.e SEMICOLON lpred.l mode.m
@@ -298,9 +293,8 @@ public class Parser extends beaver.Parser {
 					final Predicate l = (Predicate) _symbol_l.value;
 					final Symbol _symbol_m = _symbols[offset + 7];
 					final Mode m = (Mode) _symbol_m.value;
-					 VarDef v = new VarDef(t, n, e, l, m);
-                                                            variables.add(v);
-                                                            return v;
+					 variables.add(new Variable(n, l, m));
+                                                            return new VarDef(t, n, e);
 				}
 			},
 			new Action() {	// [16] global = type.t ID.n SEMICOLON mode.m
@@ -311,9 +305,8 @@ public class Parser extends beaver.Parser {
 					final String n = (String) _symbol_n.value;
 					final Symbol _symbol_m = _symbols[offset + 4];
 					final Mode m = (Mode) _symbol_m.value;
-					 VarDef v = new VarDef(t, n, m);
-                                                            variables.add(v);
-                                                            return v;
+					 variables.add(new Variable(n, m));
+                                                            return new VarDef(t, n);
 				}
 			},
 			new Action() {	// [17] global = type.t ID.n ASG expr.e SEMICOLON mode.m
@@ -326,9 +319,8 @@ public class Parser extends beaver.Parser {
 					final Expression e = (Expression) _symbol_e.value;
 					final Symbol _symbol_m = _symbols[offset + 6];
 					final Mode m = (Mode) _symbol_m.value;
-					 VarDef v = new VarDef(t, n, e, m);
-                                                            variables.add(v);
-                                                            return v;
+					 variables.add(new Variable(n, m));
+                                                            return new VarDef(t, n, e);
 				}
 			},
 			new Action() {	// [18] global = type.t ID.n LPAREN RPAREN SEMICOLON
@@ -468,9 +460,8 @@ public class Parser extends beaver.Parser {
 					final String n = (String) _symbol_n.value;
 					final Symbol _symbol_l = _symbols[offset + 4];
 					final Predicate l = (Predicate) _symbol_l.value;
-					 VarDef v = new VarDef(t, n, l);
-                                                            variables.add(v);
-                                                            return v;
+					 variables.add(new Variable(n, l));
+                                                            return new VarDef(t, n);
 				}
 			},
 			new Action() {	// [41] local1 = type.t REG_ID.n ASG expr.e SEMICOLON lpred.l
@@ -483,9 +474,8 @@ public class Parser extends beaver.Parser {
 					final Expression e = (Expression) _symbol_e.value;
 					final Symbol _symbol_l = _symbols[offset + 6];
 					final Predicate l = (Predicate) _symbol_l.value;
-					 VarDef v = new VarDef(t, n, e, l);
-                                                            variables.add(v);
-                                                            return v;
+					 variables.add(new Variable(n, l));
+                                                            return new VarDef(t, n, e);
 				}
 			},
 			new Action() {	// [42] local1 = type.t REG_ID.n SEMICOLON
@@ -494,9 +484,8 @@ public class Parser extends beaver.Parser {
 					final Type t = (Type) _symbol_t.value;
 					final Symbol _symbol_n = _symbols[offset + 2];
 					final String n = (String) _symbol_n.value;
-					 VarDef v = new VarDef(t, n);
-                                                            variables.add(v);
-                                                            return v;
+					 variables.add(new Variable(n));
+                                                            return new VarDef(t, n);
 				}
 			},
 			new Action() {	// [43] local1 = type.t REG_ID.n ASG expr.e SEMICOLON
@@ -507,9 +496,8 @@ public class Parser extends beaver.Parser {
 					final String n = (String) _symbol_n.value;
 					final Symbol _symbol_e = _symbols[offset + 4];
 					final Expression e = (Expression) _symbol_e.value;
-					 VarDef v = new VarDef(t, n, e);
-                                                            variables.add(v);
-                                                            return v;
+					 variables.add(new Variable(n));
+                                                            return new VarDef(t, n, e);
 				}
 			},
 			new Action() {	// [44] local1 = type.t ID.n SEMICOLON lpred.l mode.m
@@ -522,9 +510,8 @@ public class Parser extends beaver.Parser {
 					final Predicate l = (Predicate) _symbol_l.value;
 					final Symbol _symbol_m = _symbols[offset + 5];
 					final Mode m = (Mode) _symbol_m.value;
-					 VarDef v = new VarDef(t, n, l, m);
-                                                            variables.add(v);
-                                                            return v;
+					  variables.add(new Variable(n, l, m));
+                                                            return new VarDef(t, n);
 				}
 			},
 			new Action() {	// [45] local1 = type.t ID.n ASG expr.e SEMICOLON lpred.l mode.m
@@ -539,9 +526,8 @@ public class Parser extends beaver.Parser {
 					final Predicate l = (Predicate) _symbol_l.value;
 					final Symbol _symbol_m = _symbols[offset + 7];
 					final Mode m = (Mode) _symbol_m.value;
-					 VarDef v = new VarDef(t, n, e, l, m);
-                                                            variables.add(v);
-                                                            return v;
+					 variables.add(new Variable(n, l, m));
+                                                            return new VarDef(t, n, e);
 				}
 			},
 			new Action() {	// [46] local1 = type.t ID.n SEMICOLON mode.m
@@ -552,9 +538,8 @@ public class Parser extends beaver.Parser {
 					final String n = (String) _symbol_n.value;
 					final Symbol _symbol_m = _symbols[offset + 4];
 					final Mode m = (Mode) _symbol_m.value;
-					 VarDef v = new VarDef(t, n, m);
-                                                            variables.add(v);
-                                                            return v;
+					 variables.add(new Variable(n, m));
+                                                            return new VarDef(t, n);
 				}
 			},
 			new Action() {	// [47] local1 = type.t ID.n ASG expr.e SEMICOLON mode.m
@@ -567,9 +552,8 @@ public class Parser extends beaver.Parser {
 					final Expression e = (Expression) _symbol_e.value;
 					final Symbol _symbol_m = _symbols[offset + 6];
 					final Mode m = (Mode) _symbol_m.value;
-					 VarDef v = new VarDef(t, n, e, m);
-                                                            variables.add(v);
-                                                            return v;
+					 variables.add(new Variable(n, m));
+                                                            return new VarDef(t, n, e);
 				}
 			},
 			new Action() {	// [48] local1 = IF LPAREN expr.a RPAREN local.b

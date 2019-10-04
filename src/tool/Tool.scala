@@ -30,12 +30,12 @@ object Tool {
 
   }
 
-  def parse(file: String): (List[Statement], Set[VarDef]) = {
+  def parse(file: String): (List[Statement], Set[Variable]) = {
     val reader = new FileReader(file)
     val scanner = new Scanner(reader)
     val parser = new Parser()
 
-    val variables = new java.util.HashSet[VarDef]
+    val variables = new java.util.HashSet[Variable]
     parser.variables = variables
 
     val result = parser.parse(scanner)
@@ -43,22 +43,21 @@ object Tool {
     //result
     val globals: List[Statement] = result.asInstanceOf[java.util.ArrayList[Statement]].asScala.toList
 
-    val variables2: Set[VarDef] = variables.asInstanceOf[java.util.HashSet[VarDef]].asScala.toSet
+    val variables2: Set[Variable] = variables.asInstanceOf[java.util.HashSet[Variable]].asScala.toSet
     println(globals)
     println(variables2)
     (globals, variables2)
   }
 
-  def init(variables: Set[VarDef]) = {
-    var globals: Set[VarDef] = Set()
-    var locals: Set[VarDef] = Set()
-    var noReadWrite: Set[VarDef] = Set()
-    var readWrite: Set[VarDef] = Set()
-    var noWrite: Set[VarDef] = Set()
-    var controls: Set[VarDef] = Set()
-    var controlled: Set[VarDef] = Set()
-
-    var idToVariable: Map[Id, VarDef] = Map()
+  def init(variables: Set[Variable]) = {
+    var globals: Set[Variable] = Set()
+    var locals: Set[Variable] = Set()
+    var noReadWrite: Set[Variable] = Set()
+    var readWrite: Set[Variable] = Set()
+    var noWrite: Set[Variable] = Set()
+    var controls: Set[Variable] = Set()
+    var controlled: Set[Variable] = Set()
+    var idToVariable: Map[Id, Variable] = Map()
 
     for (v <- variables) {
       idToVariable += (v.name -> v)
@@ -87,7 +86,7 @@ object Tool {
         controlled += v
       }
       for (i <- controlling) {
-        val variable: VarDef = idToVariable(i)
+        val variable: Variable = idToVariable(i)
         println(v)
         println(variable)
         variable.controlled += v
