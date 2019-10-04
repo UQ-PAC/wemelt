@@ -1,55 +1,25 @@
 package tool
 
-import java.io.FileReader
-import collection.JavaConverters._
-
-object error {
-
-  abstract class Error extends Exception {
-    def info: Seq[Any]
-
-    override def toString = info.mkString(" ")
-  }
-
-  case class InvalidControlVariables(info: Any*) extends Error
-
+case class State(
+  gamma: Map[Variable, Boolean],
+  D: Map[Variable, (Set[Variable], Set[Variable], Set[Variable], Set[Variable])], // W_w, W_r, R_w, R_r
+  knownW: Set[Variable],
+  knownR: Set[Variable],
+  later_w: Set[Variable],
+  later_r: Set[Variable],
+  globals: Set[Variable],
+  locals: Set[Variable],
+  noReadWrite: Set[Variable],
+  readWrite: Set[Variable],
+  noWrite: Set[Variable],
+  controls: Set[Variable],
+  controlled: Set[Variable],
+  idToVariable: Map[Id, Variable],
+  variables: Set[Variable]) {
 }
 
-object Tool {
-
-  def main(args: Array[String]): Unit = {
-    if (args.isEmpty) {
-
-    } else {
-      for (file <- args) {
-        Console.out.println(file)
-        val (statements, variables) = parse(file)
-        val st0: State = State.init(variables)
-      }
-    }
-
-  }
-
-  def parse(file: String): (List[Statement], Set[Variable]) = {
-    val reader = new FileReader(file)
-    val scanner = new Scanner(reader)
-    val parser = new Parser()
-
-    val variables = new java.util.HashSet[Variable]
-    parser.variables = variables
-
-    val result = parser.parse(scanner)
-
-    //result
-    val globals: List[Statement] = result.asInstanceOf[java.util.ArrayList[Statement]].asScala.toList
-
-    val variables2: Set[Variable] = variables.asInstanceOf[java.util.HashSet[Variable]].asScala.toSet
-    println(globals)
-    println(variables2)
-    (globals, variables2)
-  }
-
-  def init(variables: Set[Variable]) = {
+object State {
+  def init(variables: Set[Variable]): State = {
     var globals: Set[Variable] = Set()
     var locals: Set[Variable] = Set()
     var noReadWrite: Set[Variable] = Set()
@@ -112,6 +82,29 @@ object Tool {
       println("controlled by " + v)
       println(v.controlled)
     }
-  }
 
+    // init D - every variable maps to Var
+
+    // init gamma
+
+    //
+
+    State(
+      gamma = Map(),
+      D = Map(),
+      knownW = Set(),
+      knownR = Set(),
+      later_w = Set(),
+      later_r = Set(),
+      globals = globals,
+      locals = locals,
+      noReadWrite = noReadWrite,
+      readWrite = readWrite,
+      noWrite = noWrite,
+      controls = controls,
+      controlled = controlled,
+      idToVariable = idToVariable,
+      variables = variables
+    )
+  }
 }
