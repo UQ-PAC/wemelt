@@ -89,12 +89,17 @@ case class EnumDecl(name: String) extends Def
 case class VarDef(typ: Type, name: Id, init: Option[Expression], pred: Predicate, mode: Mode) extends Global {
   def this(typ: Type, name: String, pred: Predicate, mode: Mode) = this(typ, Id(name), None, pred, mode)
   def this(typ: Type, name: String, init: Expression, pred: Predicate, mode: Mode) = this(typ, Id(name), Some(init), pred, mode)
-  def this(typ: Type, name: String, mode: Mode) = this(typ, Id(name), None, Predicate(Lit("True")), mode)
-  def this(typ: Type, name: String, init: Expression, mode: Mode) = this(typ, Id(name), Some(init), Predicate(Lit("True")), mode)
+  def this(typ: Type, name: String, mode: Mode) = this(typ, Id(name), None, Predicate(Lit("False")), mode)
+  def this(typ: Type, name: String, init: Expression, mode: Mode) = this(typ, Id(name), Some(init), Predicate(Lit("False")), mode)
   def this(typ: Type, name: String, pred: Predicate) = this(typ, Id(name), None, pred, Mode("Reg"))
   def this(typ: Type, name: String, init: Expression, pred: Predicate) = this(typ, Id(name), Some(init), pred, Mode("Reg"))
   def this(typ: Type, name: String) = this(typ, Id(name), None, Predicate(Lit("False")), Mode("Reg"))
   def this(typ: Type, name: String, init: Expression) = this(typ, Id(name), Some(init), Predicate(Lit("False")), Mode("Reg"))
+
+  var controlled: Set[VarDef] = Set() // CLed(name)
+  var securityLevel: Boolean = false
+
+  override def toString: String = name.toString
 
 }
 

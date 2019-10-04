@@ -3,7 +3,20 @@ package tool
 import java.io.FileReader
 import collection.JavaConverters._
 
+object error {
+
+  abstract class Error extends Exception {
+    def info: Seq[Any]
+
+    override def toString = info.mkString(" ")
+  }
+
+  case class InvalidControlVariables(info: Any*) extends Error
+
+}
+
 object Tool {
+
   def main(args: Array[String]): Unit = {
     if (args.isEmpty) {
 
@@ -39,29 +52,67 @@ object Tool {
   def init(variables: Set[VarDef]) = {
     var globals: Set[VarDef] = Set()
     var locals: Set[VarDef] = Set()
-    var no_read_write: Set[VarDef] = Set()
-    var read_write: Set[VarDef] = Set()
-    var no_write: Set[VarDef] = Set()
+    var noReadWrite: Set[VarDef] = Set()
+    var readWrite: Set[VarDef] = Set()
+    var noWrite: Set[VarDef] = Set()
+    var controls: Set[VarDef] = Set()
+    var controlled: Set[VarDef] = Set()
+
+    var idToVariable: Map[Id, VarDef] = Map()
+
+    for (v <- variables) {
+      idToVariable += (v.name -> v)
+    }
 
     for (v <- variables) {
       v.mode.mode match {
         case "Reg" =>
           locals += v
-          no_read_write += v
+          noReadWrite += v
         case "NoRW" =>
           globals += v
-          no_read_write += v
+          noReadWrite += v
         case "NoW" =>
           globals += v
-          no_write += v
+          noWrite += v
         case "RW" =>
           globals += v
-          read_write += v
+          readWrite += v
       }
-
+      val controlling: Set[Id] = v.pred.pred.getVariables
+      if (controlling.nonEmpty) {
+        if (controls.contains(v)) {
+          throw error.InvalidControlVariables(v.name + "is both controlled and a control variable")
+        }
+        controlled += v
+      }
+      for (i <- controlling) {
+        val variable: VarDef = idToVariable(i)
+        println(v)
+        println(variable)
+        variable.controlled += v
+        controls += variable
+      }
     }
+    println("globals")
     println(globals)
+    println("locals")
     println(locals)
+    println("no read write")
+    println(noReadWrite)
+    println("read write")
+    println(readWrite)
+    println("no write")
+    println(noWrite)
+    println("controls")
+    println(controls)
+    println("controlled")
+    println(controlled)
+
+    for (v <- variables) {
+      println("controlled by " + v)
+      println(v.controlled)
+    }
   }
 
 }

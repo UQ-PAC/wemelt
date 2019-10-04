@@ -1,7 +1,6 @@
-void secret_write() {	
+void secret_write() {
 
   int r_z;
-  _L: x != 2
 
   int x;
   _L: (z % 2 == 0)
@@ -14,8 +13,10 @@ void secret_write() {
   _L: (z != 40)
   _Mode: NoW
 
-  z = z + 1;
-  fence;
-  x = 4;
+  int q;
+  _L: (y == 4)
+  _Mode: RW
+
+  int r_g;
 
 }
