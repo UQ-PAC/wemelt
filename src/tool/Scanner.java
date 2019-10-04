@@ -62,13 +62,13 @@ class Scanner extends beaver.Scanner {
     "\1\17\1\20\1\21\1\22\1\23\1\24\1\25\1\26"+
     "\1\27\15\30\1\31\2\0\1\32\2\2\1\33\1\34"+
     "\1\35\1\36\1\37\1\40\1\41\1\42\1\43\1\44"+
-    "\2\30\1\45\1\46\13\30\1\47\2\0\1\30\1\50"+
-    "\6\30\1\51\1\30\1\52\2\30\1\53\1\0\1\54"+
+    "\2\30\1\45\1\46\10\30\1\47\2\30\1\50\2\0"+
+    "\1\30\1\51\6\30\1\52\3\30\1\53\1\0\1\54"+
     "\1\30\1\55\2\30\1\56\3\30\1\57\2\30\1\60"+
-    "\1\61\1\62\2\30\1\63\1\64\1\30\1\65";
+    "\1\61\1\62\1\63\1\30\1\64\1\30\1\65";
 
   private static int [] zzUnpackAction() {
-    int [] result = new int[108];
+    int [] result = new int[106];
     int offset = 0;
     offset = zzUnpackAction(ZZ_ACTION_PACKED_0, offset, result);
     return result;
@@ -101,15 +101,15 @@ class Scanner extends beaver.Scanner {
     "\0\u05e8\0\66\0\u061e\0\66\0\66\0\66\0\66\0\u010e"+
     "\0\66\0\u010e\0\66\0\66\0\66\0\66\0\u0654\0\u068a"+
     "\0\u032a\0\u032a\0\u06c0\0\u06f6\0\u072c\0\u0762\0\u0798\0\u07ce"+
-    "\0\u0804\0\u083a\0\u0870\0\u08a6\0\u08dc\0\u032a\0\u0912\0\u0948"+
-    "\0\u097e\0\u032a\0\u09b4\0\u09ea\0\u0a20\0\u0a56\0\u0a8c\0\u0ac2"+
-    "\0\u032a\0\u0af8\0\66\0\u0b2e\0\u0b64\0\u032a\0\u0b9a\0\u032a"+
-    "\0\u0bd0\0\u032a\0\u0c06\0\u0c3c\0\u032a\0\u0c72\0\u0ca8\0\u0cde"+
-    "\0\u032a\0\u0d14\0\u0d4a\0\u032a\0\u032a\0\u032a\0\u0d80\0\u0db6"+
-    "\0\u032a\0\66\0\u0dec\0\u032a";
+    "\0\u0804\0\u083a\0\u032a\0\u0870\0\u08a6\0\u032a\0\u08dc\0\u0912"+
+    "\0\u0948\0\u032a\0\u097e\0\u09b4\0\u09ea\0\u0a20\0\u0a56\0\u0a8c"+
+    "\0\u032a\0\u0ac2\0\u0af8\0\u0b2e\0\u032a\0\u0b64\0\u032a\0\u0b9a"+
+    "\0\u032a\0\u0bd0\0\u0c06\0\u032a\0\u0c3c\0\u0c72\0\u0ca8\0\u032a"+
+    "\0\u0cde\0\u0d14\0\u032a\0\u032a\0\u032a\0\u032a\0\u0d4a\0\u032a"+
+    "\0\u0d80\0\u032a";
 
   private static int [] zzUnpackRowMap() {
-    int [] result = new int[108];
+    int [] result = new int[106];
     int offset = 0;
     offset = zzUnpackRowMap(ZZ_ROWMAP_PACKED_0, offset, result);
     return result;
@@ -156,24 +156,23 @@ class Scanner extends beaver.Scanner {
     "\34\0\6\33\1\114\23\33\34\0\11\33\1\115\20\33"+
     "\34\0\13\33\1\116\16\33\34\0\21\33\1\117\10\33"+
     "\34\0\2\33\1\120\27\33\34\0\7\33\1\121\22\33"+
-    "\34\0\10\33\1\122\21\33\11\0\1\123\22\0\32\33"+
-    "\34\0\1\33\1\124\30\33\34\0\26\33\1\125\1\126"+
-    "\2\33\10\107\1\127\55\107\4\0\1\54\3\0\1\110"+
-    "\111\0\3\33\1\130\26\33\34\0\11\33\1\131\20\33"+
-    "\34\0\7\33\1\132\22\33\34\0\15\33\1\133\14\33"+
-    "\34\0\6\33\1\134\23\33\34\0\13\33\1\135\16\33"+
-    "\34\0\17\33\1\136\12\33\34\0\4\33\1\137\25\33"+
-    "\34\0\3\33\1\140\26\33\34\0\27\33\1\141\2\33"+
-    "\4\107\1\54\3\107\1\127\55\107\34\0\2\33\1\142"+
-    "\27\33\34\0\7\33\1\143\22\33\34\0\14\33\1\144"+
-    "\15\33\34\0\13\33\1\145\16\33\34\0\13\33\1\146"+
-    "\16\33\34\0\13\33\1\147\16\33\34\0\10\33\1\150"+
-    "\21\33\34\0\10\33\1\151\21\33\11\0\1\152\22\0"+
-    "\32\33\34\0\15\33\1\153\14\33\34\0\13\33\1\154"+
+    "\34\0\10\33\1\122\21\33\34\0\1\33\1\123\30\33"+
+    "\34\0\26\33\1\124\1\125\2\33\10\107\1\126\55\107"+
+    "\4\0\1\54\3\0\1\110\111\0\3\33\1\127\26\33"+
+    "\34\0\11\33\1\130\20\33\34\0\7\33\1\131\22\33"+
+    "\34\0\15\33\1\132\14\33\34\0\6\33\1\133\23\33"+
+    "\34\0\13\33\1\134\16\33\34\0\17\33\1\135\12\33"+
+    "\34\0\4\33\1\136\25\33\34\0\3\33\1\137\26\33"+
+    "\34\0\27\33\1\140\2\33\4\107\1\54\3\107\1\126"+
+    "\55\107\34\0\2\33\1\141\27\33\34\0\7\33\1\142"+
+    "\22\33\34\0\14\33\1\143\15\33\34\0\13\33\1\144"+
+    "\16\33\34\0\13\33\1\145\16\33\34\0\13\33\1\146"+
+    "\16\33\34\0\10\33\1\147\21\33\34\0\10\33\1\150"+
+    "\21\33\34\0\15\33\1\151\14\33\34\0\13\33\1\152"+
     "\16\33";
 
   private static int [] zzUnpackTrans() {
-    int [] result = new int[3618];
+    int [] result = new int[3510];
     int offset = 0;
     offset = zzUnpackTrans(ZZ_TRANS_PACKED_0, offset, result);
     return result;
@@ -213,11 +212,10 @@ class Scanner extends beaver.Scanner {
   private static final String ZZ_ATTRIBUTE_PACKED_0 =
     "\1\0\1\11\4\1\4\11\3\1\1\11\7\1\4\11"+
     "\16\1\2\0\1\11\1\1\4\11\1\1\1\11\1\1"+
-    "\4\11\20\1\2\0\12\1\1\11\3\1\1\0\22\1"+
-    "\1\11\2\1";
+    "\4\11\20\1\2\0\15\1\1\0\24\1";
 
   private static int [] zzUnpackAttribute() {
-    int [] result = new int[108];
+    int [] result = new int[106];
     int offset = 0;
     offset = zzUnpackAttribute(ZZ_ATTRIBUTE_PACKED_0, offset, result);
     return result;
@@ -293,12 +291,6 @@ class Scanner extends beaver.Scanner {
   private int zzFinalHighSurrogate = 0;
 
   /* user code: */
-
-    //Set<String> types;
-    //Set<String> pure;
-    //Set<String> pred;
-
-
     Symbol resolve(String name) {
       if (name.startsWith("r_")) {
           return newToken(Terminals.REG_ID, name.substring(2));
@@ -842,19 +834,19 @@ class Scanner extends beaver.Scanner {
             }
           case 91: break;
           case 39: 
-            { return newToken(Terminals.RW);
+            { return newToken(Terminals.LPRED);
             }
           case 92: break;
           case 40: 
-            { return newToken(Terminals.INT);
+            { return newToken(Terminals.RW);
             }
           case 93: break;
           case 41: 
-            { return newToken(Terminals.FOR);
+            { return newToken(Terminals.INT);
             }
           case 94: break;
           case 42: 
-            { return newToken(Terminals.LPRED);
+            { return newToken(Terminals.FOR);
             }
           case 95: break;
           case 43: 
@@ -890,11 +882,11 @@ class Scanner extends beaver.Scanner {
             }
           case 103: break;
           case 51: 
-            { return newToken(Terminals.RETURN);
+            { return newToken(Terminals.MODE);
             }
           case 104: break;
           case 52: 
-            { return newToken(Terminals.MODE);
+            { return newToken(Terminals.RETURN);
             }
           case 105: break;
           case 53: 

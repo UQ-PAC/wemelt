@@ -20,12 +20,6 @@ import java.util.Set;
 %column
 
 %{
-
-    //Set<String> types;
-    //Set<String> pure;
-    //Set<String> pred;
-
-
     Symbol resolve(String name) {
       if (name.startsWith("r_")) {
           return newToken(Terminals.REG_ID, name.substring(2));
@@ -119,8 +113,8 @@ WS = {NL} | [ \t\f]
 "else"      { return newToken(Terminals.ELSE);     }
 
 "fence"     { return newToken(Terminals.FENCE);    }
-"_L("       { return newToken(Terminals.LPRED);      }
-"_Mode("       { return newToken(Terminals.MODE);     }
+"_L"       { return newToken(Terminals.LPRED);      }
+"_Mode"       { return newToken(Terminals.MODE);     }
 "NoRW"      { return newToken(Terminals.NORW);    }
 "NoW"      { return newToken(Terminals.NOW);    }
 "RW"      { return newToken(Terminals.RW);    }

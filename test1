@@ -1,19 +1,18 @@
 void secret_write() {	
 
   int r_z;
-  _L(z): 1
+  _L: x != 2
 
   int x;
-  _L(x): (z % 2 == 0)
-  _Mode(x): RW
+  _L: (z % 2 == 0)
+  _Mode: RW
 
   int y = 20;
-  _Mode(y): NoRW
+  _Mode: NoRW
 
   int w = 20;
-  _L(w): (z != 40)
-  _Mode(w): NoW
-
+  _L: (z != 40)
+  _Mode: NoW
 
   z = z + 1;
   fence;

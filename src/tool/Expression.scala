@@ -5,20 +5,23 @@ case class Field(typ: Type, name: String) extends beaver.Symbol {
 }
 
 case class Param(typ: Type, name: String) extends beaver.Symbol {
-  def toId = Id(name)
-  def toVar = Var(name, None)
   override def toString = typ + " " + name
 }
 
 trait Expression extends beaver.Symbol {
 }
 
-case class Id(name: String) extends Expression with Loc {
-  def free = Set()
-  //def norm(st: Stack) = this
-  //def subst(su: Subst) = this
-  def toVar = Var(name, None)
-  override def toString = "" + name
+case class Lit(arg: Any) extends Expression {
+  override def toString = arg.toString
+}
+
+case class Id(name: String) extends Expression {
+  override def toString = name
+}
+
+object Id {
+  val result = Id("result")
+  val main = Id("main")
 }
 
 case class PreOp(op: String, arg: Expression) extends Expression {
@@ -53,3 +56,5 @@ case class FunCall(fun: Id, args: List[Expression]) extends Expression { // no f
 }
 
 case class Init(values: List[(Option[String], Expression)]) extends Expression // { .field = value } or { value }
+
+

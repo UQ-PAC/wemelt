@@ -1,8 +1,8 @@
 package tool
 
-case class Predicate(identifier: String, pred: Prop) extends beaver.Symbol {
+case class Predicate(pred: Expression) extends beaver.Symbol {
 }
 
-case class Mode(identifier: String, mode: String) extends beaver.Symbol {
+case class Mode(mode: String) extends beaver.Symbol {
 
 }

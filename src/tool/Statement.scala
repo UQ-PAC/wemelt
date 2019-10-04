@@ -8,7 +8,11 @@ sealed trait Statement extends beaver.Symbol {
 
 }
 
-sealed trait Def extends Statement {
+sealed trait Global extends Statement {
+
+}
+
+sealed trait Def extends Global {
 }
 
 case object Malformed extends Statement {
@@ -82,19 +86,19 @@ case class UnionDecl(name: String) extends Def
 case class EnumDecl(name: String) extends Def
  */
 
-case class VarDef(typ: Type, name: Id, init: Option[Expression], pred: Predicate, mode: Mode) extends Statement {
+case class VarDef(typ: Type, name: Id, init: Option[Expression], pred: Predicate, mode: Mode) extends Global {
   def this(typ: Type, name: String, pred: Predicate, mode: Mode) = this(typ, Id(name), None, pred, mode)
   def this(typ: Type, name: String, init: Expression, pred: Predicate, mode: Mode) = this(typ, Id(name), Some(init), pred, mode)
-  def this(typ: Type, name: String, mode: Mode) = this(typ, Id(name), None, Predicate(name, Lit("True")), mode)
-  def this(typ: Type, name: String, init: Expression, mode: Mode) = this(typ, Id(name), Some(init), Predicate(name, Lit("True")), mode)
-  def this(typ: Type, name: String, pred: Predicate) = this(typ, Id(name), None, pred, Mode(name, "Reg"))
-  def this(typ: Type, name: String, init: Expression, pred: Predicate) = this(typ, Id(name), Some(init), pred, Mode(name, "Reg"))
-  def this(typ: Type, name: String) = this(typ, Id(name), None, Predicate(name, Lit("False")), Mode(name, "Reg"))
-  def this(typ: Type, name: String, init: Expression) = this(typ, Id(name), Some(init), Predicate(name, Lit("False")), Mode(name, "Reg"))
+  def this(typ: Type, name: String, mode: Mode) = this(typ, Id(name), None, Predicate(Lit("True")), mode)
+  def this(typ: Type, name: String, init: Expression, mode: Mode) = this(typ, Id(name), Some(init), Predicate(Lit("True")), mode)
+  def this(typ: Type, name: String, pred: Predicate) = this(typ, Id(name), None, pred, Mode("Reg"))
+  def this(typ: Type, name: String, init: Expression, pred: Predicate) = this(typ, Id(name), Some(init), pred, Mode("Reg"))
+  def this(typ: Type, name: String) = this(typ, Id(name), None, Predicate(Lit("False")), Mode("Reg"))
+  def this(typ: Type, name: String, init: Expression) = this(typ, Id(name), Some(init), Predicate(Lit("False")), Mode("Reg"))
 
 }
 
-case class FunDef(ret: Type, name: Id, params: List[Param], body: Option[Statement]) extends Def {
+case class FunDef(ret: Type, name: Id, params: List[Param], body: Option[Statement]) extends Global {
   def this(ret: Type, name: String) = {
     this(ret, Id(name), Nil, None)
   }
