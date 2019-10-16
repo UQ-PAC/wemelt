@@ -226,12 +226,12 @@ expr
     | expr.a AND    expr.b              {: return new BinOp("&&",a, b); :}
     | expr.a OR     expr.b              {: return new BinOp("||",a, b); :}
     | expr.a ASG    expr.b              {: return new BinOp("=", a, b); :}
-    | expr.a COMMA  expr.b              {: return new BinOp(",", a, b); :}
+    //| expr.a COMMA  expr.b              {: return new BinOp(",", a, b); :}
     //| ID.n LPAREN RPAREN                {: return new FunCall(n, new Expression[]{}); :}
     //| ID.n LPAREN exprs.as RPAREN       {: return new FunCall(n, as);   :}
     //| LPAREN type.t RPAREN expr.a       {: return new Cast(t, a);       :}
     | LPAREN expr.e RPAREN              {: return (Symbol) e;           :}
-    | expr.a QUESTION expr.b COLON expr.c    {: return new Question(a, b, c); :}
+    //| expr.a QUESTION expr.b COLON expr.c    {: return new Question(a, b, c); :}
     ;
 
 // for _L(x): pred construction to set predicate for variable security level

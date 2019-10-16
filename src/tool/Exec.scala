@@ -1,5 +1,7 @@
 package tool
 
+import java.beans.Expression
+
 sealed trait Cont {
   def st: State
 }
@@ -19,10 +21,9 @@ object Exec {
     case Nil =>
       Cont.next(state)
     case stmt :: rest =>
-      // need to fix to work with no multiple states
-      execute(stmt, state) flatMap {
+      execute(stmt, state) match {
         case Cont.next(st) => execute(rest, st)
-        case Cont.ret(ret, st) => List(Cont.ret(ret, st))
+        case Cont.ret(ret, st) => Cont.ret(ret, st)
       }
 
   }
@@ -71,16 +72,33 @@ object Exec {
       val state1 = state0.updateDFence()
       Cont.next(state1)
 
-      /*
     case If(test, left, None) =>
-
-       */
-
-    case If(test, left, Some(right)) =>
+      // IF rule
       val (_test, state1) = rval(test, state0)
 
       // check test is LOW
-      val PRestrict = state1.restrictP(state1.knownW())
+      val PRestrict = state1.restrictP(state1.knownW()) // calculate P_b
+      if (!state1.security(_test, PRestrict)) {
+        throw error.SecurityError("IF rule not valid for if(" + test + ") then {" + left + "} as guard expression is HIGH")
+      }
+
+      // execute both sides of if statement
+      val _left = execute(left, state1)
+      val _left1 = _left.st.updatePIfLeft(_test)
+      // right hand side is empty
+      val _right1 = state1.updatePIfRight(_test)
+
+      // merge states
+      val merged = _left1.mergeIf(_right1)
+      Cont.next(merged)
+
+
+    case If(test, left, Some(right)) =>
+      // IF rule
+      val (_test, state1) = rval(test, state0)
+
+      // check test is LOW
+      val PRestrict = state1.restrictP(state1.knownW()) // calculate P_b
       if (!state1.security(_test, PRestrict)) {
         throw error.SecurityError("IF rule not valid for if(" + test + ") then {" + left + "} else {" + right + "} as guard expression is HIGH")
       }
@@ -140,11 +158,6 @@ object Exec {
   }
 
   def rval(expr: Expression, st0: State): (Expression, State) = expr match {
-    case BinOp(",", fst, snd) =>
-      val (_, st1) = rval(fst, st0)
-      val (_snd, st2) = rval(fst, st1)
-      (_snd, st2)
-
     case id: Id =>
       // value has been READ
       //val _res = st0 lookup id
@@ -261,8 +274,7 @@ object Exec {
     st assign (id, rhs)
   }
 
-  // return list containing all possible states
-  // each tuple contains the new value and the associated state
+  // return tuple contains the new value and the associated state
   def assign(lhs: Expression, rhs: Expression, st0: State): (Expression, State) = {
     val (_rhs, st1) = rval(rhs, st0)
     val (_lhs, st2) = lval(lhs, st1)
@@ -342,6 +354,50 @@ object Exec {
       val (xs, st) = rvals(rest, pre)
       val (x, post) = rval(expr, st)
       (x :: xs, post)
+  }
+
+  def convertToCNF(props: List[Expression]): List[Expression] = {
+    for (p <- props) p match {
+      case BinOp("&&", arg1, arg2) =>
+        List(arg1, arg2) // fix this
+      case BinOp("||", arg1, arg2) =>
+        // need to recursively build list of each side
+      case PreOp("!", arg) =>
+        convertNot(arg)
+
+      case p: _ =>
+        p
+    }
+  }
+
+
+  // https://www.cs.jhu.edu/~jason/tutorials/convert-to-CNF.html
+  def convertToCNF(prop: Expression): Expression = prop match {
+    case BinOp("&&", arg1, arg2) =>
+      BinOp("&&", convertToCNF(arg1), convertToCNF(arg2))
+
+    case BinOp("||", arg1, arg2) =>
+      convertToCNF()
+    case PreOp("!", arg) =>
+      convertNot(arg)
+
+    case p: _ =>
+      p
+
+  }
+
+  def convertNot(prop: Expression): Expression = prop match {
+    case BinOp("&&", arg1, arg2) =>
+      convertToCNF(BinOp("||", PreOp("!", arg1), PreOp("!", arg2)))
+
+    case BinOp("||", arg1, arg2) =>
+      convertToCNF(BinOp("&&", PreOp("!", arg1), PreOp("!", arg2)))
+
+    case PreOp("!", arg) =>
+      convertToCNF(arg)
+
+    case p: _ =>
+      p
   }
 
 }

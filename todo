@@ -1,0 +1,14 @@
+implement loop invariants
+work on execution:
+-fix updating P for assigns
+-if rule - finish merging Ps
+-converting propositions to CNF
+-figure out operation data structure/expand expression class as needed
+-fix binding for exists - need to define bound variables as separate
+-fix up logical operators
+-remove remnants of function definitions, types
+
+eventually:
+using SMT solver
+arrays?
+user defining P? D? Gamma? 

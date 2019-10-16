@@ -61,28 +61,7 @@ case class BinOp(op: String, arg1: Expression, arg2: Expression) extends Express
   override def getVariables: Set[Id] = arg1.getVariables ++ arg2.getVariables
 }
 
-case class Question(test: Expression, left: Expression, right: Expression) extends Expression {
-  override def toString = "(" + test + " ? " + left + " : " + right + ")"
-  override def getVariables: Set[Id] = test.getVariables ++ left.getVariables ++ right.getVariables
-}
-
 /*
-case class SizeOfType(typ: Type) extends Expression
-case class SizeOfExpression(expression: Expression) extends Expression
-case class Cast(typ: Type, expression: Expression) extends Expression
-
-case class Arrow(expression: Expression, field: String) extends Expression {
-  override def toString = expression + "->" + field
-}
- */
-
-case class FunCall(fun: Id, args: List[Expression]) extends Expression { // no function pointers
-  def this(name: String, args: Array[Expression]) = this(Id(name), args.toList)
-  override def toString = fun + args.mkString("(", ", ", ")")
-
-  override def getVariables: Set[Id] = Set()
-}
-
 case class Exists(bound: Set[Id], body: Expression) extends Expression {
   override def toString = {
     if (bound.isEmpty)
@@ -96,7 +75,4 @@ case class Exists(bound: Set[Id], body: Expression) extends Expression {
     copy(bound = bound ++ toBind)
   }
 }
-
-/*
-
-} */
+*/

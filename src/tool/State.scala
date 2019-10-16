@@ -27,6 +27,17 @@ case class State(
   def assign(id: Id, arg: Expression): State = {
     // need to REPLACE variable value not just add
 
+    for (prop <- P) prop match {
+      case BinOp("=", arg1, arg2) =>
+
+      case BinOp(">", arg1, arg2) =>
+
+      case BinOp("<", arg1, arg2) =>
+
+      case BinOp("", arg1, arg2) =>
+
+    }
+
     // add variable to P
     val PPrime = BinOp("=", id, arg) :: P // update P
     val stable = noWrite ++ noReadWrite
@@ -230,7 +241,10 @@ case class State(
 
     // need to OR P1 and P2 and convert to CNF
 
-    copy(gamma = gammaPrime, D = DPrime)
+    val PPrime: List[Expression] = List()
+    val PPrimeRestricted = State.restrictP(PPrime, noReadWrite ++ noWrite)
+
+    copy(gamma = gammaPrime, D = DPrime, P = PPrimeRestricted)
   }
 
 }

@@ -3,20 +3,6 @@ package tool
 import java.io.FileReader
 import collection.JavaConverters._
 
-object error {
-
-  abstract class Error extends Exception {
-    def info: Seq[Any]
-
-    override def toString = info.mkString(" ")
-  }
-
-  case class InvalidControlVariables(info: Any*) extends Error
-  case class InvalidProgram(info: Any*) extends Error
-  case class SecurityError(info: Any*) extends Error
-
-}
-
 object Tool {
 
   def main(args: Array[String]): Unit = {
