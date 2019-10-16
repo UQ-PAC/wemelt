@@ -12,6 +12,8 @@ object error {
   }
 
   case class InvalidControlVariables(info: Any*) extends Error
+  case class InvalidProgram(info: Any*) extends Error
+  case class SecurityError(info: Any*) extends Error
 
 }
 
@@ -24,10 +26,10 @@ object Tool {
       for (file <- args) {
         Console.out.println(file)
         val (statements, variables) = parse(file)
-        val st0: State = State.init(variables)
+        val state0: State = State.init(variables)
+        Exec.execute(statements, state0)
       }
     }
-
   }
 
   def parse(file: String): (List[Statement], Set[Variable]) = {
@@ -49,69 +51,6 @@ object Tool {
     (globals, variables2)
   }
 
-  def init(variables: Set[Variable]) = {
-    var globals: Set[Variable] = Set()
-    var locals: Set[Variable] = Set()
-    var noReadWrite: Set[Variable] = Set()
-    var readWrite: Set[Variable] = Set()
-    var noWrite: Set[Variable] = Set()
-    var controls: Set[Variable] = Set()
-    var controlled: Set[Variable] = Set()
-    var idToVariable: Map[Id, Variable] = Map()
 
-    for (v <- variables) {
-      idToVariable += (v.name -> v)
-    }
-
-    for (v <- variables) {
-      v.mode.mode match {
-        case "Reg" =>
-          locals += v
-          noReadWrite += v
-        case "NoRW" =>
-          globals += v
-          noReadWrite += v
-        case "NoW" =>
-          globals += v
-          noWrite += v
-        case "RW" =>
-          globals += v
-          readWrite += v
-      }
-      val controlling: Set[Id] = v.pred.pred.getVariables
-      if (controlling.nonEmpty) {
-        if (controls.contains(v)) {
-          throw error.InvalidControlVariables(v.name + " is both controlled and a control variable")
-        }
-        controlled += v
-      }
-      for (i <- controlling) {
-        val variable: Variable = idToVariable(i)
-        println(v)
-        println(variable)
-        variable.controlled += v
-        controls += variable
-      }
-    }
-    println("globals")
-    println(globals)
-    println("locals")
-    println(locals)
-    println("no read write")
-    println(noReadWrite)
-    println("read write")
-    println(readWrite)
-    println("no write")
-    println(noWrite)
-    println("controls")
-    println(controls)
-    println("controlled")
-    println(controlled)
-
-    for (v <- variables) {
-      println("controlled by " + v)
-      println(v.controlled)
-    }
-  }
 
 }

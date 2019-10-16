@@ -1,66 +1,279 @@
 package tool
 
 case class State(
-  gamma: Map[Variable, Boolean],
-  D: Map[Variable, (Set[Variable], Set[Variable], Set[Variable], Set[Variable])], // W_w, W_r, R_w, R_r
-  knownW: Set[Variable],
-  knownR: Set[Variable],
-  later_w: Set[Variable],
-  later_r: Set[Variable],
-  globals: Set[Variable],
-  locals: Set[Variable],
-  noReadWrite: Set[Variable],
-  readWrite: Set[Variable],
-  noWrite: Set[Variable],
-  controls: Set[Variable],
-  controlled: Set[Variable],
-  idToVariable: Map[Id, Variable],
-  variables: Set[Variable]) {
+  gamma: Map[Id, Boolean],
+  D: Map[Id, (Set[Id], Set[Id], Set[Id], Set[Id])], // W_w, W_r, R_w, R_r
+  P: List[Expression],
+
+  L: Map[Id, Expression],
+
+  globals: Set[Id],
+  locals: Set[Id],
+
+  noReadWrite: Set[Id],
+  readWrite: Set[Id],
+  noWrite: Set[Id],
+
+  controls: Set[Id],
+  controlled: Set[Id],
+  controlledBy: Map[Id, Set[Id]], // CLed(name)
+
+  variables: Set[Id],
+
+
+  read: Set[Id],
+  written: Set[Id]) {
+
+  def assign(id: Id, arg: Expression): State = {
+    // need to REPLACE variable value not just add
+
+    // add variable to P
+    val PPrime = BinOp("=", id, arg) :: P // update P
+    val stable = noWrite ++ noReadWrite
+
+    // restricted to stable variables
+    copy(P = State.restrictP(PPrime, stable))
+  }
+
+  /**
+   * Introduce an uninitialised variable
+   */
+    /*
+  def define(id: Id): State = {
+    copy(stack = stack + (id -> Lit("uninitialised")))
+  }
+     */
+
+  /**
+   * Introduce a variable with an initializer.
+   */
+  def define(id: Id, _init: Expression): State = {
+    val st0 = this
+    val st1 = st0 assign (id, _init)
+    st1
+  }
+
+  def W_w(v: Id): Set[Id] = D(v)._1
+  def W_r(v: Id): Set[Id] = D(v)._2
+  def R_w(v: Id): Set[Id] = D(v)._3
+  def R_r(v: Id): Set[Id] = D(v)._4
+
+  def resetReadWrite(): State = {
+    copy(read = Set(), written = Set())
+  }
+
+  def updateRead(id: Id): State = {
+    copy(read = read + id)
+  }
+
+  def updateWritten(id: Id): State = {
+    copy(written = written + id)
+  }
+
+  def knownW(): Set[Id] = {
+    val a = for (v <- read) yield {
+      W_w(v)
+    }
+    val b = for (v <- written) yield {
+      W_r(v)
+    }
+    a.flatten ++ b.flatten
+  }
+
+  def knownR(): Set[Id] = {
+    val a = for (v <- read) yield {
+      R_w(v)
+    }
+    val b = for (v <- written) yield {
+      R_r(v)
+    }
+    a.flatten ++ b.flatten
+  }
+
+  def updateD(laterW: Set[Id], laterR: Set[Id]): Map[Id, (Set[Id], Set[Id], Set[Id], Set[Id])] = {
+    for (i <- variables) yield {
+      if ((read ++ written).contains(i)) {
+        val w_w = if (laterW.contains(i)) {
+          W_w(i) ++ knownW()
+        } else {
+          W_w(i) -- written
+        }
+        val w_r = if (laterW.contains(i)) {
+          W_r(i) ++ knownW()
+        } else {
+          W_r(i) -- written
+        }
+        val r_w = if (laterR.contains(i)) {
+          R_w(i) ++ knownR()
+        } else {
+          R_w(i) -- read
+        }
+        val r_r = if (laterR.contains(i)) {
+          R_r(i) ++ knownR()
+        } else {
+          R_r(i) -- read
+        }
+        i -> (w_w, w_r, r_w, r_r)
+      } else {
+        i -> D(i)
+      }
+    }
+  }.toMap
+
+  def updateDAssign(x: Id, e: Expression) : State = {
+    val varE = e.getVariables // var(e)
+    val laterW: Set[Id] = Set(x) ++ varE
+    val laterR: Set[Id] = if (varE.intersect(globals).isEmpty) {
+      Set(x) ++ varE.intersect(globals)
+    } else {
+      Set()
+    }
+
+    val DPrime: Map[Id, (Set[Id], Set[Id], Set[Id], Set[Id])] = updateD(laterW, laterR)
+
+    copy(D = DPrime)
+  }
+
+  def updateDGuard(b: Expression) : State = {
+    val varB = b.getVariables // var(b)
+    val laterW: Set[Id] = globals ++ varB
+    val laterR: Set[Id] = globals & varB
+
+    val DPrime: Map[Id, (Set[Id], Set[Id], Set[Id], Set[Id])] = updateD(laterW, laterR)
+
+    copy(D = DPrime)
+  }
+
+  def updateDFence(): State = {
+    val DPrime: Map[Id, (Set[Id], Set[Id], Set[Id], Set[Id])] = {
+      for (v <- variables)
+        yield v -> (variables, variables, variables, variables)
+    }.toMap
+
+    copy(D = DPrime)
+  }
+
+  // placeholder
+  def lowP(id: Id): Boolean = {
+    // prove if L(x) holds given P
+    true
+  }
+
+  def highP(id: Id): Boolean = {
+    // prove if L(x) doesn't hold given P
+    true
+  }
+
+  // e is expression to get security of, p is P value given so can substitute in P_a etc. - not sure if this is the best way to do this
+  def security(e: Expression, p: List[Expression]): Boolean = {
+    var low = true
+    val it = variables.toIterator
+    // if x security is high, return, otherwise keep checking
+    while (it.hasNext && low) {
+      val x: Id = it.next()
+      low = if (gamma.contains(x)) {
+        gamma(x)
+      } else {
+        lowP(x) // true/LOW if L(x) holds given P, false/HIGH otherwise
+      }
+    }
+    low
+  }
+
+  def updateGammaAssign(x: Id, e: Expression): State = {
+    val t = security(e, P)
+    val gammaPrime = gamma + (x -> t)
+    copy(gamma = gammaPrime)
+  }
+
+  def restrictP(restricted: Set[Id]): List[Expression] = {
+    State.restrictP(P, restricted)
+  }
+
+  def updatePIfLeft(b: Expression): State = {
+    // remove free occurences of unstable variables
+    val bRestrict = b.restrict(noReadWrite ++ noWrite)
+
+    val PPrime = bRestrict :: this.P
+    copy(P = PPrime)
+  }
+
+  def updatePIfRight(b: Expression): State = {
+    // negate B
+    val notB = PreOp("!", b)
+    // remove free occurences of unstable variables
+    val bRestrict = notB.restrict(noReadWrite ++ noWrite)
+
+    val PPrime = bRestrict :: this.P
+    copy(P = PPrime)
+  }
+
+  def mergeIf(state2: State): State = {
+    val state1 = this
+
+    // gamma'(x) = maximum security of gamma_1(x) and gamma_2(x))
+    val gammaPrime: Map[Id, Boolean] = {
+      for (v <- state1.variables) yield {
+        v -> (state1.gamma(v) && state2.gamma(v))
+      }
+    }.toMap
+
+    // D' = D1 intersect D2
+    val DPrime: Map[Id, (Set[Id], Set[Id], Set[Id], Set[Id])] = {
+      for (v <- state1.variables) yield {
+        v -> ((state1.W_w(v) intersect state2.W_w(v),
+          state1.W_r(v) intersect state2.W_r(v),
+          state1.R_w(v) intersect state2.R_w(v),
+          state1.R_r(v) intersect state2.R_r(v)))
+      }
+    }.toMap
+
+    // need to OR P1 and P2 and convert to CNF
+
+    copy(gamma = gammaPrime, D = DPrime)
+  }
+
 }
 
 object State {
   def init(variables: Set[Variable]): State = {
-    var globals: Set[Variable] = Set()
-    var locals: Set[Variable] = Set()
-    var noReadWrite: Set[Variable] = Set()
-    var readWrite: Set[Variable] = Set()
-    var noWrite: Set[Variable] = Set()
-    var controls: Set[Variable] = Set()
-    var controlled: Set[Variable] = Set()
-    var idToVariable: Map[Id, Variable] = Map()
+    var globals: Set[Id] = Set()
+    var locals: Set[Id] = Set()
+    var noReadWrite: Set[Id] = Set()
+    var readWrite: Set[Id] = Set()
+    var noWrite: Set[Id] = Set()
+    var controls: Set[Id] = Set()
+    var controlled: Set[Id] = Set()
+    val controlledBy: Map[Id, Set[Id]] = Map()
 
-    for (v <- variables) {
-      idToVariable += (v.name -> v)
-    }
+    val ids: Set[Id] = for (v <- variables)
+      yield v.name
 
     for (v <- variables) {
       v.mode.mode match {
         case "Reg" =>
-          locals += v
-          noReadWrite += v
+          locals += v.name
+          noReadWrite += v.name
         case "NoRW" =>
-          globals += v
-          noReadWrite += v
+          globals += v.name
+          noReadWrite += v.name
         case "NoW" =>
-          globals += v
-          noWrite += v
+          globals += v.name
+          noWrite += v.name
         case "RW" =>
-          globals += v
-          readWrite += v
+          globals += v.name
+          readWrite += v.name
       }
       val controlling: Set[Id] = v.pred.pred.getVariables
       if (controlling.nonEmpty) {
-        if (controls.contains(v)) {
+        if (controls.contains(v.name)) {
           throw error.InvalidControlVariables(v.name + " is both controlled and a control variable")
         }
-        controlled += v
+        controlled += v.name
       }
       for (i <- controlling) {
-        val variable: Variable = idToVariable(i)
-        println(v)
-        println(variable)
-        variable.controlled += v
-        controls += variable
+        controlledBy(i) += v.name
+        controls += i
       }
     }
     println("globals")
@@ -80,22 +293,39 @@ object State {
 
     for (v <- variables) {
       println("controlled by " + v)
-      println(v.controlled)
+      println(controlledBy(v.name))
     }
 
     // init D - every variable maps to Var
+    val D: Map[Id, (Set[Id], Set[Id], Set[Id], Set[Id])] = {
+      for (i <- ids)
+        yield i -> (ids, ids, ids, ids)
+    }.toMap
 
-    // init gamma
+    println(D)
 
-    //
+    // init gamma - all variables uninitialised initially so set security to be high
+    // will need to change this later to handle pre-defining variables etc
+    val gamma: Map[Id, Boolean] = {
+      // dom gamma = stable variables without control variables
+      for (i <- ids if !controls.contains(i) && (noReadWrite.contains(i) || noWrite.contains(i))) yield {
+        i-> false
+      }
+    }.toMap
+
+    // init L - map variables to their L predicates
+    val L: Map[Id, Expression] = {
+      for (v <- variables)
+        yield v.name -> v.pred.pred
+    }.toMap
+
+    println(gamma)
 
     State(
-      gamma = Map(),
-      D = Map(),
-      knownW = Set(),
-      knownR = Set(),
-      later_w = Set(),
-      later_r = Set(),
+      gamma = gamma,
+      D = D,
+      P = List(Lit("True")),
+      L = L,
       globals = globals,
       locals = locals,
       noReadWrite = noReadWrite,
@@ -103,8 +333,18 @@ object State {
       noWrite = noWrite,
       controls = controls,
       controlled = controlled,
-      idToVariable = idToVariable,
-      variables = variables
+      controlledBy = controlledBy,
+      variables = ids,
+      read = Set(),
+      written = Set()
     )
   }
+
+  // calculate P|_known_W(a) etc. with known_W(a) being the input set in that example
+  def restrictP(P: List[Expression], restricted: Set[Id]): List[Expression] = {
+    for (pred <- P) yield {
+      pred.restrict(restricted)
+    }
+  }
+
 }

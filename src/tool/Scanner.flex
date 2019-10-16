@@ -85,7 +85,7 @@ WS = {NL} | [ \t\f]
 "?"         { return newToken(Terminals.QUESTION); }
 ":"         { return newToken(Terminals.COLON);    }
 "="         { return newToken(Terminals.ASG); }
-"+="|"-="|"*="|"/="|"%="|"<<="|">>="|"&="|"^="|"|="
+//"+="|"-="|"*="|"/="|"%="|"<<="|">>="|"&="|"^="|"|="
             { return newToken(Terminals.ASG_OP, yytext()); }
 ","         { return newToken(Terminals.COMMA);    }
 ";"         { return newToken(Terminals.SEMICOLON);}

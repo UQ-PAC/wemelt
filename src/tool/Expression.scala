@@ -9,7 +9,26 @@ case class Param(typ: Type, name: String) extends beaver.Symbol {
 }
 
 trait Expression extends beaver.Symbol {
-    def getVariables: Set[Id]
+  def getVariables: Set[Id]
+
+  // existentially quantify all predicates that aren't in restricted
+  def restrict(restricted: Set[Id]): Expression = {
+    // get set of variables that aren't in restricted
+    val toBind = for (v <- getVariables if !restricted.contains(v))
+      yield v
+
+    // if no variables need to be bound then predicate stays the same
+    if (toBind.isEmpty) {
+      this
+    } else {
+      this match {
+        case e: Exists =>
+          e.bind(toBind)
+        case _ =>
+          Exists(toBind, this)
+      }
+    }
+  }
 }
 
 case class Lit(arg: Any) extends Expression {
@@ -64,8 +83,18 @@ case class FunCall(fun: Id, args: List[Expression]) extends Expression { // no f
   override def getVariables: Set[Id] = Set()
 }
 
-case class Init(values: List[(Option[String], Expression)]) extends Expression { // { .field = value } or { value }
-  override def getVariables: Set[Id] = Set()
+case class Exists(bound: Set[Id], body: Expression) extends Expression {
+  override def toString = {
+    if (bound.isEmpty)
+      body.toString
+    else
+      bound.mkString("exists ", ", ", ". ") + body
+  }
+  override def getVariables: Set[Id] = body.getVariables -- bound
+
+  def bind(toBind: Set[Id]): Exists = {
+    copy(bound = bound ++ toBind)
+  }
 }
 
 /*

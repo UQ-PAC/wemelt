@@ -187,8 +187,8 @@ local1
     | IF LPAREN expr.a RPAREN local.b   {: return new If(a, b);  :}
     | IF LPAREN expr.a RPAREN local.b ELSE local.c     {: return new If(a, b, c);   :}
     | WHILE LPAREN expr.a RPAREN /*invars.i */ local.b      {: return new While(a, /*i,*/ b);   :}
-    | DO local.b WHILE LPAREN expr.a RPAREN SEMICOLON  {: return new DoWhile(b, a); :}
-    | FOR LPAREN expr.a SEMICOLON expr.b SEMICOLON expr.c SEMICOLON RPAREN local.p        {: return new For(a, b, c, p); :}
+    //| DO local.b WHILE LPAREN expr.a RPAREN SEMICOLON  {: return new DoWhile(b, a); :}
+    //| FOR LPAREN expr.a SEMICOLON expr.b SEMICOLON expr.c SEMICOLON RPAREN local.p        {: return new For(a, b, c, p); :}
     | error SEMICOLON {: return Malformed.self(); :}
     ;
 
@@ -197,13 +197,9 @@ expr
     = PREFIX | POSTFIX /* unused */
     | ID.n                              {: return new Id(n);  :}
     | NUM.n                             {: return new Lit(n); :}
-    | expr.a INCR  @ POSTFIX            {: return new PostOp("++", a);  :}
-    | expr.a DECR  @ POSTFIX            {: return new PostOp("--", a);  :}
     //| expr.a ARROW  ID.f                {: return new Arrow(a, f);      :}
     //| expr.a DOT    ID.f                {: return new PreOp("*", new Arrow(a, f));    :}
-    | expr.a LBRACK expr.i RBRACK       {: return new PreOp("*", new BinOp("+", a, i)); :}
-    | INCR  expr.a @ PREFIX             {: return new PreOp("++", a);   :}
-    | DECR  expr.a @ PREFIX             {: return new PreOp("--", a);   :}
+    //| expr.a LBRACK expr.i RBRACK       {: return new PreOp("*", new BinOp("+", a, i)); :}
     | PLUS  expr.a @ PREFIX             {: return new PreOp("+", a);    :}
     | MINUS expr.a @ PREFIX             {: return new PreOp("-", a);    :}
     | BANG  expr.a @ PREFIX             {: return new PreOp("!", a);    :}
@@ -230,10 +226,9 @@ expr
     | expr.a AND    expr.b              {: return new BinOp("&&",a, b); :}
     | expr.a OR     expr.b              {: return new BinOp("||",a, b); :}
     | expr.a ASG    expr.b              {: return new BinOp("=", a, b); :}
-    | expr.a ASG_OP.e  expr.b           {: return new BinOp("=", a, new BinOp(e.substring(0, e.length() - 1), a, b));   :}
     | expr.a COMMA  expr.b              {: return new BinOp(",", a, b); :}
-    | ID.n LPAREN RPAREN                {: return new FunCall(n, new Expression[]{}); :}
-    | ID.n LPAREN exprs.as RPAREN       {: return new FunCall(n, as);   :}
+    //| ID.n LPAREN RPAREN                {: return new FunCall(n, new Expression[]{}); :}
+    //| ID.n LPAREN exprs.as RPAREN       {: return new FunCall(n, as);   :}
     //| LPAREN type.t RPAREN expr.a       {: return new Cast(t, a);       :}
     | LPAREN expr.e RPAREN              {: return (Symbol) e;           :}
     | expr.a QUESTION expr.b COLON expr.c    {: return new Question(a, b, c); :}

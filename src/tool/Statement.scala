@@ -129,7 +129,6 @@ object Syntax {
     //    case Dot(expression, field) => modifies(expression)
     //    case Index(expression, index) => modifies(expression) ++ modifies(index)
     case FunCall(name, args) => Set() ++ (args flatMap modifies)
-    case Init(values) => Set() ++ (values flatMap { case (_, expression) => modifies(expression) })
   }
 
   def hasEffects(expression: Expression): Boolean = expression match {
@@ -151,7 +150,6 @@ object Syntax {
     //    case Dot(expression, field) => hasEffects(expression)
     //    case Index(expression, index) => hasEffects(expression) || hasEffects(index)
     case FunCall(name, args) => true // XXX: approximation
-    case Init(values) => (values exists { case (_, expression) => hasEffects(expression) })
   }
 
   def modifies(statement: Statement): Set[Id] = statement match {
