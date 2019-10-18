@@ -168,11 +168,15 @@ case class State(
   // placeholder
   def lowP(id: Id): Boolean = {
     // prove if L(x) holds given P
+    SMT.prove(L(id), P)
+
     true
   }
 
   def highP(id: Id): Boolean = {
     // prove if L(x) doesn't hold given P
+    SMT.prove(PreOp("!", L(id)), P)
+
     true
   }
 
@@ -269,7 +273,7 @@ object State {
     var noWrite: Set[Id] = Set()
     var controls: Set[Id] = Set()
     var controlled: Set[Id] = Set()
-    val controlledBy: Map[Id, Set[Id]] = Map()
+    var controlledBy: Map[Id, Set[Id]] = Map()
 
     val ids: Set[Id] = for (v <- variables)
       yield v.name
@@ -289,15 +293,20 @@ object State {
           globals += v.name
           readWrite += v.name
       }
-      val controlling: Set[Id] = v.pred.pred.getVariables
+      val controlling: Set[Id] = v.pred.getVariables
       if (controlling.nonEmpty) {
         if (controls.contains(v.name)) {
           throw error.InvalidControlVariables(v.name + " is both controlled and a control variable")
         }
         controlled += v.name
       }
+
+      // need to create empty sets for variables that don't control anything
       for (i <- controlling) {
-        controlledBy(i) += v.name
+        if (controlledBy.contains(i))
+          controlledBy += (i -> (controlledBy(i) + v.name))
+        else
+          controlledBy += (i -> Set(v.name))
         controls += i
       }
     }
@@ -318,7 +327,7 @@ object State {
 
     for (v <- variables) {
       println("controlled by " + v)
-      println(controlledBy(v.name))
+      //println(controlledBy(v.name))
     }
 
     // init D - every variable maps to Var
@@ -341,7 +350,7 @@ object State {
     // init L - map variables to their L predicates
     val L: Map[Id, Expression] = {
       for (v <- variables)
-        yield v.name -> v.pred.pred
+        yield v.name -> v.pred
     }.toMap
 
     println(gamma)

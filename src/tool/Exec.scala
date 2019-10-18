@@ -111,48 +111,18 @@ object Exec {
       val merged = _left1.mergeIf(_right1)
       Cont.next(merged)
 
+//    case While(test, invariants, body) =>
+      // check loop invariant variables are
+      // check loop invariant is weaker than previous P
+      //
 
-    /*
-  case If(test, left, None) =>
-    val _test_st = rval_low_test(test, st0)
+      // replace P with invariant AND b_restricted
 
-    val _left = for (
-      (_test, st0) <- _test_st;
-      cont <- post(left, st0 and truth(_test))
-    ) yield cont
+      // execute inside of loop?
 
-    val _right = for (
-      (_test, st0) <- _test_st
-    ) yield Cont.next(st0 and !truth(_test))
+      // check D' is subset of D
+      // remove b_restricted from P'
 
-    _left ++ _right
-
-  case If(test, left, Some(right)) =>
-    val _test_st = rval_low_test(test, st0)
-
-    val _left = for (
-      (_test, st0) <- _test_st;
-      cont <- post(left, st0 and truth(_test))
-    ) yield cont
-
-    val _right = for (
-      (_test, st0) <- _test_st;
-      cont <- post(right, st0 and !truth(_test))
-    ) yield cont
-
-    _left ++ _right
-
-  case While(test, spec, body) =>
-    val invs = spec collect { case Invariant(assrt) => assrt }
-    val inv = Assert.and(invs)
-    val mod = Syntax.modifies(body)
-    */
-      /*
-    case FunDef(ret, id, params, body) =>
-      val st1 = state0 copy (funs = state0.funs + (id -> (ret, params, body)))
-      List(Cont.next(st1))
-
-       */
   }
 
   def rval(expr: Expression, st0: State): (Expression, State) = expr match {
@@ -169,101 +139,73 @@ object Exec {
       val (_rhs, st1) = assign(lhs, rhs, st0)
       (_rhs, st1)
 
-
-      // need to change this to use proper data structure
     case BinOp("==", arg1, arg2) =>
       val (List(_arg1, _arg2), st1) = rvals(List(arg1, arg2), st0)
-      (App(Fun("=="), List(_arg1, _arg2)), st1)
+      (BinOp("==", _arg1, _arg2), st1)
 
     case BinOp("!=", arg1, arg2) =>
       val (List(_arg1, _arg2), st1) = rvals(List(arg1, arg2), st0)
-      (!App(Fun("=="), List(_arg1, _arg2)), st1)
+      (PreOp("!", BinOp("==", _arg1, _arg2)), st1)
 
     case PreOp("!", arg) =>
       val (_arg, st1) = rval(arg, st0)
-      (!_arg, st1)
+      (PreOp("!", _arg), st1)
 
     case BinOp("+", arg1, arg2) =>
-      val (_args, st1) = rvals(List(arg1, arg2), st0)
-      (App(Fun("+"), _args), st1)
+      val (List(_arg1, _arg2), st1) = rvals(List(arg1, arg2), st0)
+      (BinOp("+", _arg1, _arg2), st1)
 
     case BinOp("-", arg1, arg2) =>
-      val (_args, st1) = rvals(List(arg1, arg2), st0)
-      (App(Fun("-"), _args), st1)
+      val (List(_arg1, _arg2), st1) = rvals(List(arg1, arg2), st0)
+      (BinOp("-", _arg1, _arg2), st1)
 
     case BinOp("*", arg1, arg2) =>
-      val (_args, st1) = rvals(List(arg1, arg2), st0)
-      (App(Fun("*"), _args), st1)
+      val (List(_arg1, _arg2), st1) = rvals(List(arg1, arg2), st0)
+      (BinOp("*", _arg1, _arg2), st1)
 
     case BinOp("/", arg1, arg2) =>
-      val (_args, st1) = rvals(List(arg1, arg2), st0)
-      (App(Fun("/"), _args), st1)
+      val (List(_arg1, _arg2), st1) = rvals(List(arg1, arg2), st0)
+      (BinOp("/", _arg1, _arg2), st1)
 
     case BinOp("%", arg1, arg2) =>
-      val (_args, st1) = rvals(List(arg1, arg2), st0)
-      (App(Fun("%"), _args), st1)
+      val (List(_arg1, _arg2), st1) = rvals(List(arg1, arg2), st0)
+      (BinOp("%", _arg1, _arg2), st1)
 
     case BinOp("<=", arg1, arg2) =>
-      val (_args, st1) = rvals(List(arg1, arg2), st0)
-      (App(Fun("<="), _args), st1)
+      val (List(_arg1, _arg2), st1) = rvals(List(arg1, arg2), st0)
+      (BinOp("<=", _arg1, _arg2), st1)
 
     case BinOp("<", arg1, arg2) =>
-      val (_args, st1) = rvals(List(arg1, arg2), st0)
-      (App(Fun("<"), _args), st1)
+      val (List(_arg1, _arg2), st1) = rvals(List(arg1, arg2), st0)
+      (BinOp("<", _arg1, _arg2), st1)
 
     case BinOp(">=", arg1, arg2) =>
-      val (_args, st1) = rvals(List(arg1, arg2), st0)
-      (App(Fun(">="), _args), st1)
+      val (List(_arg1, _arg2), st1) = rvals(List(arg1, arg2), st0)
+      (BinOp(">=", _arg1, _arg2), st1)
 
     case BinOp(">", arg1, arg2) =>
-      val (_args, st1) = rvals(List(arg1, arg2), st0)
-      (App(Fun(">"), _args), st1)
+      val (List(_arg1, _arg2), st1) = rvals(List(arg1, arg2), st0)
+      (BinOp(">", _arg1, _arg2), st1)
 
-      /*
-    // don't fork if the rhs has no side effects
-    case BinOp("||", arg1, arg2) if !Syntax.hasEffects(arg2) =>
-      for (
-        (_arg1, st1) <- rval_low_test(arg1, st0);
-        (_arg2, st2) <- rval(arg2, st1)
-      ) yield (App(Fun("||"), List(_arg1, _arg2)), st2)
-
-    case BinOp("&&", arg1, arg2) if !Syntax.hasEffects(arg2) =>
-      for (
-        (_arg1, st1) <- rval_low_test(arg1, st0);
-        (_arg2, st2) <- rval(arg2, st1)
-      ) yield (App(Fun("&&"), List(_arg1, _arg2)), st2)
-
-    // shortcut evaluation yields two states
     case BinOp("||", arg1, arg2) =>
-      val _arg1_st = rval_low_test(arg1, st0)
+      val (List(_arg1, _arg2), st1) = rvals(List(arg1, arg2), st0)
+      (BinOp("||", _arg1, _arg2), st1)
 
-      val _true = for (
-        (_arg1, st1) <- _arg1_st
-      ) yield (Const._true, st1 and _arg1)
-
-      val _false = for (
-        (_arg1, st1) <- _arg1_st;
-        (_arg2, st2) <- rval(arg2, st1 and !_arg1)
-      ) yield (_arg2, st2)
-
-      _true ++ _false
-
-    // shortcut evaluation yields two states
     case BinOp("&&", arg1, arg2) =>
-      val _arg1_st = rval_low_test(arg1, st0)
+      val (List(_arg1, _arg2), st1) = rvals(List(arg1, arg2), st0)
+      (BinOp("&&", _arg1, _arg2), st1)
 
-      val _false = for (
-        (_arg1, st1) <- _arg1_st
-      ) yield (Const._false, st1 and !_arg1)
+    case BinOp("|", arg1, arg2) =>
+      val (List(_arg1, _arg2), st1) = rvals(List(arg1, arg2), st0)
+      (BinOp("|", _arg1, _arg2), st1)
 
-      val _true = for (
-        (_arg1, st1) <- _arg1_st;
-        (_arg2, st2) <- rval(arg2, st1 and _arg1)
-      ) yield (_arg2, st2)
+    case BinOp("&", arg1, arg2) =>
+      val (List(_arg1, _arg2), st1) = rvals(List(arg1, arg2), st0)
+      (BinOp("&", _arg1, _arg2), st1)
 
-      _false ++ _true
-
-       */
+    case BinOp("^", arg1, arg2) =>
+      val (List(_arg1, _arg2), st1) = rvals(List(arg1, arg2), st0)
+      (BinOp("^", _arg1, _arg2), st1)
 
   }
 
@@ -330,7 +272,7 @@ object Exec {
   }
 
   // check lvalue is a variable
-  def lval(expr: Expression, st0: State): (Id, State) = {
+  def lval(expr: Expression, st0: State): (Id, State) = expr match {
     case id: Id =>
       (id, st0)
 

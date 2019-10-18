@@ -51,7 +51,8 @@ case class If(test: Expression, left: Statement, right: Option[Statement]) exten
   def this(test: Expression, left: Statement, right: Statement) = this(test, left, Some(right))
 }
 
-case class While(test: Expression, body: Statement) extends Statement {
+case class While(test: Expression, invariant: List[Expression], body: Statement) extends Statement {
+  def this(test: Expression, invariant: Array[Expression], body: Statement) = this(test, invariant.toList, body)
 }
 
 /*

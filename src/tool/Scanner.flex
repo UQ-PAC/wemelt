@@ -57,8 +57,8 @@ WS = {NL} | [ \t\f]
 //"]"         { return newToken(Terminals.RBRACK);   }
 "{"         { return newToken(Terminals.LBRACE);   }
 "}"         { return newToken(Terminals.RBRACE);   }
-"++"        { return newToken(Terminals.INCR);     }
-"--"        { return newToken(Terminals.DECR);     }
+//"++"        { return newToken(Terminals.INCR);     }
+//"--"        { return newToken(Terminals.DECR);     }
 //"."         { return newToken(Terminals.DOT);      }
 //"->"        { return newToken(Terminals.ARROW);    }
 "!"         { return newToken(Terminals.BANG);     }
@@ -82,7 +82,7 @@ WS = {NL} | [ \t\f]
 "|"         { return newToken(Terminals.PIPE);     }
 "&&"        { return newToken(Terminals.AND);      }
 "||"        { return newToken(Terminals.OR);       }
-"?"         { return newToken(Terminals.QUESTION); }
+//"?"         { return newToken(Terminals.QUESTION); }
 ":"         { return newToken(Terminals.COLON);    }
 "="         { return newToken(Terminals.ASG); }
 
@@ -102,12 +102,12 @@ WS = {NL} | [ \t\f]
 //"enum"      { return newToken(Terminals.ENUM);     }
 //"typedef"   { return newToken(Terminals.TYPEDEF);  }
 
-"break"     { return newToken(Terminals.BREAK);    }
-"return"    { return newToken(Terminals.RETURN);   }
-"continue"  { return newToken(Terminals.CONTINUE); }
-"do"        { return newToken(Terminals.DO);       }
+//"break"     { return newToken(Terminals.BREAK);    }
+//"return"    { return newToken(Terminals.RETURN);   }
+//"continue"  { return newToken(Terminals.CONTINUE); }
+//"do"        { return newToken(Terminals.DO);       }
 "while"     { return newToken(Terminals.WHILE);    }
-"for"       { return newToken(Terminals.FOR);      }
+//"for"       { return newToken(Terminals.FOR);      }
 "if"        { return newToken(Terminals.IF);       }
 "else"      { return newToken(Terminals.ELSE);     }
 
@@ -117,7 +117,7 @@ WS = {NL} | [ \t\f]
 "NoRW"      { return newToken(Terminals.NORW);    }
 "NoW"      { return newToken(Terminals.NOW);    }
 "RW"      { return newToken(Terminals.RW);    }
-//"_(invariant" {return newToken(Terminals.INVARIANT);}
+"_invariant" {return newToken(Terminals.INVARIANT);}
 
 [a-zA-Z_][a-zA-Z_0-9]*
             { return resolve(yytext()); }

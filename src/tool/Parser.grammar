@@ -89,7 +89,7 @@
 %typeof local2  = "Statement";
 %typeof global  = "Global";
 
-%typeof lpred = "Predicate";
+%typeof lpred = "Expression";
 %typeof mode = "Mode";
 
 %goal unit;
@@ -105,7 +105,7 @@ params = param | params COMMA param;
 //const  = ID.n;
 //consts = const | consts COMMA const;
 
-//exprs = expr @ ASG | exprs COMMA expr;
+exprs = expr @ ASG | exprs COMMA expr;
 //terms = term | terms COMMA term;
 
 global
@@ -176,12 +176,11 @@ local1
                                                             return new VarDef(t, n, e); :}
     | IF LPAREN expr.a RPAREN local.b   {: return new If(a, b);  :}
     | IF LPAREN expr.a RPAREN local.b ELSE local.c     {: return new If(a, b, c);   :}
-    | WHILE LPAREN expr.a RPAREN /*invars.i */ local.b      {: return new While(a, /*i,*/ b);   :}
+    | WHILE LPAREN expr.a RPAREN INVARIANT COLON exprs.i local.b      {: return new While(a, i, b);   :}
     //| DO local.b WHILE LPAREN expr.a RPAREN SEMICOLON  {: return new DoWhile(b, a); :}
     //| FOR LPAREN expr.a SEMICOLON expr.b SEMICOLON expr.c SEMICOLON RPAREN local.p        {: return new For(a, b, c, p); :}
     | error SEMICOLON {: return Malformed.self(); :}
     ;
-
 
 expr
     = PREFIX | POSTFIX /* unused */
@@ -216,7 +215,7 @@ expr
 
 // for _L(x): pred construction to set predicate for variable security level
 lpred
-    = LPRED COLON expr.a {: return new Predicate(a); :}
+    = LPRED COLON expr.a {: return (Symbol) a; :}
     ;
 
 // for _Mode(x): NoRW etc. construction to set variable mode

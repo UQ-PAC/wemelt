@@ -10,6 +10,7 @@ package object tool {
     case class InvalidControlVariables(info: Any*) extends Error
     case class InvalidProgram(info: Any*) extends Error
     case class SecurityError(info: Any*) extends Error
+    case class Z3Error(info: Any*) extends Error
 
   }
 
