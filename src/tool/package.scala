@@ -13,26 +13,17 @@ package object tool {
 
   }
 
-  type Typing = Set[Var]
   type Rename = Map[Var, Var]
-  type Subst = Map[Var, Pure]
-
-  object Typing {
-    val empty: Typing = Set()
-
-    def apply(xs: List[Param]): Typing = {
-      xs.map(x => (x.toVar, x.typ)).toMap
-    }
-  }
+  type Subst = Map[Var, Expression]
 
   object Subst {
     val empty: Subst = Map()
 
-    def apply(xs: (Var, Pure)*): Subst = {
+    def apply(xs: (Var, Expression)*): Subst = {
       xs.toMap
     }
 
-    def apply(ps: List[Param], as: List[Pure]): Subst = {
+    def apply(ps: List[Id], as: List[Expression]): Subst = {
       val xs = ps map (_.toVar)
       apply(xs zip as: _*)
     }
@@ -41,10 +32,10 @@ package object tool {
       xs.map(x => (x, x.fresh)).toMap
     }
 
-    def refresh(bound: Typing, xs: Set[Var]): (Typing, Rename) = {
+    def refresh(bound: Set[Var], xs: Set[Var]): (Set[Var], Rename) = {
       assert(xs subsetOf bound)
       val su = Subst.fresh(xs)
-      val ty = xs map (x => su(x) -> bound(x))
+      val ty = xs map (x => su(x))
       (bound -- xs ++ ty, su)
     }
 
@@ -52,4 +43,19 @@ package object tool {
       Set() ++ (env.values flatMap (_.free))
     }
   }
+
+  val sub = "₀₁₂₃₄₅₆₇₈₉"
+  implicit class StringOps(self: String) {
+    def prime = self + "'"
+
+    def __(index: Int): String = {
+      self + (index.toString map (n => sub(n - '0')))
+    }
+
+    def __(index: Option[Int]): String = index match {
+      case None => self
+      case Some(index) => this __ index
+    }
+  }
+
 }

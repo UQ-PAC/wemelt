@@ -1,31 +1,26 @@
 package tool
 
-import java.beans.Expression
-
 sealed trait Cont {
   def st: State
 }
 
 object Cont {
   case class next(st: State) extends Cont
+  /*
   case class break(st: State) extends Cont
   case class cont(st: State) extends Cont
-  case class ret(result: Expression, st: State) extends Cont
+  case class ret(result: Expression, st: State) extends Cont */
 }
 
 
 
 object Exec {
-  // fix this
   def execute(statements: List[Statement], state: State): Cont = statements match {
     case Nil =>
       Cont.next(state)
     case stmt :: rest =>
-      execute(stmt, state) match {
-        case Cont.next(st) => execute(rest, st)
-        case Cont.ret(ret, st) => Cont.ret(ret, st)
-      }
-
+      val st = execute(stmt, state).st
+      execute(rest, st)
   }
 
   def execute (statement: Statement, state0: State): Cont = statement match {
@@ -54,6 +49,7 @@ object Exec {
       val st5 = st4.updateDAssign(id, _init)
       Cont.next(st5.resetReadWrite())
 
+      /*
     case Continue =>
       Cont.cont(state0)
 
@@ -66,6 +62,8 @@ object Exec {
     case Return(Some(expr)) =>
       val (_expr, st1) = rval(expr, state0)
       Cont.ret(_expr, st1)
+
+       */
 
     case Fence =>
       // reset D
@@ -162,7 +160,7 @@ object Exec {
       // value has been READ
       //val _res = st0 lookup id
       val st1 = st0.updateRead(id)
-      (id, st1)
+      (id.toVar, st1)
 
     case res: Lit =>
       (res, st0)
@@ -269,11 +267,6 @@ object Exec {
 
   }
 
-  def write(id: Id, rhs: Expression, st: State): State = {
-    // loc has been WRITTEN
-    st assign (id, rhs)
-  }
-
   // return tuple contains the new value and the associated state
   def assign(lhs: Expression, rhs: Expression, st0: State): (Expression, State) = {
     val (_rhs, st1) = rval(rhs, st0)
@@ -354,50 +347,6 @@ object Exec {
       val (xs, st) = rvals(rest, pre)
       val (x, post) = rval(expr, st)
       (x :: xs, post)
-  }
-
-  def convertToCNF(props: List[Expression]): List[Expression] = {
-    for (p <- props) p match {
-      case BinOp("&&", arg1, arg2) =>
-        List(arg1, arg2) // fix this
-      case BinOp("||", arg1, arg2) =>
-        // need to recursively build list of each side
-      case PreOp("!", arg) =>
-        convertNot(arg)
-
-      case p: _ =>
-        p
-    }
-  }
-
-
-  // https://www.cs.jhu.edu/~jason/tutorials/convert-to-CNF.html
-  def convertToCNF(prop: Expression): Expression = prop match {
-    case BinOp("&&", arg1, arg2) =>
-      BinOp("&&", convertToCNF(arg1), convertToCNF(arg2))
-
-    case BinOp("||", arg1, arg2) =>
-      convertToCNF()
-    case PreOp("!", arg) =>
-      convertNot(arg)
-
-    case p: _ =>
-      p
-
-  }
-
-  def convertNot(prop: Expression): Expression = prop match {
-    case BinOp("&&", arg1, arg2) =>
-      convertToCNF(BinOp("||", PreOp("!", arg1), PreOp("!", arg2)))
-
-    case BinOp("||", arg1, arg2) =>
-      convertToCNF(BinOp("&&", PreOp("!", arg1), PreOp("!", arg2)))
-
-    case PreOp("!", arg) =>
-      convertToCNF(arg)
-
-    case p: _ =>
-      p
   }
 
 }

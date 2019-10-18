@@ -19,14 +19,14 @@
 //%terminals STRUCT, UNION, ENUM, TYPEDEF;
 
 %terminals RETURN, BREAK, CONTINUE;
-%terminals IF, /* THEN, */ ELSE, DO, WHILE, FOR;
+%terminals IF, ELSE, WHILE; /* THEN, DO, FOR */
 
-%terminals ID, TYPE, FUN, PRED, REG_ID;
+%terminals ID, TYPE, FUN, REG_ID;
 %terminals NUM;
 
 %terminals LPAREN, RPAREN, LBRACK, RBRACK, LBRACE, RBRACE;
-%terminals POSTFIX, INCR, DECR, DOT, ARROW;
-%terminals PREFIX,  BANG, TILDE, SIZEOF;
+%terminals POSTFIX, INCR, DECR, DOT;
+%terminals PREFIX,  BANG, TILDE;
 %terminals STAR, DIV, MOD;
 %terminals PLUS, MINUS;
 %terminals SHL, SHR;
@@ -41,7 +41,7 @@
 %terminals EQV;
 %terminals QUESTION, COLON, DCOLON;
 %terminals PTO;
-%terminals ASG, ASG_OP;
+%terminals ASG;
 %terminals COMMA, SEMICOLON;
 
 %terminals FENCE;
@@ -53,7 +53,6 @@
 %nonassoc LPAREN, RPAREN;
 %left LBRACK;
 %nonassoc UNDERSCORE;
-%left  POSTFIX, INCR, DECR, DOT, ARROW;
 %right PREFIX;
 %left  STAR, DIV, MOD;
 %left  PLUS, MINUS;
@@ -72,25 +71,16 @@
 %right QUESTION, COLON;
 %right ASG, ASG_OP;
 %left  COMMA;
-//%nonassoc EXISTS, FORALL;
 
 %typeof ID      = "String";
 %typeof REG_ID  = "String";
-//%typeof TYPE    = "String";
-//%typeof FUN     = "String";
-//%typeof PRED    = "String";
 
 %typeof NUM     = "Integer";
-%typeof ASG_OP  = "String";
 
-//%typeof const   = "String";
-//%typeof field   = "Field";
 %typeof param   = "Param";
 
 %typeof expr    = "Expression";
 %typeof type    = "Type";
-//%typeof term    = "Assert";
-//%typeof pred = "Prop";
 
 //%typeof aux     = "Aux";
 
@@ -115,7 +105,7 @@ params = param | params COMMA param;
 //const  = ID.n;
 //consts = const | consts COMMA const;
 
-exprs = expr @ ASG | exprs COMMA expr;
+//exprs = expr @ ASG | exprs COMMA expr;
 //terms = term | terms COMMA term;
 
 global
@@ -163,10 +153,10 @@ locals2 = local2 *;
 local1
     = LBRACE locals2.ss RBRACE          {: return new Block(ss); :}
     | expr.a   SEMICOLON                {: return new Atomic(a); :}
-    | RETURN   SEMICOLON                {: return Return.none(); :}
-    | RETURN expr.a SEMICOLON           {: return new Return(a); :}
-    | BREAK    SEMICOLON                {: return Break.self();  :}
-    | CONTINUE SEMICOLON                {: return Continue.self(); :}
+    //| RETURN   SEMICOLON                {: return Return.none(); :}
+    //| RETURN expr.a SEMICOLON           {: return new Return(a); :}
+    //| BREAK    SEMICOLON                {: return Break.self();  :}
+    //| CONTINUE SEMICOLON                {: return Continue.self(); :}
     | FENCE SEMICOLON                   {: return Fence.self();  :}
     | type.t REG_ID.n SEMICOLON lpred.l                 {: variables.add(new Variable(n, l));
                                                             return new VarDef(t, n); :}
@@ -197,16 +187,11 @@ expr
     = PREFIX | POSTFIX /* unused */
     | ID.n                              {: return new Id(n);  :}
     | NUM.n                             {: return new Lit(n); :}
-    //| expr.a ARROW  ID.f                {: return new Arrow(a, f);      :}
-    //| expr.a DOT    ID.f                {: return new PreOp("*", new Arrow(a, f));    :}
     //| expr.a LBRACK expr.i RBRACK       {: return new PreOp("*", new BinOp("+", a, i)); :}
     | PLUS  expr.a @ PREFIX             {: return new PreOp("+", a);    :}
     | MINUS expr.a @ PREFIX             {: return new PreOp("-", a);    :}
     | BANG  expr.a @ PREFIX             {: return new PreOp("!", a);    :}
     | TILDE expr.a @ PREFIX             {: return new PreOp("~", a);    :}
-    //| STAR  expr.a @ PREFIX             {: return new PreOp("*", a);    :}
-    //| AMP   expr.a @ PREFIX             {: return new PreOp("&", a);    :}
-    //| SIZEOF LPAREN expr.e RPAREN       {: return new SizeOfExpr(e);    :}
     | expr.a STAR   expr.b              {: return new BinOp("*", a, b); :}
     | expr.a DIV    expr.b              {: return new BinOp("/", a, b); :}
     | expr.a MOD    expr.b              {: return new BinOp("%", a, b); :}
@@ -226,12 +211,7 @@ expr
     | expr.a AND    expr.b              {: return new BinOp("&&",a, b); :}
     | expr.a OR     expr.b              {: return new BinOp("||",a, b); :}
     | expr.a ASG    expr.b              {: return new BinOp("=", a, b); :}
-    //| expr.a COMMA  expr.b              {: return new BinOp(",", a, b); :}
-    //| ID.n LPAREN RPAREN                {: return new FunCall(n, new Expression[]{}); :}
-    //| ID.n LPAREN exprs.as RPAREN       {: return new FunCall(n, as);   :}
-    //| LPAREN type.t RPAREN expr.a       {: return new Cast(t, a);       :}
     | LPAREN expr.e RPAREN              {: return (Symbol) e;           :}
-    //| expr.a QUESTION expr.b COLON expr.c    {: return new Question(a, b, c); :}
     ;
 
 // for _L(x): pred construction to set predicate for variable security level

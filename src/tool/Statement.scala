@@ -26,11 +26,6 @@ case class Block(statements: List[Statement]) extends Statement {
 case class Atomic(expression: Expression) extends Statement {
 }
 
-/*
-case class Ghost(aux: Aux) extends Statement {
-}
- */
-
 case object Break extends Statement {
   def self = this
 }
@@ -57,12 +52,6 @@ case class If(test: Expression, left: Statement, right: Option[Statement]) exten
 }
 
 case class While(test: Expression, body: Statement) extends Statement {
-}
-
-case class DoWhile(body: Statement, test: Expression) extends Statement {
-}
-
-case class For(init: Expression, test: Expression, inc: Expression, body: Statement) extends Statement {
 }
 
 /*
@@ -106,64 +95,5 @@ case class FunDef(ret: Type, name: Id, params: List[Param], body: Option[Stateme
 
   def this(ret: Type, name: String, params: Array[Param], body: Statement) = {
     this(ret, Id(name), params.toList, Some(body))
-  }
-}
-
-object Syntax {
-  def modifies(expression: Expression): Set[Id] = expression match {
-    case _: Id => Set()
-    case _: Lit => Set()
-    case PreOp("++", id: Id) => Set(id)
-    case PreOp("--", id: Id) => Set(id)
-    case PostOp("++", id: Id) => Set(id)
-    case PostOp("--", id: Id) => Set(id)
-    case BinOp("=", id: Id, arg) => Set(id) ++ modifies(arg)
-    case PreOp(op, arg) => modifies(arg)
-    case PostOp(op, arg) => modifies(arg)
-    case BinOp(op, arg1, arg2) => modifies(arg1) ++ modifies(arg2)
-    case Question(test, left, right) => modifies(test) ++ modifies(left) ++ modifies(right)
-    //case Cast(typ, expression) => modifies(expression)
-    //case SizeOfExpression(expression) => Set() // compile time
-    //case SizeOfType(typ) => Set()
-    //case Arrow(expression, field) => modifies(expression)
-    //    case Dot(expression, field) => modifies(expression)
-    //    case Index(expression, index) => modifies(expression) ++ modifies(index)
-    case FunCall(name, args) => Set() ++ (args flatMap modifies)
-  }
-
-  def hasEffects(expression: Expression): Boolean = expression match {
-    case _: Id => false
-    case _: Lit => false
-    case PreOp("++", arg) => true
-    case PreOp("--", arg) => true
-    case PostOp("++", arg) => true
-    case PostOp("--", arg) => true
-    case BinOp("=", arg1, arg2) => true
-    case PreOp(op, arg) => hasEffects(arg)
-    case PostOp(op, arg) => hasEffects(arg)
-    case BinOp(op, arg1, arg2) => hasEffects(arg1) || hasEffects(arg2)
-    case Question(test, left, right) => hasEffects(test) || hasEffects(left) || hasEffects(right)
-    //case Cast(typ, expression) => hasEffects(expression)
-    //case SizeOfExpression(expression) => false // compile time
-    //case SizeOfType(typ) => false
-    //case Arrow(expression, field) => hasEffects(expression)
-    //    case Dot(expression, field) => hasEffects(expression)
-    //    case Index(expression, index) => hasEffects(expression) || hasEffects(index)
-    case FunCall(name, args) => true // XXX: approximation
-  }
-
-  def modifies(statement: Statement): Set[Id] = statement match {
-    case _: VarDef => Set()
-    case Malformed => Set()
-    case Atomic(expression) => modifies(expression)
-    case Return(None) => Set()
-    case Return(Some(expression)) => modifies(expression)
-    case Break | Continue | Fence => Set()
-    case If(test, left, None) => modifies(test) ++ modifies(left)
-    case If(test, left, Some(right)) => modifies(test) ++ modifies(left) ++ modifies(right)
-    case While(test, body) => modifies(test) ++ modifies(body)
-    case DoWhile(body, test) => modifies(test) ++ modifies(body)
-    case For(init, test, inc, body) => modifies(init) ++ modifies(test) ++ modifies(inc) ++ modifies(body)
-    case Block(statements) => Set() ++ (statements flatMap modifies)
   }
 }

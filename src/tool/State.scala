@@ -24,26 +24,27 @@ case class State(
   read: Set[Id],
   written: Set[Id]) {
 
+  // update P with strongest post-condition after assignment
   def assign(id: Id, arg: Expression): State = {
-    // need to REPLACE variable value not just add
 
-    for (prop <- P) prop match {
-      case BinOp("=", arg1, arg2) =>
+    val v = id.toVar
+    // create mapping from variable to fresh variable
+    val toSubst: Subst = Map(v -> Var.fresh(id.name))
 
-      case BinOp(">", arg1, arg2) =>
+    // substitute variable in P for fresh variable
+    val PReplace = P map (p => p.subst(toSubst))
 
-      case BinOp("<", arg1, arg2) =>
+    // substitute variable in expression for fresh variable
+    val argReplace = arg.subst(toSubst)
 
-      case BinOp("", arg1, arg2) =>
+    // add new assignment statement to P
+    val PPrime = BinOp("=", v, argReplace) :: P
 
-    }
-
-    // add variable to P
-    val PPrime = BinOp("=", id, arg) :: P // update P
+    // restrict PPrime to stable variables
     val stable = noWrite ++ noReadWrite
+    val PPrimeRestrict = State.restrictP(PPrime, stable)
 
-    // restricted to stable variables
-    copy(P = State.restrictP(PPrime, stable))
+    copy(P = PPrimeRestrict)
   }
 
   /**
@@ -202,7 +203,7 @@ case class State(
   }
 
   def updatePIfLeft(b: Expression): State = {
-    // remove free occurences of unstable variables
+    // remove free occurrences of unstable variables
     val bRestrict = b.restrict(noReadWrite ++ noWrite)
 
     val PPrime = bRestrict :: this.P
@@ -212,7 +213,7 @@ case class State(
   def updatePIfRight(b: Expression): State = {
     // negate B
     val notB = PreOp("!", b)
-    // remove free occurences of unstable variables
+    // remove free occurrences of unstable variables
     val bRestrict = notB.restrict(noReadWrite ++ noWrite)
 
     val PPrime = bRestrict :: this.P
@@ -239,12 +240,22 @@ case class State(
       }
     }.toMap
 
-    // need to OR P1 and P2 and convert to CNF
-
-    val PPrime: List[Expression] = List()
+    // P1 OR P2 converted to CNF
+    val PPrime = mergeP(state1.P, state2.P)
+    // restrict P' to stable variables
     val PPrimeRestricted = State.restrictP(PPrime, noReadWrite ++ noWrite)
 
     copy(gamma = gammaPrime, D = DPrime, P = PPrimeRestricted)
+  }
+
+  // P1 OR P2 converted to CNF
+  // assumes P1 and P2 are already in CNF - may need to add further conversion later to distribute nots etc.?
+  // also consider using switching variables to keep the converted formula small
+  def mergeP(P1: List[Expression], P2: List[Expression]): List[Expression] = {
+    for (p1 <- P1;
+         p2 <- P2) yield {
+      BinOp("||", p1, p2)
+    }
   }
 
 }
@@ -356,9 +367,7 @@ object State {
 
   // calculate P|_known_W(a) etc. with known_W(a) being the input set in that example
   def restrictP(P: List[Expression], restricted: Set[Id]): List[Expression] = {
-    for (pred <- P) yield {
-      pred.restrict(restricted)
-    }
+    P map (p => p.restrict(restricted))
   }
 
 }
