@@ -29,7 +29,7 @@
 %terminals PREFIX,  BANG, TILDE;
 %terminals STAR, DIV, MOD;
 %terminals PLUS, MINUS;
-%terminals SHL, SHR;
+%terminals SHL, SHR, ASHR;
 %terminals LT, LE, GE, GT;
 %terminals EQ, NEQ;
 %terminals AMP;
@@ -56,7 +56,7 @@
 %right PREFIX;
 %left  STAR, DIV, MOD;
 %left  PLUS, MINUS;
-%left  SHL, SHR;
+%left  SHL, SHR, ASHR;
 %left  LT, LE, GE, GT;
 %left  EQ, NEQ;
 %left  AMP;
@@ -198,6 +198,7 @@ expr
     | expr.a MINUS  expr.b              {: return new BinOp("-", a, b); :}
     | expr.a SHL    expr.b              {: return new BinOp("<<",a, b); :}
     | expr.a SHR    expr.b              {: return new BinOp(">>",a, b); :}
+    | expr.a ASHR    expr.b              {: return new BinOp(">>>",a, b); :}
     | expr.a LT     expr.b              {: return new BinOp("<", a, b); :}
     | expr.a LE     expr.b              {: return new BinOp("<=",a, b); :}
     | expr.a GE     expr.b              {: return new BinOp(">=",a, b); :}

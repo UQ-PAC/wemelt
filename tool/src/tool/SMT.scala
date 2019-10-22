@@ -3,6 +3,7 @@ package tool
 import com.microsoft.z3
 
 object SMT {
+  val intSize = 32
   val cfg = new java.util.HashMap[String, String]()
   val ctx = new z3.Context(cfg)
   val solver = ctx.mkSolver()
@@ -28,21 +29,31 @@ object SMT {
   }
 
   def formula(prop: Expression): z3.BoolExpr = translate(prop) match {
-    case phi: z3.BoolExpr => phi
-    case arith: z3.ArithExpr => ctx.mkNot(ctx.mkEq(arith, int_zero))
-    case expr =>
+    case b: z3.BoolExpr => b
+    case _ =>
       throw error.InvalidProgram("not a boolean expression", prop)
   }
 
   def arith(prop: Expression): z3.IntExpr = translate(prop) match {
-    // only dealing with integers
     case arith: z3.IntExpr => arith
-    case expr =>
+    // treating bit vectors as unsigned
+    case bitVec: z3.BitVecExpr => ctx.mkBV2Int(bitVec, false)
+    case _ =>
       throw error.InvalidProgram("not an arithmetic expression", prop)
   }
 
+  def bitwise(prop: Expression): z3.BitVecExpr = translate(prop) match {
+    case bitVec: z3.BitVecExpr => bitVec
+    case arith: z3.IntExpr => ctx.mkInt2BV(intSize, arith)
+    case _ =>
+      throw error.InvalidProgram("not a bitwise expression", prop)
+  }
+
+  /* currently doing all arithmetic operations on ints - may want to switch to bitvectors
+   and bitwise arithmetic operations for better simulation of the assembly
+  https://z3prover.github.io/api/html/classcom_1_1microsoft_1_1z3_1_1_context.html */
   def translate(prop: Expression): z3.Expr = prop match {
-    case x: Var => translate(x)
+    case x: Var => ctx.mkConst(x.toString, ctx.getIntSort)
 
     // need to implement these
     //case Const._true => ctx.mkTrue
@@ -72,12 +83,16 @@ object SMT {
     case BinOp(">=", arg1, arg2) => ctx.mkGe(arith(arg1), arith(arg2))
     case BinOp(">", arg1, arg2) => ctx.mkGt(arith(arg1), arith(arg2))
 
-      // need to properly implement, probably convert to bitvector, then back??
-      /*
-    case BinOp("|", arg1, arg2) => ctx.mkGt(bitwise(arg1), bitwise(arg2))
-    case BinOp("&", arg1, arg2) => ctx.mkGt(bitwise(arg1), bitwise(arg2))
-    case BinOp("^", arg1, arg2) => ctx.mkGt(bitwise(arg1), bitwise(arg2))
-       */
+    case BinOp("|", arg1, arg2) => ctx.mkBVOR(bitwise(arg1), bitwise(arg2))
+    case BinOp("&", arg1, arg2) => ctx.mkBVAND(bitwise(arg1), bitwise(arg2))
+    case BinOp("^", arg1, arg2) => ctx.mkBVXOR(bitwise(arg1), bitwise(arg2))
+    case PreOp("~", arg) => ctx.mkBVNot(bitwise(arg))
+
+      // defining normal right shift as logical shift right
+    case BinOp(">>", arg1, arg2) => ctx.mkBVLSHR(bitwise(arg1), bitwise(arg2))
+    case BinOp(">>>", arg1, arg2) => ctx.mkBVASHR(bitwise(arg1), bitwise(arg2))
+    case BinOp("<<", arg1, arg2) => ctx.mkBVSHL(bitwise(arg1), bitwise(arg2))
+
 
         /*
     case Pure.array_select(arg1, arg2) =>

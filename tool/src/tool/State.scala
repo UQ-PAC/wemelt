@@ -14,6 +14,8 @@ case class State(
   readWrite: Set[Id],
   noWrite: Set[Id],
 
+  stable: Set[Id],
+
   controls: Set[Id],
   controlled: Set[Id],
   controlledBy: Map[Id, Set[Id]], // CLed(name)
@@ -38,10 +40,9 @@ case class State(
     val argReplace = arg.subst(toSubst)
 
     // add new assignment statement to P
-    val PPrime = BinOp("=", v, argReplace) :: P
+    val PPrime = BinOp("=", v, argReplace) :: PReplace
 
     // restrict PPrime to stable variables
-    val stable = noWrite ++ noReadWrite
     val PPrimeRestrict = State.restrictP(PPrime, stable)
 
     copy(P = PPrimeRestrict)
@@ -247,7 +248,7 @@ case class State(
     // P1 OR P2 converted to CNF
     val PPrime = mergeP(state1.P, state2.P)
     // restrict P' to stable variables
-    val PPrimeRestricted = State.restrictP(PPrime, noReadWrite ++ noWrite)
+    val PPrimeRestricted = State.restrictP(PPrime, stable)
 
     copy(gamma = gammaPrime, D = DPrime, P = PPrimeRestricted)
   }
@@ -365,6 +366,7 @@ object State {
       noReadWrite = noReadWrite,
       readWrite = readWrite,
       noWrite = noWrite,
+      stable = noReadWrite ++ noWrite,
       controls = controls,
       controlled = controlled,
       controlledBy = controlledBy,

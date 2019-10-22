@@ -2,7 +2,6 @@ package tool;
 
 import beaver.Symbol;
 import tool.Parser.Terminals;
-import java.util.Set;
 
 %%
 
@@ -71,6 +70,7 @@ WS = {NL} | [ \t\f]
 "-"         { return newToken(Terminals.MINUS);    }
 "<<"        { return newToken(Terminals.SHL);      }
 ">>"        { return newToken(Terminals.SHR);      }
+">>>"        { return newToken(Terminals.ASHR);      }
 "<"         { return newToken(Terminals.LT);       }
 "<="        { return newToken(Terminals.LE);       }
 ">="        { return newToken(Terminals.GE);       }

@@ -72,6 +72,7 @@ object Exec {
 
     case If(test, left, None) =>
       // IF rule
+      // evaluate test which updates D
       val (_test, state1) = rval(test, state0)
 
       // check test is LOW
@@ -93,6 +94,7 @@ object Exec {
 
     case If(test, left, Some(right)) =>
       // IF rule
+      // evaluate test which updates D
       val (_test, state1) = rval(test, state0)
 
       // check test is LOW
@@ -111,7 +113,11 @@ object Exec {
       val merged = _left1.mergeIf(_right1)
       Cont.next(merged)
 
-//    case While(test, invariants, body) =>
+    //case While(test, invariants, body) =>
+      // WHILE rule
+
+
+
       // check loop invariant variables are
       // check loop invariant is weaker than previous P
       //
@@ -150,6 +156,13 @@ object Exec {
     case PreOp("!", arg) =>
       val (_arg, st1) = rval(arg, st0)
       (PreOp("!", _arg), st1)
+
+    case PreOp("+", arg) =>
+      rval(arg, st0)
+
+    case PreOp("-", arg) =>
+      val (_arg, st1) = rval(arg, st0)
+      (PreOp("-", _arg), st1)
 
     case BinOp("+", arg1, arg2) =>
       val (List(_arg1, _arg2), st1) = rvals(List(arg1, arg2), st0)
@@ -206,6 +219,22 @@ object Exec {
     case BinOp("^", arg1, arg2) =>
       val (List(_arg1, _arg2), st1) = rvals(List(arg1, arg2), st0)
       (BinOp("^", _arg1, _arg2), st1)
+
+    case BinOp(">>", arg1, arg2) =>
+      val (List(_arg1, _arg2), st1) = rvals(List(arg1, arg2), st0)
+      (BinOp(">>", _arg1, _arg2), st1)
+
+    case BinOp(">>>", arg1, arg2) =>
+      val (List(_arg1, _arg2), st1) = rvals(List(arg1, arg2), st0)
+      (BinOp(">>>", _arg1, _arg2), st1)
+
+    case BinOp("<<", arg1, arg2) =>
+      val (List(_arg1, _arg2), st1) = rvals(List(arg1, arg2), st0)
+      (BinOp("<<", _arg1, _arg2), st1)
+
+    case PreOp("~", arg) =>
+      val (_arg, st1) = rval(arg, st0)
+      (PreOp("~", _arg), st1)
 
   }
 

@@ -4,7 +4,6 @@ package tool;
 
 import beaver.Symbol;
 import tool.Parser.Terminals;
-import java.util.Set;
 
 
 /**
@@ -62,12 +61,12 @@ class Scanner extends beaver.Scanner {
     "\1\17\1\20\1\21\1\22\1\23\1\24\1\25\1\26"+
     "\12\27\1\30\2\0\2\2\1\31\1\32\1\33\1\34"+
     "\1\35\1\36\1\37\1\40\2\27\1\41\5\27\1\42"+
-    "\2\27\1\43\2\0\1\27\1\44\7\27\1\45\1\0"+
-    "\1\46\1\47\1\27\1\50\3\27\1\51\1\52\1\53"+
-    "\1\27\1\54\4\27\1\55";
+    "\2\27\1\43\2\0\1\44\1\27\1\45\7\27\1\46"+
+    "\1\0\1\47\1\50\1\27\1\51\3\27\1\52\1\53"+
+    "\1\54\1\27\1\55\4\27\1\56";
 
   private static int [] zzUnpackAction() {
-    int [] result = new int[89];
+    int [] result = new int[90];
     int offset = 0;
     offset = zzUnpackAction(ZZ_ACTION_PACKED_0, offset, result);
     return result;
@@ -97,16 +96,16 @@ class Scanner extends beaver.Scanner {
     "\0\u015e\0\u0190\0\u01c2\0\62\0\u01f4\0\62\0\62\0\62"+
     "\0\u0226\0\u0258\0\u028a\0\u02bc\0\u02ee\0\u0320\0\u0352\0\u0384"+
     "\0\u03b6\0\u03e8\0\u041a\0\310\0\u044c\0\u047e\0\62\0\62"+
-    "\0\62\0\62\0\62\0\62\0\62\0\62\0\62\0\u04b0"+
-    "\0\u04e2\0\u0258\0\u0514\0\u0546\0\u0578\0\u05aa\0\u05dc\0\u0258"+
-    "\0\u060e\0\u0640\0\u0258\0\u0672\0\u06a4\0\u06d6\0\u0258\0\u0708"+
-    "\0\u073a\0\u076c\0\u079e\0\u07d0\0\u0802\0\u0834\0\u0258\0\u0866"+
-    "\0\u0258\0\u0258\0\u0898\0\u0258\0\u08ca\0\u08fc\0\u092e\0\u0258"+
-    "\0\u0258\0\u0258\0\u0960\0\u0258\0\u0992\0\u09c4\0\u09f6\0\u0a28"+
-    "\0\u0258";
+    "\0\62\0\62\0\u04b0\0\62\0\62\0\62\0\62\0\u04e2"+
+    "\0\u0514\0\u0258\0\u0546\0\u0578\0\u05aa\0\u05dc\0\u060e\0\u0258"+
+    "\0\u0640\0\u0672\0\u0258\0\u06a4\0\u06d6\0\62\0\u0708\0\u0258"+
+    "\0\u073a\0\u076c\0\u079e\0\u07d0\0\u0802\0\u0834\0\u0866\0\u0258"+
+    "\0\u0898\0\u0258\0\u0258\0\u08ca\0\u0258\0\u08fc\0\u092e\0\u0960"+
+    "\0\u0258\0\u0258\0\u0258\0\u0992\0\u0258\0\u09c4\0\u09f6\0\u0a28"+
+    "\0\u0a5a\0\u0258";
 
   private static int [] zzUnpackRowMap() {
-    int [] result = new int[89];
+    int [] result = new int[90];
     int offset = 0;
     offset = zzUnpackRowMap(ZZ_ROWMAP_PACKED_0, offset, result);
     return result;
@@ -144,24 +143,24 @@ class Scanner extends beaver.Scanner {
     "\33\0\14\32\1\66\12\32\33\0\2\32\1\67\15\32"+
     "\1\70\1\71\5\32\33\0\1\32\1\72\25\32\33\0"+
     "\24\32\1\73\2\32\61\0\1\43\10\74\1\75\51\74"+
-    "\2\0\1\47\112\0\2\32\1\76\24\32\33\0\11\32"+
-    "\1\77\15\32\33\0\6\32\1\100\20\32\33\0\2\32"+
-    "\1\101\24\32\33\0\16\32\1\102\10\32\33\0\10\32"+
-    "\1\103\16\32\33\0\10\32\1\104\16\32\33\0\1\32"+
-    "\1\105\25\32\33\0\23\32\1\106\1\107\2\32\10\74"+
-    "\1\110\51\74\4\0\1\47\3\0\1\75\104\0\3\32"+
-    "\1\111\23\32\33\0\7\32\1\112\17\32\33\0\13\32"+
-    "\1\113\13\32\33\0\14\32\1\114\12\32\33\0\4\32"+
-    "\1\115\22\32\33\0\1\116\26\32\33\0\3\32\1\117"+
-    "\23\32\33\0\24\32\1\120\2\32\4\74\1\47\3\74"+
-    "\1\110\51\74\33\0\14\32\1\121\12\32\33\0\14\32"+
-    "\1\122\12\32\33\0\6\32\1\123\20\32\33\0\14\32"+
-    "\1\124\12\32\33\0\7\32\1\125\17\32\33\0\2\32"+
-    "\1\126\24\32\33\0\6\32\1\127\20\32\33\0\10\32"+
-    "\1\130\16\32\33\0\11\32\1\131\15\32";
+    "\2\0\1\47\102\0\1\76\71\0\2\32\1\77\24\32"+
+    "\33\0\11\32\1\100\15\32\33\0\6\32\1\101\20\32"+
+    "\33\0\2\32\1\102\24\32\33\0\16\32\1\103\10\32"+
+    "\33\0\10\32\1\104\16\32\33\0\10\32\1\105\16\32"+
+    "\33\0\1\32\1\106\25\32\33\0\23\32\1\107\1\110"+
+    "\2\32\10\74\1\111\51\74\4\0\1\47\3\0\1\75"+
+    "\104\0\3\32\1\112\23\32\33\0\7\32\1\113\17\32"+
+    "\33\0\13\32\1\114\13\32\33\0\14\32\1\115\12\32"+
+    "\33\0\4\32\1\116\22\32\33\0\1\117\26\32\33\0"+
+    "\3\32\1\120\23\32\33\0\24\32\1\121\2\32\4\74"+
+    "\1\47\3\74\1\111\51\74\33\0\14\32\1\122\12\32"+
+    "\33\0\14\32\1\123\12\32\33\0\6\32\1\124\20\32"+
+    "\33\0\14\32\1\125\12\32\33\0\7\32\1\126\17\32"+
+    "\33\0\2\32\1\127\24\32\33\0\6\32\1\130\20\32"+
+    "\33\0\10\32\1\131\16\32\33\0\11\32\1\132\15\32";
 
   private static int [] zzUnpackTrans() {
-    int [] result = new int[2650];
+    int [] result = new int[2700];
     int offset = 0;
     offset = zzUnpackTrans(ZZ_TRANS_PACKED_0, offset, result);
     return result;
@@ -200,11 +199,11 @@ class Scanner extends beaver.Scanner {
 
   private static final String ZZ_ATTRIBUTE_PACKED_0 =
     "\1\0\1\11\3\1\5\11\1\1\4\11\4\1\1\11"+
-    "\1\1\3\11\13\1\2\0\1\1\11\11\14\1\2\0"+
-    "\12\1\1\0\21\1";
+    "\1\1\3\11\13\1\2\0\1\1\4\11\1\1\4\11"+
+    "\14\1\2\0\1\11\12\1\1\0\21\1";
 
   private static int [] zzUnpackAttribute() {
-    int [] result = new int[89];
+    int [] result = new int[90];
     int offset = 0;
     offset = zzUnpackAttribute(ZZ_ATTRIBUTE_PACKED_0, offset, result);
     return result;
@@ -673,183 +672,187 @@ class Scanner extends beaver.Scanner {
           case 1: 
             { throw new Scanner.Exception("unexpected character '" + yytext() + "'");
             }
-          case 46: break;
+          case 47: break;
           case 2: 
             { 
             }
-          case 47: break;
+          case 48: break;
           case 3: 
             { return newToken(Terminals.DIV);
             }
-          case 48: break;
+          case 49: break;
           case 4: 
             { return newToken(Terminals.STAR);
             }
-          case 49: break;
+          case 50: break;
           case 5: 
             { return newToken(Terminals.LPAREN);
             }
-          case 50: break;
+          case 51: break;
           case 6: 
             { return newToken(Terminals.RPAREN);
             }
-          case 51: break;
+          case 52: break;
           case 7: 
             { return newToken(Terminals.LBRACE);
             }
-          case 52: break;
+          case 53: break;
           case 8: 
             { return newToken(Terminals.RBRACE);
             }
-          case 53: break;
+          case 54: break;
           case 9: 
             { return newToken(Terminals.BANG);
             }
-          case 54: break;
+          case 55: break;
           case 10: 
             { return newToken(Terminals.TILDE);
             }
-          case 55: break;
+          case 56: break;
           case 11: 
             { return newToken(Terminals.MOD);
             }
-          case 56: break;
+          case 57: break;
           case 12: 
             { return newToken(Terminals.PLUS);
             }
-          case 57: break;
+          case 58: break;
           case 13: 
             { return newToken(Terminals.MINUS);
             }
-          case 58: break;
+          case 59: break;
           case 14: 
             { return newToken(Terminals.LT);
             }
-          case 59: break;
+          case 60: break;
           case 15: 
             { return newToken(Terminals.GT);
             }
-          case 60: break;
+          case 61: break;
           case 16: 
             { return newToken(Terminals.ASG);
             }
-          case 61: break;
+          case 62: break;
           case 17: 
             { return newToken(Terminals.AMP);
             }
-          case 62: break;
+          case 63: break;
           case 18: 
             { return newToken(Terminals.CARET);
             }
-          case 63: break;
+          case 64: break;
           case 19: 
             { return newToken(Terminals.PIPE);
             }
-          case 64: break;
+          case 65: break;
           case 20: 
             { return newToken(Terminals.COLON);
             }
-          case 65: break;
+          case 66: break;
           case 21: 
             { return newToken(Terminals.COMMA);
             }
-          case 66: break;
+          case 67: break;
           case 22: 
             { return newToken(Terminals.SEMICOLON);
             }
-          case 67: break;
+          case 68: break;
           case 23: 
             { return resolve(yytext());
             }
-          case 68: break;
+          case 69: break;
           case 24: 
             { return newToken(Terminals.NUM, new Integer(yytext()));
             }
-          case 69: break;
+          case 70: break;
           case 25: 
             { return newToken(Terminals.NEQ);
             }
-          case 70: break;
+          case 71: break;
           case 26: 
             { return newToken(Terminals.SHL);
             }
-          case 71: break;
+          case 72: break;
           case 27: 
             { return newToken(Terminals.LE);
             }
-          case 72: break;
+          case 73: break;
           case 28: 
             { return newToken(Terminals.SHR);
             }
-          case 73: break;
+          case 74: break;
           case 29: 
             { return newToken(Terminals.GE);
             }
-          case 74: break;
+          case 75: break;
           case 30: 
             { return newToken(Terminals.EQ);
             }
-          case 75: break;
+          case 76: break;
           case 31: 
             { return newToken(Terminals.AND);
             }
-          case 76: break;
+          case 77: break;
           case 32: 
             { return newToken(Terminals.OR);
             }
-          case 77: break;
+          case 78: break;
           case 33: 
             { return newToken(Terminals.IF);
             }
-          case 78: break;
+          case 79: break;
           case 34: 
             { return newToken(Terminals.LPRED);
             }
-          case 79: break;
+          case 80: break;
           case 35: 
             { return newToken(Terminals.RW);
             }
-          case 80: break;
-          case 36: 
-            { return newToken(Terminals.INT);
-            }
           case 81: break;
-          case 37: 
-            { return newToken(Terminals.NOW);
+          case 36: 
+            { return newToken(Terminals.ASHR);
             }
           case 82: break;
-          case 38: 
-            { return newToken(Terminals.VOID);
+          case 37: 
+            { return newToken(Terminals.INT);
             }
           case 83: break;
-          case 39: 
-            { return newToken(Terminals.CHAR);
+          case 38: 
+            { return newToken(Terminals.NOW);
             }
           case 84: break;
-          case 40: 
-            { return newToken(Terminals.ELSE);
+          case 39: 
+            { return newToken(Terminals.VOID);
             }
           case 85: break;
-          case 41: 
-            { return newToken(Terminals.NORW);
+          case 40: 
+            { return newToken(Terminals.CHAR);
             }
           case 86: break;
-          case 42: 
-            { return newToken(Terminals.WHILE);
+          case 41: 
+            { return newToken(Terminals.ELSE);
             }
           case 87: break;
-          case 43: 
-            { return newToken(Terminals.FENCE);
+          case 42: 
+            { return newToken(Terminals.NORW);
             }
           case 88: break;
-          case 44: 
-            { return newToken(Terminals.MODE);
+          case 43: 
+            { return newToken(Terminals.WHILE);
             }
           case 89: break;
-          case 45: 
-            { return newToken(Terminals.INVARIANT);
+          case 44: 
+            { return newToken(Terminals.FENCE);
             }
           case 90: break;
+          case 45: 
+            { return newToken(Terminals.MODE);
+            }
+          case 91: break;
+          case 46: 
+            { return newToken(Terminals.INVARIANT);
+            }
+          case 92: break;
           default:
             zzScanError(ZZ_NO_MATCH);
         }
