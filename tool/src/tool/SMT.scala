@@ -3,7 +3,7 @@ package tool
 import com.microsoft.z3
 
 object SMT {
-  val intSize = 32
+  val intSize = 32 // size of bitvectors used
   val cfg = new java.util.HashMap[String, String]()
   val ctx = new z3.Context(cfg)
   val solver = ctx.mkSolver()
@@ -55,9 +55,8 @@ object SMT {
   def translate(prop: Expression): z3.Expr = prop match {
     case x: Var => ctx.mkConst(x.toString, ctx.getIntSort)
 
-    // need to implement these
-    //case Const._true => ctx.mkTrue
-    //case Const._false => ctx.mkFalse
+    case Const._true => ctx.mkTrue
+    case Const._false => ctx.mkFalse
 
     case Lit(n: Int) => ctx.mkInt(n)
 
@@ -65,11 +64,11 @@ object SMT {
       throw error.InvalidProgram("unresolved program variable", x)
 
     case BinOp("=", arg1, arg2) => ctx.mkEq(translate(arg1), translate(arg2))
+    case BinOp("==", arg1, arg2) => ctx.mkEq(translate(arg1), translate(arg2))
 
     case PreOp("!", arg) => ctx.mkNot(formula(arg))
     case BinOp("&&", arg1, arg2) => ctx.mkAnd(formula(arg1), formula(arg2))
     case BinOp("||", arg1, arg2) => ctx.mkOr(formula(arg1), formula(arg2))
-    case BinOp("==", arg1, arg2) => ctx.mkEq(formula(arg1), formula(arg2))
 
     case PreOp("-", arg) => ctx.mkUnaryMinus(arith(arg))
     case BinOp("+", arg1, arg2) => ctx.mkAdd(arith(arg1), arith(arg2))

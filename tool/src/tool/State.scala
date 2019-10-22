@@ -40,30 +40,12 @@ case class State(
     val argReplace = arg.subst(toSubst)
 
     // add new assignment statement to P
-    val PPrime = BinOp("=", v, argReplace) :: PReplace
+    val PPrime = BinOp("==", v, argReplace) :: PReplace
 
     // restrict PPrime to stable variables
     val PPrimeRestrict = State.restrictP(PPrime, stable)
 
     copy(P = PPrimeRestrict)
-  }
-
-  /**
-   * Introduce an uninitialised variable
-   */
-    /*
-  def define(id: Id): State = {
-    copy(stack = stack + (id -> Lit("uninitialised")))
-  }
-     */
-
-  /**
-   * Introduce a variable with an initializer.
-   */
-  def define(id: Id, _init: Expression): State = {
-    val st0 = this
-    val st1 = st0 assign (id, _init)
-    st1
   }
 
   def W_w(v: Id): Set[Id] = D(v)._1
@@ -166,25 +148,21 @@ case class State(
     copy(D = DPrime)
   }
 
-  // placeholder
   def lowP(id: Id): Boolean = {
     // prove if L(x) holds given P
     SMT.prove(L(id), P)
-
-    true
   }
 
   def highP(id: Id): Boolean = {
     // prove if L(x) doesn't hold given P
     SMT.prove(PreOp("!", L(id)), P)
-
-    true
   }
 
-  // e is expression to get security of, p is P value given so can substitute in P_a etc. - not sure if this is the best way to do this
+  // e is expression to get security of, p is P value given so can substitute in P_a etc.
   def security(e: Expression, p: List[Expression]): Boolean = {
+    println("security e: " + e + " p: " + p)
     var low = true
-    val it = variables.toIterator
+    val it = e.getVariables.toIterator
     // if x security is high, return, otherwise keep checking
     while (it.hasNext && low) {
       val x: Id = it.next()
@@ -302,7 +280,6 @@ object State {
         controlled += v.name
       }
 
-      // need to create empty sets for variables that don't control anything
       for (i <- controlling) {
         if (controlledBy.contains(i))
           controlledBy += (i -> (controlledBy(i) + v.name))
@@ -328,7 +305,8 @@ object State {
 
     for (v <- variables) {
       println("controlled by " + v)
-      //println(controlledBy(v.name))
+      if (controlledBy.contains(v.name))
+        println(controlledBy(v.name))
     }
 
     // init D - every variable maps to Var
@@ -339,34 +317,45 @@ object State {
 
     println(D)
 
+    val stable = noReadWrite ++ noWrite
     // init gamma - all variables uninitialised initially so set security to be high
-    // will need to change this later to handle pre-defining variables etc
     val gamma: Map[Id, Boolean] = {
       // dom gamma = stable variables without control variables
-      for (i <- ids if !controls.contains(i) && (noReadWrite.contains(i) || noWrite.contains(i))) yield {
+      for (i <- ids if !controls.contains(i) && stable.contains(i)) yield {
         i-> false
       }
     }.toMap
 
     // init L - map variables to their L predicates
+    // kind of a mess should clean up
     val L: Map[Id, Expression] = {
-      for (v <- variables)
-        yield v.name -> v.pred
+      for (v <- variables) yield {
+        // replace Ids in L predicate with Vars
+        val idToVar: Subst = {
+          for (u <- v.pred.getVariables) yield {
+            u -> u.toVar
+          }
+        }.toMap
+        val predVar = v.pred.subst(idToVar)
+        v.name -> predVar
+      }
     }.toMap
+
+    println("L: " + L)
 
     println(gamma)
 
     State(
       gamma = gamma,
       D = D,
-      P = List(Lit("True")),
+      P = List(Const._true),
       L = L,
       globals = globals,
       locals = locals,
       noReadWrite = noReadWrite,
       readWrite = readWrite,
       noWrite = noWrite,
-      stable = noReadWrite ++ noWrite,
+      stable = stable,
       controls = controls,
       controlled = controlled,
       controlledBy = controlledBy,

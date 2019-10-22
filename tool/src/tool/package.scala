@@ -15,12 +15,12 @@ package object tool {
   }
 
   type Rename = Map[Var, Var]
-  type Subst = Map[Var, Expression]
+  type Subst = Map[Expression, Expression]
 
   object Subst {
     val empty: Subst = Map()
 
-    def apply(xs: (Var, Expression)*): Subst = {
+    def apply(xs: (Expression, Expression)*): Subst = {
       xs.toMap
     }
 

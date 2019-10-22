@@ -119,6 +119,11 @@ WS = {NL} | [ \t\f]
 "RW"      { return newToken(Terminals.RW);    }
 "_invariant" {return newToken(Terminals.INVARIANT);}
 
+"TRUE" { return newToken(Terminals.TRUE);    }
+"FALSE" { return newToken(Terminals.FALSE);    }
+"LOW"   { return newToken(Terminals.LOW);    }
+"HIGH" { return newToken(Terminals.HIGH);    }
+
 [a-zA-Z_][a-zA-Z_0-9]*
             { return resolve(yytext()); }
 

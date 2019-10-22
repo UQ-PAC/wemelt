@@ -23,6 +23,7 @@
 
 %terminals ID, TYPE, FUN, REG_ID;
 %terminals NUM;
+%terminals LOW, HIGH, TRUE, FALSE;
 
 %terminals LPAREN, RPAREN, LBRACK, RBRACK, LBRACE, RBRACE;
 %terminals POSTFIX, INCR, DECR, DOT;
@@ -212,6 +213,10 @@ expr
     | expr.a OR     expr.b              {: return new BinOp("||",a, b); :}
     | expr.a ASG    expr.b              {: return new BinOp("=", a, b); :}
     | LPAREN expr.e RPAREN              {: return (Symbol) e;           :}
+    | LOW                               {: return new Const("low");  :}
+    | HIGH                              {: return new Const("high");  :}
+    | TRUE                              {: return new Const("true");  :}
+    | FALSE                             {: return new Const("false");  :}
     ;
 
 // for _L(x): pred construction to set predicate for variable security level

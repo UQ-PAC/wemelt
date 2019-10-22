@@ -1,3 +1,3 @@
-jflex -nobak src/tool/tool/Scanner.flex
-java -jar beaver.jar -t src/tool/tool/Parser.grammar
+jflex -nobak tool/src/tool/Scanner.flex
+java -jar beaver.jar -t tool/src/tool/Parser.grammar
 

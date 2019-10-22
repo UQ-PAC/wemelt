@@ -21,44 +21,48 @@ public class Parser extends beaver.Parser {
 		static public final short NUM = 7;
 		static public final short BANG = 8;
 		static public final short TILDE = 9;
-		static public final short STAR = 10;
-		static public final short DIV = 11;
-		static public final short MOD = 12;
-		static public final short SHL = 13;
-		static public final short SHR = 14;
-		static public final short ASHR = 15;
-		static public final short LT = 16;
-		static public final short LE = 17;
-		static public final short GE = 18;
-		static public final short GT = 19;
-		static public final short SEMICOLON = 20;
-		static public final short EQ = 21;
-		static public final short NEQ = 22;
-		static public final short ASG = 23;
-		static public final short AMP = 24;
-		static public final short CARET = 25;
-		static public final short PIPE = 26;
-		static public final short AND = 27;
-		static public final short VOID = 28;
-		static public final short OR = 29;
-		static public final short INT = 30;
-		static public final short CHAR = 31;
-		static public final short WHILE = 32;
-		static public final short IF = 33;
-		static public final short MODE = 34;
-		static public final short LBRACE = 35;
-		static public final short FENCE = 36;
-		static public final short LPRED = 37;
-		static public final short RPAREN = 38;
-		static public final short RBRACE = 39;
-		static public final short COLON = 40;
-		static public final short REG_ID = 41;
-		static public final short COMMA = 42;
-		static public final short INVARIANT = 43;
-		static public final short ELSE = 44;
-		static public final short NORW = 45;
-		static public final short NOW = 46;
-		static public final short RW = 47;
+		static public final short LOW = 10;
+		static public final short HIGH = 11;
+		static public final short TRUE = 12;
+		static public final short FALSE = 13;
+		static public final short STAR = 14;
+		static public final short DIV = 15;
+		static public final short MOD = 16;
+		static public final short SHL = 17;
+		static public final short SHR = 18;
+		static public final short ASHR = 19;
+		static public final short LT = 20;
+		static public final short LE = 21;
+		static public final short GE = 22;
+		static public final short GT = 23;
+		static public final short SEMICOLON = 24;
+		static public final short EQ = 25;
+		static public final short NEQ = 26;
+		static public final short ASG = 27;
+		static public final short AMP = 28;
+		static public final short CARET = 29;
+		static public final short PIPE = 30;
+		static public final short AND = 31;
+		static public final short VOID = 32;
+		static public final short OR = 33;
+		static public final short INT = 34;
+		static public final short CHAR = 35;
+		static public final short WHILE = 36;
+		static public final short IF = 37;
+		static public final short MODE = 38;
+		static public final short LBRACE = 39;
+		static public final short FENCE = 40;
+		static public final short LPRED = 41;
+		static public final short RPAREN = 42;
+		static public final short RBRACE = 43;
+		static public final short COLON = 44;
+		static public final short REG_ID = 45;
+		static public final short COMMA = 46;
+		static public final short INVARIANT = 47;
+		static public final short ELSE = 48;
+		static public final short NORW = 49;
+		static public final short NOW = 50;
+		static public final short RW = 51;
 
 		static public final String[] NAMES = {
 			"EOF",
@@ -71,6 +75,10 @@ public class Parser extends beaver.Parser {
 			"NUM",
 			"BANG",
 			"TILDE",
+			"LOW",
+			"HIGH",
+			"TRUE",
+			"FALSE",
 			"STAR",
 			"DIV",
 			"MOD",
@@ -113,37 +121,38 @@ public class Parser extends beaver.Parser {
 	}
 
 	static final ParsingTables PARSING_TABLES = new ParsingTables(
-		"U9pjM7cOJbKSVk$tpHWcMqn8KvZCO6ntPZ1cCKGB9KdIeb2KDYbAcngqeMNI8ajIUdho54C" +
-		"bRKBQGvQqM9E4A2GfLAVtdk$tVNE#EsVunkFFkT$pdlUStptlxtUMU#$lp01nFL4R9s4W1g" +
-		"j$rM6CmMEu3zLG0oUYBax6AJWL3T08f#D9fA89ij0CpT4IhL496Lev3aM8mnEOW7XqiIhFz" +
-		"YaJHScOE1SNwfYZhChUFcNN4gNw1rMqyb6hSb2qKXMByWIEjgeURGAgMvL3V36d6gDz1Y#W" +
-		"BsDEiYf7#9Gr3MKjLCQpL9vfLIRvb7KCvSMu1DEflDUghETJrXTbg6#eVCYgJFOfXugo1ov" +
-		"0JwxIQNgLRCg6FcMAABlprvYxcuZha6PLDlKfqqLvFMv12zo8st0hXbkLhNnAruYPgMFUWR" +
-		"kioZPQcHjHvY0FsJW3RT4ExT417IsMfp5QptuQBaK#2Z2Pwt6PjjoFk$b4N85hTFHEw8Of6" +
-		"8zUw8ophD4JTVHp97eiiRlZSfo7yt4HQttGJ$t0s8cHsDVgs4Mu8MAvILjkHgBwqUfj66vd" +
-		"UQVbtZqOYK8yG6yFHhoDrjuUnbYr6O$WSTvxBd8F#buiSm3zH5z5cEZpKqG#5i$Fb$Biz#F" +
-		"jJFHbsndedO7UcV8gojC$jhwnzOfbXIei5PQoBEPJ5ggRJvbPZxsdbwEywshcg4gwzfGkNo" +
-		"G6y4pG7rSYo7h0ywDU4s#cJxCqlOMkg#1GwttllQkDdaqYytXLAgfJKvEgMlJdqcCTZgaUH" +
-		"rMVuyhWM#CfyvdfifdD6Z07f5cLIJvbgYYzc9dCEMN7z2k3XXBKbb$PbADrzMYRaMDHPXWn" +
-		"qxZFNioyc9IkeNHvrrFMZMbjNSiAsTUsB6MeRwYCJHbUePOy2xIEh59vOgRmvt9tKyjSsxA" +
-		"KIVovjDVLipssc4TMkX6bfmhoH1tFjoc1fyOg5aion#FDFerMbxzqMjAqfI7pH0OpHMFPdo" +
-		"G#4UaSbrl6Z5Drz4o97ali5FhCudFgifR5$DP4doJ3iPDqx6Hw35jSRSdKkT3cBKiybRxdp" +
-		"Qq5o$1Ub$XlplXDzEoIgP5xIaNcVPGvi6UIYheYArhY9vbyN3pR$FZwM7Q6LkuCIszdogie" +
-		"H$$O#iRUwwZFJuMbmd84I#JvqlMefyoinzwJEKhtyd9Kg9QZosoYW6U2JZmXTM2zenvFP$5" +
-		"c#ZHBmvj4ps6cdp4gT5Q98#A9lbvRRBs8wTw9Hzez0AUGl9r7ekuXMs2Dy4RXRImsa$UGVo" +
-		"B$JTTPGD0XjoCdaXatM9lOJoGJXuXKsgkGMv5haBEfBIPt8dz8xaQUHEQO0WmLx4lcUIiuY" +
-		"6EQGXv2fYquWXmNdaF9N8A5mcE59mXF4Nx9Mn6fpsB1SJdZGcrdF14WNfRs31RhB37UOi6v" +
-		"EJmpEg#Ms1rlRFECzWV4ArAVIMmrrhoFs9S8UsX9p98O2raCPtkXtETwEVd4CcCSdy7xkn9" +
-		"E1sA54PTx4Lp9ocpMzn6hkOPrekVW76QVjQnyoVecOWlRXCDr3UuYDv9#1qlFtocGEGobtm" +
-		"Q6tJiNxmxL0rM5k$ZrClRz7dChTfQ#XtIZtbLOdaEC51uZBFkBoSB5mlE5bmgl5zuXl5VuW" +
-		"F0XcKEyS3LXUIUS5E5qOLUuetr#JcVX$i83X8S83pFw3XSkBB7nFOOpqURRq4sLljEyTyFG" +
-		"zYC6bhI3Uw9rSL7FGXc#PmhF4Pvht4iY5XZjnSByYy9PvFEpt6Fky#hml2onLfbjzkNtXET" +
-		"VE1kEDavZpgDyFWVxxa#pQ6P0BlMVsgxv3$MdvZS8lbtgK#8JucFY8s89mQ#KMami8lYMAh" +
-		"xbQW7nFl4UyIxn3l4sCP$WrqBDKolKLsgvMiRwKe9ldVg2#5n7UrEN#zH#6StlkdnTpLLpr" +
-		"9x86FUgtPf$KpirRzBb5hMLvKPYWswlLUirVw$MYUuxzKt4nxTgJQJ#DR5QRLC$mtUf0seL" +
-		"ovMgMCrMizHVUZ#WVbM$QERNHV5BhdQf7UeWimlGct#vEqH0$$VBor9UZchFTXuvZnaqdvn" +
-		"FpcN#oMKkpTNrU462OOyNZgvdKzzEa4CKQ0IO6K4up8yEyrsG20ZYY4fYYnSa6FPmkxBkxr" +
-		"8VZO0FmUEEJ2BBG0RZXj7sVmkhCXi=");
+		"U9pjLtkSJ6KOVixCh5sR4fkCNMbSMjOkIhEpQtUjTTb2jqM959N8hQXKXB1X8#coHOMe92c" +
+		"5xYgwtrLABkcc4fLKb8HyFUURzumpnrcxpVxwns$F$9xl#Mxlyxtl#yqvvpj0N4#qGIwoq1" +
+		"wP224RRT4EdL28qt0wBiTGZO6uG#DCpC9a3422seVBq1dzSGbACHDtuMwKu4Oauc8CHXBgQ" +
+		"AjRCGDJQ5MCer4JjL1Tk2xg8GKdu4GqH6F4uoGqnQb8GpfQe1MguHIjS3REWq$hnA6Zrfc4" +
+		"ermLkZeKQeY2QTiRVRJjxM9vZAj2BuV2XLGeEolLS0#ErJ6VXOTH6ptfOLzS12#AuC43I5I" +
+		"FC2jp8ravJcUbRBqoHzG$w8uUE5Vjfzxn4Js$rYj2ijhCZ9UgnP6HULR#rJUu1lVJghuUAq" +
+		"K3pMwn3tB4VgyjUoRwCNkpYMjnFOQvAbpbK9XdKmXW0HwYzHpwqAXC7svmA3GHXIim4gaOZ" +
+		"b6CjWZD66qYchigP3WKMb9X3CRXPBH643d8Gpuc7cOFpDKAq05TkC8PNEiSTEC$$NpMmgjT" +
+		"W26Cu58hq#hhSlRqIkgC8AwcmdKOpN8izSPZ0cxIQzsCgTIx9R9pqxMUMsItEIAxav7DH$G" +
+		"rhPp8dDTzkWolPbwbXEK9oedCxNfGs5hhK3stoE283BBhxjUHhe28GcMiOxUDrJ8MknYUXL" +
+		"KZLIDL8vKOSRjFmtrkzwbRdrqXMiq#srwld8NRqyJW2SlBSs4SJs7nIE2PCf6dmXeS3J9c4" +
+		"zdCWGale$ThWE$r59s706SqOYHD#1HAutEecTOphGfuOZ2jSdX2hCdJNKYu5iztIJp1rU7v" +
+		"gowVh$MGJAtwp4a3PYMJUJ4LGinvhjR9v$aah9FXgk1tA0H58QXtB2lAXs2557oYu9wLp4Z" +
+		"CVkrX2ZtqqyVsF5Tr9AVnln5Wx5PMWf6ikEkLFMA#zrhpFOYeB8VrKidfN2j0MsiaCx9IEd" +
+		"lp8bOMLoJsvhRisVVUp6IB2YbaHYdaQUjs$ya7QmVz$9dvJM6qPhnf$BdlOD15mVGuQFirB" +
+		"sSFmhFIQ9TAomozTggibiLMW5crCfrUpfw6jAUMLb2NViuCylHiMfcr0Cybbbw6rgj8P7v6" +
+		"vbLHLtcHASS5loxrQheM8CGJrWuRcLFhe1vPrdBHSucC8r6HiTtGpLlHFi8LM5exN1dhs6r" +
+		"ZjOmbMx4y2wj6gaQgHYerSiWTgljStpfkVJQ5QBMesVPwfInSdoR0mWdXi#jg8fbOOxQbhp" +
+		"PXSF9#QQS1tcp0quHS6ExpTXVk9poC1R#XlQF90yXJA36HN4hUGPuFn1MIbv2Jo2l8zSXla" +
+		"pF8QycjoPi1tquoRNpxoVk81gmda3radi4zMyYDoBJrjI8l8kUH2wqO3iRYwoBSKxY$y0ZX" +
+		"SIoQEkraR1gBplI$h#HXCZ6URT4m#h6Ows8tYyLWuXdE6MJBgvcRQRRsSeuF4QtXB5RPnhP" +
+		"A$nXfRsCzaoYMDHQmpfmOasHUY60UZQasFvQnpRqpMX3J3$ORxFUj97SbHX8bn9pe68ndEU" +
+		"TzydF4368csnlqFmW#vjypKEQjijk5#pmbulEN7DziYucvDfB4RftChUwqbxcIOzHsZj650" +
+		"xPvGU4Emk8NXWgF5Pudl41uaV0AuPN2UyK$AmzrX5E40yADXLiAXuHpX7E5yzpZCzeAvmkt" +
+		"4ouIxkPc9sFTxIn#yxumUfHb8$DxorpUoqOVc#qkOhtLPdutsktOtdGuNT4UAJpApg9l$Wz" +
+		"6s#QE4pR$isCTEiMovcwnJNPPgyJXttQ9QNPvVjfyskXeBtMqzxZOB8HSwe3QgdcN#bFp4m" +
+		"IVHkejuatY3U9ruZNYLU8LOXN1kqwzJBn4l4ZmAQXU89udUASftdMAJmtrjFf8VQXMgmzOv" +
+		"rsetYFU9TxHgpsbbgjbQgbwKhTsgZ$4gzzrkKGzhXvJlqPy$KtjqFoB#adpLxhyLdtFaZkZ" +
+		"lj3jZMgJvWtgSx5RhpwBQAnJQoFrJubFr0zg2noNsgtMiFnOBLQFgaNgB$MTxjskVjIyXzX" +
+		"B$AosgR$DvmXwyLlV83pytWTXy8lVu9UkXz#v1k550Rc0dCztSJxVnVcw7YU8j$N72KVNSs" +
+		"cV8sXBTD3me1FNwyHw8P5DpMpsXU4ZgabVd23Urc#r4$Jy8EsZuN70#pyWUiqG#x9io6IVX" +
+		"JR$0ijgFeO=");
 
     Set<Variable> variables;
 
@@ -777,39 +786,59 @@ public class Parser extends beaver.Parser {
 					 return (Symbol) e;
 				}
 			},
-			new Action() {	// [77] lpred = LPRED COLON expr.a
+			new Action() {	// [77] expr = LOW
+				public Symbol reduce(Symbol[] _symbols, int offset) {
+					 return new Const("low");
+				}
+			},
+			new Action() {	// [78] expr = HIGH
+				public Symbol reduce(Symbol[] _symbols, int offset) {
+					 return new Const("high");
+				}
+			},
+			new Action() {	// [79] expr = TRUE
+				public Symbol reduce(Symbol[] _symbols, int offset) {
+					 return new Const("true");
+				}
+			},
+			new Action() {	// [80] expr = FALSE
+				public Symbol reduce(Symbol[] _symbols, int offset) {
+					 return new Const("false");
+				}
+			},
+			new Action() {	// [81] lpred = LPRED COLON expr.a
 				public Symbol reduce(Symbol[] _symbols, int offset) {
 					final Symbol _symbol_a = _symbols[offset + 3];
 					final Expression a = (Expression) _symbol_a.value;
 					 return (Symbol) a;
 				}
 			},
-			new Action() {	// [78] mode = MODE COLON NORW
+			new Action() {	// [82] mode = MODE COLON NORW
 				public Symbol reduce(Symbol[] _symbols, int offset) {
 					 return new Mode("NoRW");
 				}
 			},
-			new Action() {	// [79] mode = MODE COLON NOW
+			new Action() {	// [83] mode = MODE COLON NOW
 				public Symbol reduce(Symbol[] _symbols, int offset) {
 					 return new Mode("NoW");
 				}
 			},
-			new Action() {	// [80] mode = MODE COLON RW
+			new Action() {	// [84] mode = MODE COLON RW
 				public Symbol reduce(Symbol[] _symbols, int offset) {
 					 return new Mode("RW");
 				}
 			},
-			new Action() {	// [81] type = VOID
+			new Action() {	// [85] type = VOID
 				public Symbol reduce(Symbol[] _symbols, int offset) {
 					 return (Symbol) Void.self();
 				}
 			},
-			new Action() {	// [82] type = INT
+			new Action() {	// [86] type = INT
 				public Symbol reduce(Symbol[] _symbols, int offset) {
 					 return (Symbol) SignedInt.self();
 				}
 			},
-			new Action() {	// [83] type = CHAR
+			new Action() {	// [87] type = CHAR
 				public Symbol reduce(Symbol[] _symbols, int offset) {
 					 return (Symbol) Char.self();
 				}

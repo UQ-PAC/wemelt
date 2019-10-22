@@ -5,19 +5,17 @@ MILL = ./mill
 TOOL_JAVA = tool/src/tool/Parser.java \
             tool/src/tool/Scanner.java
 
-CC ?= cc
-CFLAGS ?= -Iinclude -Wall -W -Wpedantic
-
 TOOL_JAR = out/tool/jar/dest/out.jar
 TOOL_LAUNCHER = ./out/tool/launcher/dest/run
 TOOL_SH  = ./armlogictool.sh
 
-all: $(TOOL_JAR) $(TOOL_SH) macos_sip_fix
+all: parser $(TOOL_JAR) $(TOOL_SH)  macos_sip_fix
 
 parser: $(TOOL_JAVA)
 
 clean:
 	$(MILL) clean
+	rm -f $(TOOL_JAVA)
 	rm -f $(TOOL_SH)
 
 check-dependencies:

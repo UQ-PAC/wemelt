@@ -30,7 +30,6 @@ trait Expression extends beaver.Symbol {
 
 }
 
-
 case class Lit(arg: Any) extends Expression {
   def free = Set()
   override def toString = arg.toString
@@ -39,9 +38,10 @@ case class Lit(arg: Any) extends Expression {
 }
 
 case class Id(name: String) extends Expression {
-  override def toString = name
+  //override def toString = "ID_" + name
+  override def toString = "ID_" + name
   override def getVariables: Set[Id] = Set(this)
-  override def subst(su: Subst) = this // maybe throw error here as this shouldn't happen
+  override def subst(su: Subst) = su.getOrElse(this, this)
   def toVar = Var(name, None)
   def free = Set() // maybe throw error here
 }
@@ -72,6 +72,8 @@ case class Var(name: String, index: Option[Int] = None) extends Expression {
 
   // adjust?
   override def toString = name __ index
+
+  //override def toString = "VAR_" + name __ index
 }
 
 object Var {
@@ -103,4 +105,19 @@ case class BinOp(op: String, arg1: Expression, arg2: Expression) extends Express
   override def getVariables: Set[Id] = arg1.getVariables ++ arg2.getVariables
   def free = arg1.free ++ arg2.free
   def subst(su: Subst) = BinOp(op, arg1.subst(su), arg2.subst(su))
+}
+
+object Const {
+  object low extends Const("Low")
+  object high extends Const("High")
+
+  object _true extends Const("True")
+  object _false extends Const("False")
+}
+
+class Const(name: String) extends Expression {
+  def free = Set()
+  override def toString = name.toString
+  override def getVariables: Set[Id] = Set()
+  override def subst(su: Subst): Const = this
 }

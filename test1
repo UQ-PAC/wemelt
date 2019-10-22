@@ -1,10 +1,10 @@
   int r_z;
 
   int x;
-  _L: (z % 2 == 0)
+  _L: z % 2 == 0
   _Mode: RW
 
-  int y = 20;
+  int y = 20 + x;
   _Mode: NoRW
 
   int w = 20;

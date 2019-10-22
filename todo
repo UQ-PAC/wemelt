@@ -1,13 +1,12 @@
--figure out build
--remove fundef stuff
+-figure out intellij build
 -while loop
+-user defining P, Gamma
 -organise expression class - boolean expression subclass
--bitwise in SMT - ensure conversion works properly
--remove remnants of function definitions, types
+-bitwise in SMT - ensure conversion works properly - test thoroughly
+-remove remnants of function definitions, types, make match paper syntax more closely
 
 eventually:
-tidy up, comment more extensively
+clean up, comment more extensively
 fix up vardef stuff
 arrays
-user defining P, Gamma
-bitwise arithmetic instead of int arithmetic
+bitwise arithmetic instead of int arithmetic?

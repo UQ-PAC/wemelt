@@ -37,14 +37,15 @@ object Exec {
       execute(block.statements, state0)
 
     case VarDef(typ, id, None) =>
-      //val state1 = state0 define id
       Cont.next(state0)
 
+
+      // need to remove this entirely
     case VarDef(typ, id, Some(init)) =>
       val (_init, st1) = rval(init, state0)
       // id has been WRITTEN
       val st2 = st1.updateWritten(id)
-      val st3 = st2 define (id, _init)
+      val st3 = st2 assign (id, _init)
       val st4 = st3.updateGammaAssign(id, _init)
       val st5 = st4.updateDAssign(id, _init)
       Cont.next(st5.resetReadWrite())
