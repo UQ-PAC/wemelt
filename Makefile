@@ -2,8 +2,8 @@
 
 MILL = ./mill
 
-TOOL_JAVA = src/tool/Parser.java \
-            src/tool/Scanner.java
+TOOL_JAVA = tool/src/tool/Parser.java \
+            tool/src/tool/Scanner.java
 
 CC ?= cc
 CFLAGS ?= -Iinclude -Wall -W -Wpedantic
@@ -32,7 +32,7 @@ $(TOOL_JAR):
 	$(MILL) tool.jar
 
 $(TOOL_SH): $(TOOL_LAUNCHER)
-	@echo "[echo]  $@"; echo "#!/usr/bin/env bash" > $@; echo "export LD_LIBRARY_PATH=$(PWD)/lib" >> $@; echo "source $(TOOL_LAUNCHER)" >> $@
+	@echo "[echo]  $@"; echo "#!/usr/bin/env bash" > $@; echo "export LD_LIBRARY_PATH=$(PWD)/tool/lib" >> $@; echo "source $(TOOL_LAUNCHER)" >> $@
 	@echo "[chmod] $@"; chmod +x $@
 
 %.java: %.grammar
@@ -44,10 +44,10 @@ $(TOOL_SH): $(TOOL_LAUNCHER)
 o: $(TOOL_OBJ)
 	@echo $(TOOL_OBJ)
 
-macos_sip_fix: lib/libz3java.dylib lib/libz3.dylib
+macos_sip_fix: tool/lib/libz3java.dylib tool/lib/libz3.dylib
 	@if [ $$(uname -s) = "Darwin" ];  then \
 	    make -s libz3java.dylib libz3.dylib; \
 	 fi
 
-lib%.dylib: lib/lib%.dylib
+lib%.dylib: tool/lib/lib%.dylib
 	ln -s $<
