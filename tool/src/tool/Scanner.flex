@@ -118,6 +118,7 @@ WS = {NL} | [ \t\f]
 "NoW"      { return newToken(Terminals.NOW);    }
 "RW"      { return newToken(Terminals.RW);    }
 "_invariant" {return newToken(Terminals.INVARIANT);}
+"_Gamma" {return newToken(Terminals.GAMMA);}
 
 "TRUE" { return newToken(Terminals.TRUE);    }
 "FALSE" { return newToken(Terminals.FALSE);    }

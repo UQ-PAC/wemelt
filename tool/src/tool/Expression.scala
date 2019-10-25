@@ -1,10 +1,5 @@
 package tool
 
-// to remove
-case class Param(typ: Type, name: String) extends beaver.Symbol {
-  override def toString = typ + " " + name
-}
-
 trait Expression extends beaver.Symbol {
 
   def getVariables: Set[Id]
@@ -12,7 +7,7 @@ trait Expression extends beaver.Symbol {
   def free: Set[Var]
   def subst(su: Subst): Expression
 
-  // "existentially quantify" (substitute with fresh variables) all variables that aren't in restricted
+  // existentially quantify (substitute with fresh variables) all variables that aren't in restricted
   def restrict(restricted: Set[Id]): Expression = {
     // get variables that aren't in restricted
     val toSubst = for (v <- getVariables if !restricted.contains(v))
@@ -39,7 +34,7 @@ case class Lit(arg: Any) extends Expression {
 
 case class Id(name: String) extends Expression {
   //override def toString = "ID_" + name
-  override def toString = "ID_" + name
+  override def toString = name
   override def getVariables: Set[Id] = Set(this)
   override def subst(su: Subst) = su.getOrElse(this, this)
   def toVar = Var(name, None)
@@ -72,7 +67,6 @@ case class Var(name: String, index: Option[Int] = None) extends Expression {
 
   // adjust?
   override def toString = name __ index
-
   //override def toString = "VAR_" + name __ index
 }
 
@@ -110,12 +104,11 @@ case class BinOp(op: String, arg1: Expression, arg2: Expression) extends Express
 object Const {
   object low extends Const("Low")
   object high extends Const("High")
-
   object _true extends Const("True")
   object _false extends Const("False")
 }
 
-class Const(name: String) extends Expression {
+case class Const(name: String) extends Expression {
   def free = Set()
   override def toString = name.toString
   override def getVariables: Set[Id] = Set()

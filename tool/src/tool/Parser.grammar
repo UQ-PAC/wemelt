@@ -7,26 +7,17 @@
     Set<Variable> variables;
 :};
 
-/* %terminals UNDERSCORE;
-%terminals REQUIRES, ENSURES, INVARIANT, RESOURCE, MAINTAINS, LEMMA;
-%terminals ASSUME, ASSERT, PREDICATE, FOLD, UNFOLD, APPLY;
-%terminals FAILS;
-%terminals EXISTS, FORALL; */
+%terminals VOID, INT, CHAR;
 
-%terminals INVARIANT;
-
-%terminals VOID, INT, CHAR; // SHORT, INT, LONG, SIGNED, UNSIGNED;
-//%terminals STRUCT, UNION, ENUM, TYPEDEF;
-
-%terminals RETURN, BREAK, CONTINUE;
+//%terminals RETURN, BREAK, CONTINUE;
 %terminals IF, ELSE, WHILE; /* THEN, DO, FOR */
 
-%terminals ID, TYPE, FUN, REG_ID;
+%terminals ID, REG_ID;
 %terminals NUM;
 %terminals LOW, HIGH, TRUE, FALSE;
 
-%terminals LPAREN, RPAREN, LBRACK, RBRACK, LBRACE, RBRACE;
-%terminals POSTFIX, INCR, DECR, DOT;
+%terminals LPAREN, RPAREN, /* LBRACK, RBRACK, */ LBRACE, RBRACE;
+%terminals POSTFIX;
 %terminals PREFIX,  BANG, TILDE;
 %terminals STAR, DIV, MOD;
 %terminals PLUS, MINUS;
@@ -38,22 +29,18 @@
 %terminals PIPE;
 %terminals AND;
 %terminals OR;
-%terminals IMP;
-%terminals EQV;
-%terminals QUESTION, COLON, DCOLON;
-%terminals PTO;
+%terminals COLON;
 %terminals ASG;
 %terminals COMMA, SEMICOLON;
 
 %terminals FENCE;
+%terminals INVARIANT, GAMMA;
 %terminals LPRED, MODE;
 %terminals NORW, NOW, RW;
 
 %nonassoc IF;
 %nonassoc ELSE;
 %nonassoc LPAREN, RPAREN;
-%left LBRACK;
-%nonassoc UNDERSCORE;
 %right PREFIX;
 %left  STAR, DIV, MOD;
 %left  PLUS, MINUS;
@@ -63,14 +50,10 @@
 %left  AMP;
 %left  CARET;
 %left  PIPE;
-%left  DCOLON;
-%left  PTO;
 %left  AND;
 %left  OR;
-%right IMP;
-%left  EQV;
-%right QUESTION, COLON;
-%right ASG, ASG_OP;
+%right COLON;
+%right ASG;
 %left  COMMA;
 
 %typeof ID      = "String";
@@ -78,66 +61,22 @@
 
 %typeof NUM     = "Integer";
 
-%typeof param   = "Param";
-
 %typeof expr    = "Expression";
 %typeof type    = "Type";
-
-//%typeof aux     = "Aux";
 
 %typeof local   = "Statement";
 %typeof local1  = "Statement";
 %typeof local2  = "Statement";
-%typeof global  = "Global";
 
 %typeof lpred = "Expression";
 %typeof mode = "Mode";
 
 %goal unit;
 
-unit = global1 *;
-
-//field = type.t ID.n SEMICOLON {: return new Field(t, n); :};
-//fields = field *;
-
-param = type.t ID.n {: return new Param(t, n); :};
-params = param | params COMMA param;
-
-//const  = ID.n;
-//consts = const | consts COMMA const;
+unit = local *;
 
 exprs = expr @ ASG | exprs COMMA expr;
-//terms = term | terms COMMA term;
 
-global
-    = type.t REG_ID.n SEMICOLON lpred.l                 {: variables.add(new Variable(n, l));
-                                                            return new VarDef(t, n); :}
-    | type.t REG_ID.n ASG expr.e SEMICOLON lpred.l      {: variables.add(new Variable(n, l));
-                                                            return new VarDef(t, n, e); :}
-    | type.t REG_ID.n SEMICOLON                         {: variables.add(new Variable(n));
-                                                            return new VarDef(t, n); :}
-    | type.t REG_ID.n ASG expr.e SEMICOLON              {: variables.add(new Variable(n));
-                                                            return new VarDef(t, n, e); :}
-    | type.t ID.n SEMICOLON lpred.l mode.m              {:  variables.add(new Variable(n, l, m));
-                                                            return new VarDef(t, n); :}
-    | type.t ID.n ASG expr.e SEMICOLON lpred.l mode.m   {: variables.add(new Variable(n, l, m));
-                                                            return new VarDef(t, n, e); :}
-    | type.t ID.n SEMICOLON mode.m                      {: variables.add(new Variable(n, m));
-                                                            return new VarDef(t, n); :}
-    | type.t ID.n ASG expr.e SEMICOLON mode.m           {: variables.add(new Variable(n, m));
-                                                            return new VarDef(t, n, e); :}
-    | type.t ID.n LPAREN RPAREN SEMICOLON                    {: return new FunDef(t, n); :}
-    | type.t ID.n LPAREN VOID RPAREN SEMICOLON                    {: return new FunDef(t, n); :}
-    | type.t ID.n LPAREN params.xs RPAREN SEMICOLON {: return new FunDef(t, n, xs); :}
-    | type.t ID.n LPAREN RPAREN local1.b            {: return new FunDef(t, n, b); :}
-    | type.t ID.n LPAREN VOID RPAREN local1.b            {: return new FunDef(t, n, b); :}
-    | type.t ID.n LPAREN params.xs RPAREN  local1.b  {: return new FunDef(t, n, xs, b); :}
-    ;
-
-global1
-	= global
-	//| aux.a {: return new Ghost(a);  :}
-	;
 
 local
     = SEMICOLON {: return Block.empty(); :}
@@ -177,7 +116,7 @@ local1
                                                             return new VarDef(t, n, e); :}
     | IF LPAREN expr.a RPAREN local.b   {: return new If(a, b);  :}
     | IF LPAREN expr.a RPAREN local.b ELSE local.c     {: return new If(a, b, c);   :}
-    | WHILE LPAREN expr.a RPAREN INVARIANT COLON exprs.i local.b      {: return new While(a, i, b);   :}
+    | WHILE LPAREN expr.a RPAREN INVARIANT COLON exprs.i GAMMA COLON exprs.g local.b      {: return new While(a, i, g, b);   :}
     //| DO local.b WHILE LPAREN expr.a RPAREN SEMICOLON  {: return new DoWhile(b, a); :}
     //| FOR LPAREN expr.a SEMICOLON expr.b SEMICOLON expr.c SEMICOLON RPAREN local.p        {: return new For(a, b, c, p); :}
     | error SEMICOLON {: return Malformed.self(); :}
@@ -186,6 +125,7 @@ local1
 expr
     = PREFIX | POSTFIX /* unused */
     | ID.n                              {: return new Id(n);  :}
+    | REG_ID.n                          {: return new Id(n);  :}
     | NUM.n                             {: return new Lit(n); :}
     //| expr.a LBRACK expr.i RBRACK       {: return new PreOp("*", new BinOp("+", a, i)); :}
     | PLUS  expr.a @ PREFIX             {: return new PreOp("+", a);    :}
@@ -199,7 +139,7 @@ expr
     | expr.a MINUS  expr.b              {: return new BinOp("-", a, b); :}
     | expr.a SHL    expr.b              {: return new BinOp("<<",a, b); :}
     | expr.a SHR    expr.b              {: return new BinOp(">>",a, b); :}
-    | expr.a ASHR    expr.b              {: return new BinOp(">>>",a, b); :}
+    | expr.a ASHR    expr.b             {: return new BinOp(">>>",a, b); :}
     | expr.a LT     expr.b              {: return new BinOp("<", a, b); :}
     | expr.a LE     expr.b              {: return new BinOp("<=",a, b); :}
     | expr.a GE     expr.b              {: return new BinOp(">=",a, b); :}
@@ -213,10 +153,10 @@ expr
     | expr.a OR     expr.b              {: return new BinOp("||",a, b); :}
     | expr.a ASG    expr.b              {: return new BinOp("=", a, b); :}
     | LPAREN expr.e RPAREN              {: return (Symbol) e;           :}
-    | LOW                               {: return new Const("low");  :}
-    | HIGH                              {: return new Const("high");  :}
-    | TRUE                              {: return new Const("true");  :}
-    | FALSE                             {: return new Const("false");  :}
+    | LOW                               {: return new Const("Low");  :}
+    | HIGH                              {: return new Const("High");  :}
+    | TRUE                              {: return new Const("True");  :}
+    | FALSE                             {: return new Const("False");  :}
     ;
 
 // for _L(x): pred construction to set predicate for variable security level
@@ -235,22 +175,5 @@ type
     = VOID                              {: return (Symbol) Void.self();   :}
     | INT                               {: return (Symbol) SignedInt.self(); :}
     | CHAR                              {: return (Symbol) Char.self();  :}
-    /* | SIGNED? CHAR                      {: return (Symbol) SChar.self();  :}
-    | SIGNED? SHORT                     {: return (Symbol) SShort.self(); :}
-    | SIGNED? INT                       {: return (Symbol) SInt.self();   :}
-    | SIGNED? LONG                      {: return (Symbol) SLong.self();  :}
-    | UNSIGNED CHAR                     {: return (Symbol) UChar.self();  :}
-    | UNSIGNED SHORT                    {: return (Symbol) UShort.self(); :}
-    | UNSIGNED INT?                     {: return (Symbol) UInt.self();   :}
-    | UNSIGNED LONG                     {: return (Symbol) ULong.self();  :} */
-    /* | TYPE.t                            {: return new TypedefName(t);   :}
-    | type.t STAR                       {: return new PtrType(t);       :}
-    | type.t LBRACK RBRACK              {: return new PtrType(t);       :}
-    | STRUCT ID.t                       {: return new StructName(t);    :}
-    | UNION  ID.t                       {: return new UnionName(t);     :}
-    | ENUM   ID.t                       {: return new EnumName(t);      :}
-    | STRUCT LBRACE fields.fs RBRACE    {: return new AnonStruct(fs);   :}
-    | UNION  LBRACE fields.fs RBRACE    {: return new AnonUnion(fs);    :}
-    | ENUM   LBRACE consts.cs RBRACE    {: return new AnonEnum(cs);     :} */
     ;
 

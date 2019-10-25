@@ -1,0 +1,20 @@
+int data;
+_L: inmode == 0
+_Mode: RW
+
+int high;
+_L: FALSE
+_Mode: RW
+
+int low;
+_L: TRUE
+_Mode: RW
+
+int r_inmode;
+_L: TRUE
+
+if (r_inmode == 0) {
+    low = data
+} else {
+    high = data
+}

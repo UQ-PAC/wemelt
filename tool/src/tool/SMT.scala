@@ -10,13 +10,15 @@ object SMT {
 
   val int_zero = ctx.mkInt(0)
 
-  def prove (cond: Expression, given: List[Expression]) = {
+  def prove(cond: Expression, given: List[Expression]) = {
+    println("smt checking " + cond + " given " + given)
     solver.push()
     val res = try {
-      for (p <- given)
+      for (p <- given) {
         solver.add(formula(p))
+      }
+      solver.add(formula(PreOp("!", cond)))
 
-      solver.add(ctx.mkNot(formula(cond)))
       solver.check
     } catch {
       case e: Throwable =>
@@ -25,7 +27,34 @@ object SMT {
       solver.pop()
     }
 
-    res == z3.Status.UNSATISFIABLE
+    println(res)
+    res == z3.Status.SATISFIABLE
+  }
+
+  // recursively convert each list into AND structures
+  def PToAnd(exprs: List[Expression]): z3.BoolExpr = exprs match {
+      case Nil =>
+        ctx.mkTrue
+
+      case expr :: rest =>
+        val xs = PToAnd(rest)
+        val x =  ctx.mkAnd(formula(expr), xs)
+        x
+    }
+
+  def proveImplies(strong: List[Expression], weak: List[Expression]) = {
+    solver.push()
+    val res = try {
+      solver.add(ctx.mkImplies(PToAnd(strong), PToAnd(weak)))
+      solver.check
+    } catch {
+      case e: Throwable =>
+        throw error.Z3Error("Z3 failed", strong, weak, e)
+    } finally {
+      solver.pop()
+    }
+
+    res == z3.Status.SATISFIABLE
   }
 
   def formula(prop: Expression): z3.BoolExpr = translate(prop) match {

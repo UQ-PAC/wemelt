@@ -1,12 +1,12 @@
--figure out intellij build
--while loop
--user defining P, Gamma
+-debug - handling undefined variables in SMT? figure out whether to negate cond or not
+-user defining P, Gamma at start
 -organise expression class - boolean expression subclass
 -bitwise in SMT - ensure conversion works properly - test thoroughly
--remove remnants of function definitions, types, make match paper syntax more closely
+-make match paper syntax more closely
 
 eventually:
 clean up, comment more extensively
 fix up vardef stuff
 arrays
 bitwise arithmetic instead of int arithmetic?
+make while rule more powerful?

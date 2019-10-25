@@ -10,7 +10,7 @@ object Tool {
 
     } else {
       for (file <- args) {
-        Console.out.println(file)
+        println(file)
         val (statements, variables) = parse(file)
         val state0: State = State.init(variables)
         Exec.execute(statements, state0)

@@ -14,6 +14,7 @@ package object tool {
 
   }
 
+  type Security = Boolean // low is true, high is false
   type Rename = Map[Var, Var]
   type Subst = Map[Expression, Expression]
 
