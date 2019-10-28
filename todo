@@ -1,12 +1,11 @@
--debug - handling undefined variables in SMT? figure out whether to negate cond or not
--user defining P, Gamma at start
+-nice output
+-test - D' in while especially
+-line numbers
 -organise expression class - boolean expression subclass
 -bitwise in SMT - ensure conversion works properly - test thoroughly
--make match paper syntax more closely
+-define security as case class not boolean to make code easier to understand
 
 eventually:
 clean up, comment more extensively
-fix up vardef stuff
-arrays
+arrays?
 bitwise arithmetic instead of int arithmetic?
-make while rule more powerful?

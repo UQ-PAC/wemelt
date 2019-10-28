@@ -89,10 +89,12 @@ WS = {NL} | [ \t\f]
 ","         { return newToken(Terminals.COMMA);    }
 ";"         { return newToken(Terminals.SEMICOLON);}
 
-"void"      { return newToken(Terminals.VOID);     }
-"char"      { return newToken(Terminals.CHAR);     }
+
+"var"      { return newToken(Terminals.VAR);     }
+//"void"      { return newToken(Terminals.VOID);     }
+//"char"      { return newToken(Terminals.CHAR);     }
 // "short"     { return newToken(Terminals.SHORT);    }
-"int"       { return newToken(Terminals.INT);      }
+//"int"       { return newToken(Terminals.INT);      }
 // "long"      { return newToken(Terminals.LONG);     }
 // "signed"    { return newToken(Terminals.SIGNED);   }
 // "unsigned"  { return newToken(Terminals.UNSIGNED); }
@@ -119,6 +121,8 @@ WS = {NL} | [ \t\f]
 "RW"      { return newToken(Terminals.RW);    }
 "_invariant" {return newToken(Terminals.INVARIANT);}
 "_Gamma" {return newToken(Terminals.GAMMA);}
+"_Gamma_0" {return newToken(Terminals.GAMMA_0);}
+"_P_0" {return newToken(Terminals.P_0);}
 
 "TRUE" { return newToken(Terminals.TRUE);    }
 "FALSE" { return newToken(Terminals.FALSE);    }

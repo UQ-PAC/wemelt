@@ -11,30 +11,29 @@ object Tool {
     } else {
       for (file <- args) {
         println(file)
-        val (statements, variables) = parse(file)
-        val state0: State = State.init(variables)
+        val res = parse(file)
+        val variables = res.variables
+        val statements = res.statements
+        val P_0 = res.P_0
+        val gamma_0 = res.gamma_0
+        println(statements)
+        println(variables)
+        println(P_0)
+        println(gamma_0)
+        val state0: State = State.init(variables, P_0, gamma_0)
         Exec.execute(statements, state0)
       }
     }
   }
 
-  def parse(file: String): (List[Statement], Set[Variable]) = {
+  def parse(file: String): Global = {
     val reader = new FileReader(file)
     val scanner = new Scanner(reader)
     val parser = new Parser()
 
-    val variables = new java.util.HashSet[Variable]
-    parser.variables = variables
+    val result = parser.parse(scanner).asInstanceOf[Global]
 
-    val result = parser.parse(scanner)
-
-    //result
-    val globals: List[Statement] = result.asInstanceOf[java.util.ArrayList[Statement]].asScala.toList
-
-    val variables2: Set[Variable] = variables.asInstanceOf[java.util.HashSet[Variable]].asScala.toSet
-    println(globals)
-    println(variables2)
-    (globals, variables2)
+    result
   }
 
 

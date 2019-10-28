@@ -151,30 +151,49 @@ case class State(
     copy(D = DPrime)
   }
 
-  def lowP(id: Id): Security = {
+  def lowP(id: Id, p: List[Expression]): Security = {
     println("checking lowP for " + id)
     // prove if L(x) holds given P
-    SMT.prove(L(id), P)
+    SMT.prove(L(id), p)
   }
 
-  def highP(id: Id): Security = {
+  def highP(id: Id, p: List[Expression]): Security = {
     println("checking highP for " + id)
     // prove if L(x) doesn't hold given P
-    SMT.prove(PreOp("!", L(id)), P)
+    SMT.prove(PreOp("!", L(id)), p)
+  }
+
+  // x is variable to get security of, p is P value given so can substitute in P_a etc.
+  def security(x: Id, p: List[Expression]): Security = {
+    println("checking security for " + x)
+    var sec = false
+    if (gamma.contains(x)) {
+      sec = gamma(x)
+    } else {
+      sec = lowP(x, p) // true/LOW if L(x) holds given P, false/HIGH otherwise
+    }
+    if (sec) {
+      println(x + " security is low")
+    } else {
+      println(x + " security is high")
+    }
+    sec
   }
 
   // e is expression to get security of, p is P value given so can substitute in P_a etc.
   def security(e: Expression, p: List[Expression]): Security = {
+    println("checking security for " + e)
     var low = true
     val it = e.getVariables.toIterator
     // if x security is high, return, otherwise keep checking
     while (it.hasNext && low) {
       val x: Id = it.next()
-      low = if (gamma.contains(x)) {
-        gamma(x)
-      } else {
-        lowP(x) // true/LOW if L(x) holds given P, false/HIGH otherwise
-      }
+      low = security(x, p)
+    }
+    if (low) {
+      println(e + "security is low")
+    } else {
+      println(e + "security is high")
     }
     low
   }
@@ -216,7 +235,7 @@ case class State(
 
     // gamma'(x) = maximum security of gamma_1(x) and gamma_2(x))
     val gammaPrime: Map[Id, Security] = {
-      for (v <- state1.variables) yield {
+      for (v <- state1.gamma.keySet) yield {
         v -> (state1.gamma(v) && state2.gamma(v))
       }
     }.toMap
@@ -233,14 +252,8 @@ case class State(
 
   // D' = D1 intersect D2
   def mergeD(state2: State): Map[Id, (Set[Id], Set[Id], Set[Id], Set[Id])] = {
-    val state1 = this
-    for (v <- state1.variables) yield {
-      v -> ((state1.W_w(v) intersect state2.W_w(v),
-        state1.W_r(v) intersect state2.W_r(v),
-        state1.R_w(v) intersect state2.R_w(v),
-        state1.R_r(v) intersect state2.R_r(v)))
-    }
-    }.toMap
+    State.mergeD(this.D, state2.D)
+  }
 
   // P1 OR P2 converted to CNF
   // assumes P1 and P2 are already in CNF - may need to add further conversion later to distribute nots etc.?
@@ -255,7 +268,7 @@ case class State(
 }
 
 object State {
-  def init(variables: Set[Variable]): State = {
+  def init(variables: Set[VarDef], P_0: Option[List[Expression]], gamma_0: Option[List[Expression]]): State = {
     var globals: Set[Id] = Set()
     var locals: Set[Id] = Set()
     var noReadWrite: Set[Id] = Set()
@@ -308,21 +321,51 @@ object State {
 
     val stable = noReadWrite ++ noWrite
 
-    // init gamma - all variables uninitialised initially so set security to be high
-    val gamma: Map[Id, Security] = {
-      // dom gamma = stable variables without control variables
-      for (i <- ids if !controls.contains(i) && stable.contains(i)) yield {
-        i -> false
-      }
-    }.toMap
+    // init gamma
+    val gamma: Map[Id, Security] = gamma_0 match {
+      // security high by default if user hasn't provided
+      case None => {
+        // dom gamma = stable variables without control variables
+        for (i <- ids if !controls.contains(i) && stable.contains(i)) yield {
+          i -> false
+        }
+        }.toMap
+      // user provided
+      case Some(gs) => {
+        for (g <- gs) yield {
+          g match {
+            case BinOp("==", arg1: Id, Const.low) =>
+              arg1 -> true
+            case BinOp("==", arg1: Id, Const.high) =>
+              arg1 -> false
+            case _ =>
+              throw error.InvalidProgram(g + " is not a valid input to gamma")
+          }
+        }
+        }.toMap
+    }
 
+    // check gamma domain
+    val gammaDom: Set[Id] = for (i <- ids if !controls.contains(i) && stable.contains(i)) yield i
+    if (gamma.keySet != gammaDom)
+      throw error.InvalidProgram("provided gamma has invalid domain")
 
-
-    // fore replacing Ids in L preds with vars
+    // for replacing Ids in predicates with Vars
     val idToVar: Subst = {
       for (i <- ids)
         yield i -> i.toVar
       }.toMap
+
+
+    // initialise P - true by default
+    val P: List[Expression] = P_0 match {
+      case None =>
+        List(Const._true)
+
+      case Some(p) =>
+        p map {i => i.subst(idToVar)}
+    }
+
 
     // init L - map variables to their L predicates
     val L: Map[Id, Expression] = {
@@ -348,7 +391,7 @@ object State {
     State(
       gamma = gamma,
       D = D,
-      P = List(Const._true),
+      P = P,
       L = L,
       globals = globals,
       locals = locals,
@@ -369,5 +412,14 @@ object State {
   def restrictP(P: List[Expression], restricted: Set[Id]): List[Expression] = {
     P map (p => p.restrict(restricted))
   }
+
+  def mergeD(D1: Map[Id, (Set[Id], Set[Id], Set[Id], Set[Id])], D2: Map[Id, (Set[Id], Set[Id], Set[Id], Set[Id])]): Map[Id, (Set[Id], Set[Id], Set[Id], Set[Id])] = {
+    for (v <- D1.keySet) yield {
+      v -> ((D1(v)._1 intersect D2(v)._1,
+        D1(v)._2 intersect D2(v)._2,
+        D1(v)._3 intersect D2(v)._3,
+        D1(v)._4 intersect D2(v)._4))
+    }
+    }.toMap
 
 }

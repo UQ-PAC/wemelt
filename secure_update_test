@@ -1,5 +1,5 @@
 var data;
-_L: inmode == 0
+_L: r_inmode == 0
 _Mode: RW
 
 var high;
@@ -13,8 +13,8 @@ _Mode: RW
 var r_inmode;
 _L: TRUE
 
-if (r_inmode == 0) {
-    low = data;
-} else {
-    high = data;
-}
+r_inmode = 1;
+fence;
+data = high;
+fence;
+r_inmode = 0;

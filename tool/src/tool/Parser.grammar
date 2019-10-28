@@ -1,13 +1,7 @@
 %package "tool";
 %class "Parser";
 
-%import "java.util.Set";
-
-%embed {:
-    Set<Variable> variables;
-:};
-
-%terminals VOID, INT, CHAR;
+%terminals VAR;
 
 //%terminals RETURN, BREAK, CONTINUE;
 %terminals IF, ELSE, WHILE; /* THEN, DO, FOR */
@@ -34,7 +28,7 @@
 %terminals COMMA, SEMICOLON;
 
 %terminals FENCE;
-%terminals INVARIANT, GAMMA;
+%terminals INVARIANT, GAMMA, P_0, GAMMA_0;
 %terminals LPRED, MODE;
 %terminals NORW, NOW, RW;
 
@@ -62,18 +56,20 @@
 %typeof NUM     = "Integer";
 
 %typeof expr    = "Expression";
-%typeof type    = "Type";
 
 %typeof local   = "Statement";
 %typeof local1  = "Statement";
 %typeof local2  = "Statement";
 
+%typeof vardef = "VarDef";
 %typeof lpred = "Expression";
 %typeof mode = "Mode";
+%typeof unit = "Global";
 
 %goal unit;
 
-unit = local *;
+unit = vardefs.v locals.s {: return new Global(v, s); :}
+     | vardefs.v P_0 COLON exprs.e GAMMA_0 COLON exprs.f locals.s {: return new Global(v, e, f, s); :};
 
 exprs = expr @ ASG | exprs COMMA expr;
 
@@ -83,37 +79,31 @@ local
     | local1;
 
 local2
-	= local1
+	=  local1
     //| aux.a {: return new Ghost(a);  :}
     ;
 
-// locals  = local *;
+locals  = local *;
 locals2 = local2 *;
+
+vardef
+    =     VAR REG_ID.n SEMICOLON lpred.l                 {: return new VarDef(n, l); :}
+          | VAR REG_ID.n SEMICOLON                         {: return new VarDef(n); :}
+          | VAR ID.n SEMICOLON lpred.l mode.m              {:  return new VarDef(n, l, m); :}
+          | VAR ID.n SEMICOLON mode.m                      {: return new VarDef(n, m); :}
+          ;
+
+vardefs = vardef *;
 
 local1
     = LBRACE locals2.ss RBRACE          {: return new Block(ss); :}
-    | expr.a   SEMICOLON                {: return new Atomic(a); :}
+    //| expr.a   SEMICOLON                {: return new Atomic(a); :}
+    | ID.n ASG    expr.b              {: return new Assignment(n, b); :}
     //| RETURN   SEMICOLON                {: return Return.none(); :}
     //| RETURN expr.a SEMICOLON           {: return new Return(a); :}
     //| BREAK    SEMICOLON                {: return Break.self();  :}
     //| CONTINUE SEMICOLON                {: return Continue.self(); :}
     | FENCE SEMICOLON                   {: return Fence.self();  :}
-    | type.t REG_ID.n SEMICOLON lpred.l                 {: variables.add(new Variable(n, l));
-                                                            return new VarDef(t, n); :}
-    | type.t REG_ID.n ASG expr.e SEMICOLON lpred.l      {: variables.add(new Variable(n, l));
-                                                            return new VarDef(t, n, e); :}
-    | type.t REG_ID.n SEMICOLON                         {: variables.add(new Variable(n));
-                                                            return new VarDef(t, n); :}
-    | type.t REG_ID.n ASG expr.e SEMICOLON              {: variables.add(new Variable(n));
-                                                            return new VarDef(t, n, e); :}
-    | type.t ID.n SEMICOLON lpred.l mode.m              {:  variables.add(new Variable(n, l, m));
-                                                            return new VarDef(t, n); :}
-    | type.t ID.n ASG expr.e SEMICOLON lpred.l mode.m   {: variables.add(new Variable(n, l, m));
-                                                            return new VarDef(t, n, e); :}
-    | type.t ID.n SEMICOLON mode.m                      {: variables.add(new Variable(n, m));
-                                                            return new VarDef(t, n); :}
-    | type.t ID.n ASG expr.e SEMICOLON mode.m           {: variables.add(new Variable(n, m));
-                                                            return new VarDef(t, n, e); :}
     | IF LPAREN expr.a RPAREN local.b   {: return new If(a, b);  :}
     | IF LPAREN expr.a RPAREN local.b ELSE local.c     {: return new If(a, b, c);   :}
     | WHILE LPAREN expr.a RPAREN INVARIANT COLON exprs.i GAMMA COLON exprs.g local.b      {: return new While(a, i, g, b);   :}
@@ -151,7 +141,7 @@ expr
     | expr.a PIPE   expr.b              {: return new BinOp("|", a, b); :}
     | expr.a AND    expr.b              {: return new BinOp("&&",a, b); :}
     | expr.a OR     expr.b              {: return new BinOp("||",a, b); :}
-    | expr.a ASG    expr.b              {: return new BinOp("=", a, b); :}
+    //| expr.a ASG    expr.b              {: return new BinOp("=", a, b); :}
     | LPAREN expr.e RPAREN              {: return (Symbol) e;           :}
     | LOW                               {: return new Const("Low");  :}
     | HIGH                              {: return new Const("High");  :}
@@ -170,10 +160,3 @@ mode
     | MODE COLON NOW {: return new Mode("NoW"); :}
     | MODE COLON RW {: return new Mode("RW"); :}
     ;
-
-type
-    = VOID                              {: return (Symbol) Void.self();   :}
-    | INT                               {: return (Symbol) SignedInt.self(); :}
-    | CHAR                              {: return (Symbol) Char.self();  :}
-    ;
-

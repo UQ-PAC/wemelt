@@ -11,7 +11,7 @@ object SMT {
   val int_zero = ctx.mkInt(0)
 
   def prove(cond: Expression, given: List[Expression]) = {
-    println("smt checking " + cond + " given " + given)
+    println("smt checking !" + cond + " given " + given)
     solver.push()
     val res = try {
       for (p <- given) {
@@ -28,7 +28,7 @@ object SMT {
     }
 
     println(res)
-    res == z3.Status.SATISFIABLE
+    res == z3.Status.UNSATISFIABLE
   }
 
   // recursively convert each list into AND structures
@@ -43,9 +43,10 @@ object SMT {
     }
 
   def proveImplies(strong: List[Expression], weak: List[Expression]) = {
+    println("smt checking !(" + strong + " implies " + weak + ")")
     solver.push()
     val res = try {
-      solver.add(ctx.mkImplies(PToAnd(strong), PToAnd(weak)))
+      solver.add(ctx.mkNot(ctx.mkImplies(PToAnd(strong), PToAnd(weak))))
       solver.check
     } catch {
       case e: Throwable =>
@@ -54,7 +55,8 @@ object SMT {
       solver.pop()
     }
 
-    res == z3.Status.SATISFIABLE
+    println(res)
+    res == z3.Status.UNSATISFIABLE
   }
 
   def formula(prop: Expression): z3.BoolExpr = translate(prop) match {
@@ -92,7 +94,7 @@ object SMT {
     case x: Id =>
       throw error.InvalidProgram("unresolved program variable", x)
 
-    case BinOp("=", arg1, arg2) => ctx.mkEq(translate(arg1), translate(arg2))
+    //case BinOp("=", arg1, arg2) => ctx.mkEq(translate(arg1), translate(arg2))
     case BinOp("==", arg1, arg2) => ctx.mkEq(translate(arg1), translate(arg2))
 
     case PreOp("!", arg) => ctx.mkNot(formula(arg))

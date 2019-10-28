@@ -1,3 +1,3 @@
 make clean
 make
-./armlogictool.sh test1
+./armlogictool.sh secret_write

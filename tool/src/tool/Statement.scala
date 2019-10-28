@@ -19,6 +19,10 @@ case class Block(statements: List[Statement]) extends Statement {
 case class Atomic(expression: Expression) extends Statement {
 }
 
+case class Assignment(lhs: Id, expression: Expression) extends Statement {
+  def this(lhs: String, expression: Expression) = this(Id(lhs), expression)
+}
+
 /*
 case object Break extends Statement {
   def self = this
@@ -48,9 +52,4 @@ case class If(test: Expression, left: Statement, right: Option[Statement]) exten
 
 case class While(test: Expression, invariant: List[Expression], gamma: List[Expression], body: Statement) extends Statement {
   def this(test: Expression, invariant: Array[Expression], gamma: Array[Expression], body: Statement) = this(test, invariant.toList, gamma.toList, body)
-}
-
-case class VarDef(typ: Type, name: Id, init: Option[Expression]) extends Statement {
-  def this(typ: Type, name: String) = this(typ, Id(name), None)
-  def this(typ: Type, name: String, init: Expression) = this(typ, Id(name), Some(init))
 }
