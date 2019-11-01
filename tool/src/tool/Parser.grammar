@@ -69,7 +69,9 @@
 %goal unit;
 
 unit = vardefs.v locals.s {: return new Global(v, s); :}
-     | vardefs.v P_0 COLON exprs.e GAMMA_0 COLON exprs.f locals.s {: return new Global(v, e, f, s); :};
+     | vardefs.v GAMMA_0 COLON exprs.f locals.s {: return new Global(v, f, s); :}
+     | vardefs.v P_0 COLON exprs.e locals.s {: return new Global(e, v, s); :}
+     | vardefs.v P_0 COLON exprs.e GAMMA_0 COLON exprs.f locals.s {: return new Global(e, v, f, s); :};
 
 exprs = expr @ ASG | exprs COMMA expr;
 
@@ -87,10 +89,10 @@ locals  = local *;
 locals2 = local2 *;
 
 vardef
-    =     VAR REG_ID.n SEMICOLON lpred.l                 {: return new VarDef(n, l); :}
-          | VAR REG_ID.n SEMICOLON                         {: return new VarDef(n); :}
-          | VAR ID.n SEMICOLON lpred.l mode.m              {:  return new VarDef(n, l, m); :}
-          | VAR ID.n SEMICOLON mode.m                      {: return new VarDef(n, m); :}
+    =     VAR REG_ID.n COLON lpred.l                 {: return new VarDef(n, l); :}
+          | VAR REG_ID.n COLON                         {: return new VarDef(n); :}
+          | VAR ID.n COLON lpred.l mode.m              {:  return new VarDef(n, l, m); :}
+          | VAR ID.n COLON mode.m                      {: return new VarDef(n, m); :}
           ;
 
 vardefs = vardef *;
@@ -98,7 +100,8 @@ vardefs = vardef *;
 local1
     = LBRACE locals2.ss RBRACE          {: return new Block(ss); :}
     //| expr.a   SEMICOLON                {: return new Atomic(a); :}
-    | ID.n ASG    expr.b              {: return new Assignment(n, b); :}
+    | ID.n ASG    expr.b SEMICOLON              {: return new Assignment(n, b); :}
+    | REG_ID.n ASG    expr.b   SEMICOLON           {: return new Assignment(n, b); :}
     //| RETURN   SEMICOLON                {: return Return.none(); :}
     //| RETURN expr.a SEMICOLON           {: return new Return(a); :}
     //| BREAK    SEMICOLON                {: return Break.self();  :}

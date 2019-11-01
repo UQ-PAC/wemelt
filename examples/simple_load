@@ -1,16 +1,16 @@
-var data;
-_L: inmode == 0
+_var data;
+_L: r_inmode == 0
 _Mode: RW
 
-var high;
+_var high;
 _L: FALSE
 _Mode: RW
 
-var low;
+_var low;
 _L: TRUE
 _Mode: RW
 
-var r_inmode;
+_var r_inmode;
 _L: TRUE
 
 if (r_inmode == 0) {

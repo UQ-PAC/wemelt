@@ -5,7 +5,7 @@ object Block {
 }
 
 sealed trait Statement extends beaver.Symbol {
-
+  def line: Int = beaver.Symbol.getLine(this.getStart())
 }
 
 case object Malformed extends Statement {
@@ -21,6 +21,7 @@ case class Atomic(expression: Expression) extends Statement {
 
 case class Assignment(lhs: Id, expression: Expression) extends Statement {
   def this(lhs: String, expression: Expression) = this(Id(lhs), expression)
+  override def toString = lhs + " = " + expression
 }
 
 /*

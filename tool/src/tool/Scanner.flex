@@ -21,9 +21,9 @@ import tool.Parser.Terminals;
 %{
     Symbol resolve(String name) {
       if (name.startsWith("r_")) {
-          return newToken(Terminals.REG_ID, name.substring(2));
+          return newToken(Terminals.REG_ID, name);
       } else {
-        return newToken(Terminals.ID,   name);
+          return newToken(Terminals.ID,   name);
       }
     }
 
@@ -90,7 +90,7 @@ WS = {NL} | [ \t\f]
 ";"         { return newToken(Terminals.SEMICOLON);}
 
 
-"var"      { return newToken(Terminals.VAR);     }
+"_var"      { return newToken(Terminals.VAR);     }
 //"void"      { return newToken(Terminals.VOID);     }
 //"char"      { return newToken(Terminals.CHAR);     }
 // "short"     { return newToken(Terminals.SHORT);    }

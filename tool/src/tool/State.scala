@@ -22,9 +22,16 @@ case class State(
 
   variables: Set[Id],
 
-
   read: Set[Id],
-  written: Set[Id]) {
+  written: Set[Id],
+
+  errors: List[String]) {
+
+  def log = {
+    println("gamma: " + gamma.gammaStr)
+    println("P: " + P.PStr)
+    println("D: " + D.DStr)
+  }
 
   // update P with strongest post-condition after assignment
   def assign(id: Id, arg: Expression): State = {
@@ -87,7 +94,6 @@ case class State(
 
   def updateD(laterW: Set[Id], laterR: Set[Id]): Map[Id, (Set[Id], Set[Id], Set[Id], Set[Id])] = {
     for (i <- variables) yield {
-      //if ((read ++ written).contains(i)) {
         val w_w = if (laterW.contains(i)) {
           W_w(i) ++ knownW()
         } else {
@@ -109,9 +115,6 @@ case class State(
           R_r(i) -- read
         }
         i -> (w_w, w_r, r_w, r_r)
-      //} else {
-       // i -> D(i)
-      //}
     }
   }.toMap
 
@@ -151,13 +154,13 @@ case class State(
     copy(D = DPrime)
   }
 
-  def lowP(id: Id, p: List[Expression]): Security = {
+  def lowP(id: Id, p: List[Expression]): Boolean = {
     println("checking lowP for " + id)
     // prove if L(x) holds given P
     SMT.prove(L(id), p)
   }
 
-  def highP(id: Id, p: List[Expression]): Security = {
+  def highP(id: Id, p: List[Expression]): Boolean = {
     println("checking highP for " + id)
     // prove if L(x) doesn't hold given P
     SMT.prove(PreOp("!", L(id)), p)
@@ -166,13 +169,15 @@ case class State(
   // x is variable to get security of, p is P value given so can substitute in P_a etc.
   def security(x: Id, p: List[Expression]): Security = {
     println("checking security for " + x)
-    var sec = false
+    var sec: Security = High
     if (gamma.contains(x)) {
       sec = gamma(x)
     } else {
-      sec = lowP(x, p) // true/LOW if L(x) holds given P, false/HIGH otherwise
+      if (lowP(x, p)) {
+        sec = Low
+      } // true/LOW if L(x) holds given P, false/HIGH otherwise
     }
-    if (sec) {
+    if (sec == Low) {
       println(x + " security is low")
     } else {
       println(x + " security is high")
@@ -183,19 +188,19 @@ case class State(
   // e is expression to get security of, p is P value given so can substitute in P_a etc.
   def security(e: Expression, p: List[Expression]): Security = {
     println("checking security for " + e)
-    var low = true
+    var sec: Security = Low
     val it = e.getVariables.toIterator
     // if x security is high, return, otherwise keep checking
-    while (it.hasNext && low) {
+    while (it.hasNext && sec == Low) {
       val x: Id = it.next()
-      low = security(x, p)
+      sec = security(x, p)
     }
-    if (low) {
+    if (sec == Low) {
       println(e + "security is low")
     } else {
       println(e + "security is high")
     }
-    low
+    sec
   }
 
   def updateGammaAssign(x: Id, e: Expression): State = {
@@ -236,7 +241,11 @@ case class State(
     // gamma'(x) = maximum security of gamma_1(x) and gamma_2(x))
     val gammaPrime: Map[Id, Security] = {
       for (v <- state1.gamma.keySet) yield {
-        v -> (state1.gamma(v) && state2.gamma(v))
+        if (state1.gamma(v) == High || state2.gamma(v) == High) {
+          v -> High
+        } else {
+          v -> Low
+        }
       }
     }.toMap
 
@@ -327,7 +336,7 @@ object State {
       case None => {
         // dom gamma = stable variables without control variables
         for (i <- ids if !controls.contains(i) && stable.contains(i)) yield {
-          i -> false
+          i -> High
         }
         }.toMap
       // user provided
@@ -335,9 +344,9 @@ object State {
         for (g <- gs) yield {
           g match {
             case BinOp("==", arg1: Id, Const.low) =>
-              arg1 -> true
+              arg1 -> Low
             case BinOp("==", arg1: Id, Const.high) =>
-              arg1 -> false
+              arg1 -> High
             case _ =>
               throw error.InvalidProgram(g + " is not a valid input to gamma")
           }
@@ -384,9 +393,10 @@ object State {
     println("controls: " + controls)
     println("controlled: " + controlled)
     println("controlled by: " + controlledBy)
-    println("D: " + D)
+    println("D: " + D.DStr)
+    println("P: " + P.PStr)
     println("L: " + L)
-    println("gamma: " + gamma)
+    println("gamma: " + gamma.gammaStr)
 
     State(
       gamma = gamma,
@@ -404,7 +414,8 @@ object State {
       controlledBy = controlledBy,
       variables = ids,
       read = Set(),
-      written = Set()
+      written = Set(),
+      errors = List(),
     )
   }
 

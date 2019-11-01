@@ -1,0 +1,20 @@
+_var data:
+_L: r_inmode == 0
+_Mode: RW
+
+_var high:
+_L: FALSE
+_Mode: RW
+
+_var low:
+_L: TRUE
+_Mode: RW
+
+_var r_inmode:
+_L: TRUE
+
+r_inmode = 1;
+fence;
+data = high;
+fence;
+r_inmode = 0; // should fail - ASSIGNC rule - secure update fails for falling data

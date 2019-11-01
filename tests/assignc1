@@ -1,20 +1,19 @@
-var z;
+_var z:
 _L: TRUE
 _Mode: NoW
 
-var x;
+_var x:
 _L: z % 2 == 0
 _Mode: NoW
 
-var r_secret;
+_var r_secret:
 _L: FALSE
 
 _P_0: z % 2 == 0
 _Gamma_0: x == LOW, r_secret == HIGH
 
 z = z + 1;
-fence;
-x = r_secret;
+z = r_secret; // should fail - ASSIGNC rule - HIGH expression assigned to control variable
 x = 0;
 fence;
 z = z + 1;

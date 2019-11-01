@@ -46,7 +46,7 @@ object Id {
   val main = Id("main")
 }
 
-// logical variable for use in P
+// logical variable for use in predicates
 case class Var(name: String, index: Option[Int] = None) extends Expression {
   def this(name: String) = this(name, None)
 
@@ -72,7 +72,6 @@ case class Var(name: String, index: Option[Int] = None) extends Expression {
 
 object Var {
   var index = 0
-  // maybe rework so each ID has separate index? not important but might make debugging easier later
   def fresh(name: String) = {
     index += 1
     Var(name, Some(index))

@@ -28,11 +28,13 @@ object Exec {
     case Malformed =>
       throw error.InvalidProgram("parser")
 
+      /*
     case Atomic(expr) =>
 
       val (_, state1) = rval(expr, state0)
 
       Cont.next(state1.resetReadWrite())
+       */
 
 
     case block: Block =>
@@ -56,98 +58,37 @@ object Exec {
        */
 
     case Assignment(lhs, rhs) =>
-      println(lhs + " = " + rhs + ":")
-      val (_rhs, st1) = rval(rhs, state0)
-      val st2 = st1.updateWritten(lhs)
-      // at this point the rd and wr sets are complete for the current instruction
-
-      // check if LHS is a control variable
-      val st3 = if (st2.controls.contains(lhs)) {
-        assignCRule(lhs, _rhs, st2)
+      println("line " + statement.line + ": " + lhs + " = " + rhs + ":")
+      // check if lhs is a control variable
+      val state1 = if (state0.controls.contains(lhs)) {
+        assignCRule(lhs, rhs, state0, statement.line)
       } else {
-        assignRule(lhs,_rhs, st2)
+        assignRule(lhs, rhs, state0, statement.line)
       }
-
-      val st4 = st3.assign(lhs, _rhs) // update P
-      val st5 = st4.updateDAssign(lhs, _rhs)
-
-      println("gamma: " +  st5.gamma)
-      println("P: " +  st5.P)
-      println("D: " +  st5.D)
-      Cont.next(st5.resetReadWrite())
+      state1.log
+      Cont.next(state1.resetReadWrite())
 
     case Fence =>
       // reset D
       val state1 = state0.updateDFence()
       println("fence")
-      println("gamma: " +  state1.gamma)
-      println("P: " +  state1.P)
-      println("D: " +  state1.D)
+      state1.log
       Cont.next(state1)
 
-    case If(test, left, None) =>
-      println("If(" + "test" + ") then {" + left + "} :")
-      // IF rule
-      // evaluate test which updates D
-      val (_test, state1) = rval(test, state0)
-
-      // check test is LOW
-      val PRestrict = state1.restrictP(state1.knownW()) // calculate P_b
-      if (!state1.security(_test, PRestrict)) {
-        throw error.SecurityError("IF rule not valid for " + statement + " as guard expression is HIGH")
-      }
-
-      // execute both sides of if statement
-      val _left = state1.updatePIfLeft(_test)
-      val _left1 = execute(left, _left).st
-      // right hand side is empty
-      val _right1 = state1.updatePIfRight(_test)
-
-      // merge states
-      val merged = _left1.mergeIf(_right1)
-      println("gamma: " +  merged.gamma)
-      println("P: " +  merged.P)
-      println("D: " +  merged.D)
-      Cont.next(merged)
-
-
-    case If(test, left, Some(right)) =>
+    case If(test, left, right) =>
       // IF rule
       // evaluate test which updates D
       println("If(" + "test" + ") then {" + left + "} else { " + right + "} :")
-      val (_test, state1) = rval(test, state0)
-
-      // check test is LOW
-      val PRestrict = state1.restrictP(state1.knownW()) // calculate P_b
-      if (!state1.security(_test, PRestrict)) {
-        throw error.SecurityError("IF rule not valid for "+ statement + " as guard expression is HIGH")
-      }
-
-      // execute both sides of if statement
-      val _left = state1.updatePIfLeft(_test)
-      val _left1 = execute(left, _left).st
-
-      val _right = state1.updatePIfRight(_test)
-      val _right1 = execute(right, _right).st
-
-      println("merging if states:")
-      // merge states
-      val merged = _left1.mergeIf(_right1)
-      println("gamma: " +  merged.gamma)
-      println("P_L: " + _left1.P)
-      println("P_R: " + _right1.P)
-      println("P merged: " +  merged.P)
-      println("D: " +  merged.D)
-      Cont.next(merged)
+      val state1 = IfRule(test, left, right, state0, statement.line)
+      state1.log
+      Cont.next(state1)
 
     case While(test, invariants, gamma, body) =>
-      // WHILE rule
-
       // replace Ids in invariant with vars
       val idToVar: Subst = {
         for (v <- state0.variables)
           yield v -> v.toVar
-      }.toMap
+        }.toMap
 
       val PPrime = invariants map {i => i.subst(idToVar)}
 
@@ -156,102 +97,21 @@ object Exec {
         for (g <- gamma) yield {
           g match {
             case BinOp("==", arg1: Id, Const.low) =>
-              arg1 -> true
+              arg1 -> Low
             case BinOp("==", arg1: Id, Const.high) =>
-              arg1 -> false
+              arg1 -> High
             case _ =>
               throw error.InvalidProgram(g + " is not a valid input to gamma")
           }
         }
         }.toMap
 
-      println("while rule:")
-      println("gamma':" + gammaPrime)
-      println("P':" + PPrime)
-
-      // P' only contains stable variables - tested
-      val PPrimeVar: Set[Id] = (invariants flatMap {x => x.getVariables}).toSet
-      for (i <- PPrimeVar) {
-        if (!state0.stable.contains(i))
-          throw error.SecurityError("WHILE rule not valid for " + statement + " as "  + i + " in invariant is not stable")
-      }
-
-      // check P' is weaker than previous P - tested
-      if (!SMT.proveImplies(state0.P, PPrime)) {
-        throw error.SecurityError("WHILE rule not valid for " + statement + " as provided P' " + PPrime + " is not weaker than P " + state0.P)
-      }
-
-      // gamma' has same domain as gamma - tested
-      if (state0.gamma.keySet != gammaPrime.keySet) {
-        throw error.InvalidProgram("input gamma " + gammaPrime + " for " + statement + " does not have same domain as gamma: " + state0.gamma)
-      }
-
-      // check gamma' is greater or equal than gamma for all x - tested
-      for (g <- state0.gamma.keySet) {
-        if (!state0.gamma(g) && gammaPrime(g)) {
-          throw error.SecurityError("WHILE rule not valid for " + statement + " as gamma' " + gammaPrime + " is not greater than gamma + " + state0.gamma + " for " + g)
-        }
-      }
-      val DFixed = DFixedPoint(test, body, state0)
-      println("DFixed: " + DFixed)
-      val DPrime = State.mergeD(state0.D, DFixed)
-      println("D': " + DPrime)
-
-      val state1 = state0.copy(P = PPrime, gamma = gammaPrime, D = DPrime)
-
-      // check DPrime is subset of D - tested
-      for (v <- state0.variables) {
-        if (!((state1.W_r(v) subsetOf state0.W_r(v)) && (state1.W_w(v) subsetOf state0.W_w(v)) && (state1.R_r(v) subsetOf state0.R_r(v)) && (state1.R_w(v) subsetOf state0.R_w(v))))
-          throw error.SecurityError("WHILE rule not valid for " + statement + " as D' " + state1.D + " is not a subset of D" + state0.D)
-      }
-
-      // evaluate test which updates D
-      val (_test, state2) = rval(test, state1)
-
-      // check test is LOW with regards to P', gamma' - tested
-      if (!state2.security(_test, state2.P)) {
-        throw error.SecurityError("WHILE rule not valid for "+ statement + " as guard expression is HIGH")
-      }
-
-      // add test to P
-      val state3 = state2.updatePIfLeft(_test)
-
-      // evaluate body
-      val _body = execute(body, state3)
-      val state4 = _body.st
-
-      println("while rule:")
-      println("gamma':" + gammaPrime)
-      println("P':" + PPrime)
-
-      println("gamma'':" + state4.gamma)
-      println("P'':" + state4.P)
-
-      // check D' is subset of D''
-      for (v <- state0.variables) {
-        if (!((state1.W_r(v) subsetOf state4.W_r(v)) && (state1.W_w(v) subsetOf state4.W_w(v)) && (state1.R_r(v) subsetOf state4.R_r(v)) && (state1.R_w(v) subsetOf state4.R_w(v))))
-          throw error.SecurityError("WHILE rule not valid for " + statement + " as D' " + state1.D + " is not a subset of D" + state0.D)
-      }
-
-      // check gamma' is greater or equal than gamma'' for all x
-      for (g <- gammaPrime.keySet) {
-        if (!state4.gamma(g) && gammaPrime(g)) {
-          throw error.SecurityError("WHILE rule not valid for " + statement + " as gamma' " + state4.gamma + " is not greater than gamma'' " + gammaPrime + " for " + g)
-        }
-      }
-
-      // check P'' is stronger than P' - tested
-      if (!SMT.proveImplies(state4.P, PPrime)) {
-        throw error.SecurityError("WHILE rule not valid for " + statement + " as provided P' " + PPrime + " does not hold after loop body. P'': " + state3.P)
-      }
-
-      // state1 used here as do not keep gamma'', P'', D'' from after loop body execution
-      // remove test from P'
-      val state5 = state1.updatePIfRight(_test)
-      Cont.next(state5)
+      val state1 = whileRule(test, PPrime, gammaPrime, body, state0, statement.line)
+      state1.log
+      Cont.next(state1)
 
     case _ =>
-      throw error.InvalidProgram("unimplemented statement " + statement)
+      throw error.InvalidProgram("unimplemented statement " + statement + " at line " + statement.line)
 
   }
 
@@ -295,9 +155,11 @@ object Exec {
     case Malformed =>
       throw error.InvalidProgram("parser")
 
+      /*
     case Atomic(expr) =>
       val st1 = DFixedPoint(expr, st0)
       st1.resetReadWrite()
+       */
 
     case block: Block =>
       DFixedPoint(block.statements, st0)
@@ -331,7 +193,7 @@ object Exec {
       st0.copy(D = DFixedPoint(test, body, st0))
 
     case _ =>
-      throw error.InvalidProgram("unimplemented statement " + statement)
+      throw error.InvalidProgram("unimplemented statement at line " + statement.line + ": " + statement)
   }
 
   def DFixedPoint(expr: Expression, st0: State): State = expr match {
@@ -352,10 +214,10 @@ object Exec {
       DFixedPoint(arg, st0)
 
     case _ =>
-      throw error.InvalidProgram("unimplemented expression " + expr)
+      throw error.InvalidProgram("unimplemented expression: " + expr)
   }
 
-  def rval(expr: Expression, st0: State): (Expression, State) = expr match {
+  def eval(expr: Expression, st0: State): (Expression, State) = expr match {
     case id: Id =>
       // value has been READ
       val st1 = st0.updateRead(id)
@@ -368,94 +230,94 @@ object Exec {
       (res, st0)
 
     case BinOp("==", arg1, arg2) =>
-      val (List(_arg1, _arg2), st1) = rvals(List(arg1, arg2), st0)
+      val (List(_arg1, _arg2), st1) = evals(List(arg1, arg2), st0)
       (BinOp("==", _arg1, _arg2), st1)
 
     case BinOp("!=", arg1, arg2) =>
-      val (List(_arg1, _arg2), st1) = rvals(List(arg1, arg2), st0)
+      val (List(_arg1, _arg2), st1) = evals(List(arg1, arg2), st0)
       (PreOp("!", BinOp("==", _arg1, _arg2)), st1)
 
     case PreOp("!", arg) =>
-      val (_arg, st1) = rval(arg, st0)
+      val (_arg, st1) = eval(arg, st0)
       (PreOp("!", _arg), st1)
 
     case PreOp("+", arg) =>
-      rval(arg, st0)
+      eval(arg, st0)
 
     case PreOp("-", arg) =>
-      val (_arg, st1) = rval(arg, st0)
+      val (_arg, st1) = eval(arg, st0)
       (PreOp("-", _arg), st1)
 
     case BinOp("+", arg1, arg2) =>
-      val (List(_arg1, _arg2), st1) = rvals(List(arg1, arg2), st0)
+      val (List(_arg1, _arg2), st1) = evals(List(arg1, arg2), st0)
       (BinOp("+", _arg1, _arg2), st1)
 
     case BinOp("-", arg1, arg2) =>
-      val (List(_arg1, _arg2), st1) = rvals(List(arg1, arg2), st0)
+      val (List(_arg1, _arg2), st1) = evals(List(arg1, arg2), st0)
       (BinOp("-", _arg1, _arg2), st1)
 
     case BinOp("*", arg1, arg2) =>
-      val (List(_arg1, _arg2), st1) = rvals(List(arg1, arg2), st0)
+      val (List(_arg1, _arg2), st1) = evals(List(arg1, arg2), st0)
       (BinOp("*", _arg1, _arg2), st1)
 
     case BinOp("/", arg1, arg2) =>
-      val (List(_arg1, _arg2), st1) = rvals(List(arg1, arg2), st0)
+      val (List(_arg1, _arg2), st1) = evals(List(arg1, arg2), st0)
       (BinOp("/", _arg1, _arg2), st1)
 
     case BinOp("%", arg1, arg2) =>
-      val (List(_arg1, _arg2), st1) = rvals(List(arg1, arg2), st0)
+      val (List(_arg1, _arg2), st1) = evals(List(arg1, arg2), st0)
       (BinOp("%", _arg1, _arg2), st1)
 
     case BinOp("<=", arg1, arg2) =>
-      val (List(_arg1, _arg2), st1) = rvals(List(arg1, arg2), st0)
+      val (List(_arg1, _arg2), st1) = evals(List(arg1, arg2), st0)
       (BinOp("<=", _arg1, _arg2), st1)
 
     case BinOp("<", arg1, arg2) =>
-      val (List(_arg1, _arg2), st1) = rvals(List(arg1, arg2), st0)
+      val (List(_arg1, _arg2), st1) = evals(List(arg1, arg2), st0)
       (BinOp("<", _arg1, _arg2), st1)
 
     case BinOp(">=", arg1, arg2) =>
-      val (List(_arg1, _arg2), st1) = rvals(List(arg1, arg2), st0)
+      val (List(_arg1, _arg2), st1) = evals(List(arg1, arg2), st0)
       (BinOp(">=", _arg1, _arg2), st1)
 
     case BinOp(">", arg1, arg2) =>
-      val (List(_arg1, _arg2), st1) = rvals(List(arg1, arg2), st0)
+      val (List(_arg1, _arg2), st1) = evals(List(arg1, arg2), st0)
       (BinOp(">", _arg1, _arg2), st1)
 
     case BinOp("||", arg1, arg2) =>
-      val (List(_arg1, _arg2), st1) = rvals(List(arg1, arg2), st0)
+      val (List(_arg1, _arg2), st1) = evals(List(arg1, arg2), st0)
       (BinOp("||", _arg1, _arg2), st1)
 
     case BinOp("&&", arg1, arg2) =>
-      val (List(_arg1, _arg2), st1) = rvals(List(arg1, arg2), st0)
+      val (List(_arg1, _arg2), st1) = evals(List(arg1, arg2), st0)
       (BinOp("&&", _arg1, _arg2), st1)
 
     case BinOp("|", arg1, arg2) =>
-      val (List(_arg1, _arg2), st1) = rvals(List(arg1, arg2), st0)
+      val (List(_arg1, _arg2), st1) = evals(List(arg1, arg2), st0)
       (BinOp("|", _arg1, _arg2), st1)
 
     case BinOp("&", arg1, arg2) =>
-      val (List(_arg1, _arg2), st1) = rvals(List(arg1, arg2), st0)
+      val (List(_arg1, _arg2), st1) = evals(List(arg1, arg2), st0)
       (BinOp("&", _arg1, _arg2), st1)
 
     case BinOp("^", arg1, arg2) =>
-      val (List(_arg1, _arg2), st1) = rvals(List(arg1, arg2), st0)
+      val (List(_arg1, _arg2), st1) = evals(List(arg1, arg2), st0)
       (BinOp("^", _arg1, _arg2), st1)
 
     case BinOp(">>", arg1, arg2) =>
-      val (List(_arg1, _arg2), st1) = rvals(List(arg1, arg2), st0)
+      val (List(_arg1, _arg2), st1) = evals(List(arg1, arg2), st0)
       (BinOp(">>", _arg1, _arg2), st1)
 
     case BinOp(">>>", arg1, arg2) =>
-      val (List(_arg1, _arg2), st1) = rvals(List(arg1, arg2), st0)
+      val (List(_arg1, _arg2), st1) = evals(List(arg1, arg2), st0)
       (BinOp(">>>", _arg1, _arg2), st1)
 
     case BinOp("<<", arg1, arg2) =>
-      val (List(_arg1, _arg2), st1) = rvals(List(arg1, arg2), st0)
+      val (List(_arg1, _arg2), st1) = evals(List(arg1, arg2), st0)
       (BinOp("<<", _arg1, _arg2), st1)
 
     case PreOp("~", arg) =>
-      val (_arg, st1) = rval(arg, st0)
+      val (_arg, st1) = eval(arg, st0)
       (PreOp("~", _arg), st1)
 
     case _ =>
@@ -463,86 +325,211 @@ object Exec {
 
   }
 
-  def assignRule(lhs: Id, rhs: Expression, st0: State): State = {
-    // ASSIGN rule
-    println("ASSIGN applying")
+  def IfRule(test: Expression, left: Statement, right: Option[Statement], state0: State, line: Int): State = {
+    // IF rule
+    // evaluate test which updates D
+    val (_test, state1) = eval(test, state0)
 
-    // calculate P_x:=e
-    val PRestrict = st0.restrictP(st0.knownW())
-
-    // if x's mode is not NoRW, ensure that e's security level is not higher than x's security level, given P_x:=e
-    if (!st0.noReadWrite.contains(lhs)) {
-      val t = st0.security(rhs, PRestrict)
-      val xSecurity = !st0.highP(lhs, PRestrict) // this is equivalent to evalP
-      if (!t && xSecurity) {
-        throw error.SecurityError("ASSIGN rule not valid for " + lhs + " = " + rhs + " as HIGH expression assigned to LOW variable")
-      }
+    // check test is LOW
+    val PRestrict = state1.restrictP(state1.knownW()) // calculate P_b
+    if (state1.security(_test, PRestrict) == High) {
+      throw error.IfError(line, test, "guard expression is HIGH")
     }
-    st0.updateGammaAssign(lhs, rhs)
+
+    // execute both sides of if statement
+    val _left = state1.updatePIfLeft(_test)
+    val _left1 = execute(left, _left).st
+
+    val _right1: State = right match {
+      case Some(r) =>
+        val _right = state1.updatePIfRight(_test)
+        execute(r, _right).st
+      case None =>
+        state1.updatePIfRight(_test)
+    }
+
+    // merge states
+    _left1.mergeIf(_right1)
   }
 
-  def assignCRule(lhs: Id, rhs: Expression, st0: State): State = {
-    // ASSIGNC rule
-    println("ASSIGNC applying")
+  def whileRule(test: Expression, PPrime: List[Expression], gammaPrime: Map[Id, Security], body: Statement, state0: State, line: Int): State = {
+    // WHILE rule
+
+    println("while rule:")
+    println("gamma':" + gammaPrime)
+    println("P':" + PPrime)
+
+    // P' only contains stable variables - tested
+    val PPrimeVar: Set[Var] = (PPrime flatMap {x => x.free}).toSet
+    val unstablePPrime = for (i <- PPrimeVar if !state0.stable.contains(i.ident))
+      yield i
+    if (unstablePPrime.nonEmpty) {
+      throw error.WhileError(line, test, unstablePPrime.mkString(", ") + " in invariant is/are not stable")
+    }
+
+    // check P' is weaker than previous P - tested
+    if (!SMT.proveImplies(state0.P, PPrime)) {
+      throw error.WhileError(line, test, "provided P' " + PPrime.PStr + " is not weaker than P " + state0.P.PStr)
+    }
+
+    // gamma' has same domain as gamma - tested
+    if (state0.gamma.keySet != gammaPrime.keySet) {
+      throw error.InvalidProgram("input gamma " + gammaPrime.gammaStr + " for if ( + " +  test + ") { ... at line " + line + " does not have same domain as gamma: " + state0.gamma.gammaStr)
+    }
+
+    // check gamma' is greater or equal than gamma for all x - tested
+    val gammaGreater = for (g <- state0.gamma.keySet if (state0.gamma(g) == High && gammaPrime(g) == Low))
+      yield g
+    if (gammaGreater.nonEmpty) {
+      throw error.WhileError(line, test, "gamma' " + gammaPrime.gammaStr + " is not greater than gamma " + state0.gamma.gammaStr + " for: " + gammaGreater.mkString(" "))
+    }
+
+    val DFixed = DFixedPoint(test, body, state0)
+    println("DFixed: " + DFixed.DStr)
+    val DPrime = State.mergeD(state0.D, DFixed)
+    println("D': " + DPrime.DStr)
+
+    val state1 = state0.copy(P = PPrime, gamma = gammaPrime, D = DPrime)
+
+    // check D' is subset of D - tested
+    for (v <- state0.variables) {
+      if (!((state1.W_r(v) subsetOf state0.W_r(v)) && (state1.W_w(v) subsetOf state0.W_w(v)) && (state1.R_r(v) subsetOf state0.R_r(v)) && (state1.R_w(v) subsetOf state0.R_w(v))))
+        throw error.WhileError(line, test, "D' " + state1.D.DStr + " is not a subset of D" + state0.D.DStr)
+    }
+
+    // evaluate test which updates D
+    val (_test, state2) = eval(test, state1)
+
+    // check test is LOW with regards to P', gamma' - tested
+    if (state2.security(_test, state2.P) == High) {
+      throw error.WhileError(line, test, "guard expression is HIGH")
+    }
+
+    // add test to P
+    val state3 = state2.updatePIfLeft(_test)
+
+    // evaluate body
+    val _body = execute(body, state3)
+    val state4 = _body.st
+
+    println("while rule:")
+    println("gamma':" + gammaPrime.gammaStr)
+    println("P':" + PPrime.PStr)
+
+    println("gamma'':" + state4.gamma.gammaStr)
+    println("P'':" + state4.P.PStr)
+
+    // check D' is subset of D''
+    for (v <- state0.variables) {
+      if (!((state1.W_r(v) subsetOf state4.W_r(v)) && (state1.W_w(v) subsetOf state4.W_w(v)) && (state1.R_r(v) subsetOf state4.R_r(v)) && (state1.R_w(v) subsetOf state4.R_w(v))))
+        throw error.WhileError(line, test, "D' " + state1.D.DStr + " is not a subset of D'' P" + state0.D.DStr)
+    }
+
+    // check gamma' is greater or equal than gamma'' for all x - tested
+    val gammaPrimeGreater = for (g <- gammaPrime.keySet if state4.gamma(g) == High && gammaPrime(g) == Low)
+      yield g
+    if (gammaPrimeGreater.nonEmpty) {
+        throw error.WhileError(line, test, "gamma' " + state4.gamma.gammaStr + " is not greater than gamma'' " + gammaPrime.gammaStr + " for: " + gammaPrimeGreater.mkString(" "))
+    }
+
+    // check P'' is stronger than P' - tested
+    if (!SMT.proveImplies(state4.P, PPrime)) {
+      throw error.WhileError(line, test, "provided P' " + PPrime.PStr + " does not hold after loop body. P'': " + state3.P.PStr)
+    }
+
+    // state1 used here as do not keep gamma'', P'', D'' from after loop body execution
+    // remove test from P'
+    val state5 = state1.updatePIfRight(_test)
+    state5
+  }
+
+  def assignRule(lhs: Id, rhs: Expression, st0: State, line: Int): State = {
+    // ASSIGN rule
+    println("ASSIGN applying")
+    val (_rhs, st1) = eval(rhs, st0)
+    val st2 = st1.updateWritten(lhs)
+    // at this point the rd and wr sets are complete for the current line
 
     // calculate P_x:=e
-    val PRestrict = st0.restrictP(st0.knownW())
+    val PRestrict = st2.restrictP(st2.knownW())
 
-    // check _rhs is LOW
-    val t = st0.security(rhs, PRestrict)
-    if (!t) {
-      throw error.SecurityError("ASSIGNC rule not valid for " + lhs + " = " + rhs + " as HIGH expression assigned to control variable")
+    // if x's mode is not NoRW, ensure that e's security level is not higher than x's security level, given P_x:=e - tested
+    if (!st2.noReadWrite.contains(lhs)) {
+      val t = st2.security(rhs, PRestrict)
+      // evalP
+      val xSecurity = if (st2.highP(lhs, PRestrict)) {
+        High
+      } else {
+        Low
+      }
+      if (t == High && xSecurity == Low) {
+        throw error.AssignError(line, lhs, rhs, "HIGH expression assigned to LOW variable")
+      }
+    }
+    val st3 = st2.updateGammaAssign(lhs, rhs)
+
+    val st4 = st3.assign(lhs, _rhs) // update P
+    st4.updateDAssign(lhs, _rhs)
+  }
+
+  def assignCRule(lhs: Id, rhs: Expression, st0: State, line: Int): State = {
+    // ASSIGNC rule
+    println("ASSIGNC applying")
+    val (_rhs, st1) = eval(rhs, st0)
+    val st2 = st1.updateWritten(lhs)
+    // at this point the rd and wr sets are complete for the current line
+
+    // calculate P_x:=e
+    val PRestrict = st2.restrictP(st2.knownW())
+
+    // check _rhs is LOW - tested
+    val t = st2.security(_rhs, PRestrict)
+    if (t == High) {
+      throw error.AssignCError(line, lhs, rhs, "HIGH expression assigned to control variable")
     }
 
     // secure_update
-    val PPrime = st0.assign(lhs, rhs) // calculate PPrime
-    val PPrimeRestrict = PPrime.restrictP(st0.knownW())
+    val PPrime = st2.assign(lhs, _rhs) // calculate PPrime
+    val PPrimeRestrict = PPrime.restrictP(st2.knownW())
 
-    val falling = for (i <- st0.controlledBy(lhs) if (!st0.lowP(i, PRestrict)) && !st0.highP(i, PPrimeRestrict))
+
+    val falling = for (i <- st2.controlledBy(lhs) if (!st2.lowP(i, PRestrict)) && !st2.highP(i, PPrimeRestrict))
       yield i
 
     println("falling: " + falling)
-    println("knownW: " + st0.knownW)
+    println("knownW: " + st2.knownW)
 
-    for (y <- falling -- st0.noReadWrite) {
-      println("checking secureupdate falling for " + y)
-      if (!st0.knownW().contains(y) || !st0.security(y, PRestrict)) {
-        throw error.SecurityError("ASSIGNC rule not valid for " + lhs + " = " + rhs + " as secure update fails for falling set")
-      }
+    val fallingFail = for (y <- falling -- st2.noReadWrite if !st2.knownW().contains(y) || st2.security(y, PRestrict) == High)
+      yield y
+
+    if (fallingFail.nonEmpty) {
+      throw error.AssignCError(line, lhs, rhs, "secure update fails for falling variable/s: " + fallingFail.mkString(" "))
     }
 
-    val rising = for (i <- st0.controlledBy(lhs) if (!st0.highP(i, PRestrict)) && !st0.lowP(i, PPrimeRestrict))
+    val rising = for (i <- st2.controlledBy(lhs) if (!st2.highP(i, PRestrict)) && !st2.lowP(i, PPrimeRestrict))
       yield i
 
     println("rising: " + rising)
 
-    for (y <- rising) {
-      if (!st0.knownR().contains(y)) {
-        throw error.SecurityError("ASSIGNC rule not valid for " + lhs + " = " + rhs + " as secure update fails for rising set")
-      }
+    val risingFail = for (y <- rising if !st2.knownR().contains(y))
+      yield y
+
+    if (risingFail.nonEmpty) {
+      throw error.AssignCError(line, lhs, rhs, "secure update fails for rising variable/s: " + risingFail.mkString(" "))
     }
 
-    // no need to update gamma in ASSIGNC
-    st0
+    val st3 = st2.assign(lhs, _rhs) // update P
+    st3.updateDAssign(lhs, _rhs)
   }
 
-  // check lvalue is a variable
-  def lval(expr: Expression, st0: State): (Id, State) = expr match {
-    case id: Id =>
-      (id, st0)
-
-    case _ =>
-      throw error.InvalidProgram("not lvalue", expr)
-  }
-
-  // evaluate multiple rvalues
-  def rvals(exprs: List[Expression], pre: State): (List[Expression], State) = exprs match {
+  // evaluate multiple expressions
+  def evals(exprs: List[Expression], pre: State): (List[Expression], State) = exprs match {
     case Nil =>
       (Nil, pre)
 
     case expr :: rest => // XXX: right-to-left, should be parallel
-      val (xs, st) = rvals(rest, pre)
-      val (x, post) = rval(expr, st)
+      val (xs, st) = evals(rest, pre)
+      val (x, post) = eval(expr, st)
       (x :: xs, post)
   }
 
