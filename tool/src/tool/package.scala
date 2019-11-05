@@ -7,7 +7,6 @@ package object tool {
       override def toString = info.mkString(" ")
     }
 
-    case class InvalidControlVariables(info: Any*) extends Error
     case class InvalidProgram(info: Any*) extends Error
     case class Z3Error(info: Any*) extends Error
 

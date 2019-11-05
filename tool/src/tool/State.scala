@@ -72,7 +72,7 @@ case class State(
     copy(written = written + id)
   }
 
-  def knownW(): Set[Id] = {
+  def knownW: Set[Id] = {
     val w = for (v <- written) yield {
       W_w(v)
     }
@@ -82,7 +82,7 @@ case class State(
     w.flatten ++ r.flatten
   }
 
-  def knownR(): Set[Id] = {
+  def knownR: Set[Id] = {
     val r = for (v <- read) yield {
       R_r(v)
     }
@@ -94,27 +94,27 @@ case class State(
 
   def updateD(laterW: Set[Id], laterR: Set[Id]): Map[Id, (Set[Id], Set[Id], Set[Id], Set[Id])] = {
     for (i <- variables) yield {
-        val w_w = if (laterW.contains(i)) {
-          W_w(i) ++ knownW()
-        } else {
-          W_w(i) -- written
-        }
-        val w_r = if (laterR.contains(i)) {
-          W_r(i) ++ knownW()
-        } else {
-          W_r(i) -- written
-        }
-        val r_w = if (laterW.contains(i)) {
-          R_w(i) ++ knownR()
-        } else {
-          R_w(i) -- read
-        }
-        val r_r = if (laterR.contains(i)) {
-          R_r(i) ++ knownR()
-        } else {
-          R_r(i) -- read
-        }
-        i -> (w_w, w_r, r_w, r_r)
+      val w_w = if (laterW.contains(i)) {
+        W_w(i) ++ knownW
+      } else {
+        W_w(i) -- written
+      }
+      val w_r = if (laterR.contains(i)) {
+        W_r(i) ++ knownW
+      } else {
+        W_r(i) -- written
+      }
+      val r_w = if (laterW.contains(i)) {
+        R_w(i) ++ knownR
+      } else {
+        R_w(i) -- read
+      }
+      val r_r = if (laterR.contains(i)) {
+        R_r(i) ++ knownR
+      } else {
+        R_r(i) -- read
+      }
+      i -> (w_w, w_r, r_w, r_r)
     }
   }.toMap
 
@@ -308,7 +308,7 @@ object State {
       val controlling: Set[Id] = v.pred.getVariables
       if (controlling.nonEmpty) {
         if (controls.contains(v.name)) {
-          throw error.InvalidControlVariables(v.name + " is both controlled and a control variable")
+          throw error.InvalidProgram(v.name + " is both controlled and a control variable")
         }
         controlled += v.name
       }

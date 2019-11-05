@@ -32,13 +32,14 @@ case class Lit(arg: Any) extends Expression {
   override def subst(su: Subst) = this
 }
 
+// id parsed from input - need to convert to Var before use in predicates etc.
 case class Id(name: String) extends Expression {
   //override def toString = "ID_" + name
   override def toString = name
   override def getVariables: Set[Id] = Set(this)
   override def subst(su: Subst) = su.getOrElse(this, this)
   def toVar = Var(name, None)
-  def free = Set() // maybe throw error here
+  def free = Set()
 }
 
 object Id {
@@ -58,6 +59,7 @@ case class Var(name: String, index: Option[Int] = None) extends Expression {
   // replaces the Var with the value it is to be substituted with, if there is one
   def subst(su: Subst) = su.getOrElse(this, this)
 
+  // only return free variables
   override def getVariables: Set[Id] = this match {
     case Var(name, Some(index)) =>
       Set()
@@ -65,7 +67,6 @@ case class Var(name: String, index: Option[Int] = None) extends Expression {
       Set(ident)
   }
 
-  // adjust?
   override def toString = name __ index
   //override def toString = "VAR_" + name __ index
 }

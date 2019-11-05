@@ -2,16 +2,16 @@
 -test - D' in while especially
 -organise expression class - boolean expression subclass & clean up operations
 -bitwise in SMT - ensure conversion works properly - test thoroughly
--define security as case class not boolean to make code easier to understand
+-verbose option to print out state before/after each operation
+-debug option to print out more
+-switch variables for OR CNF to reduce complexity
 
 tests for
--D' isnt subset of D
+-D' isnt subset of D - remove from D outside loop, add to D inside loop
 -D' isnt subset of D''
+-multiple layers of if/while
 
 eventually:
 make sure everything is commented clearly
 arrays?
 bitwise arithmetic instead of int arithmetic?
-
-output ideas:
--maybe store errors in state, go through them at the end, add line numbers?

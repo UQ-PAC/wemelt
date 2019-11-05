@@ -123,20 +123,21 @@ object Exec {
     while (!DFixed) {
       dfixedloops = dfixedloops + 1
       val st1 = DFixedPoint(test, st0)
-      val st2 = DFixedPoint(body, st1)
+      val st2 = st1.updateDGuard(test)
+      val st3 = DFixedPoint(body, st2)
 
       // compare st2.D to st0.D
       val it = st0.variables.toIterator
       while (it.hasNext && !DFixed) {
         val v = it.next
-        DFixed = (st0.W_r(v) == st2.W_r(v)) && (st0.W_w(v) == st2.W_w(v)) && (st0.R_r(v) == st2.R_r(v)) && (st0.R_w(v) == st2.R_w(v))
+        DFixed = (st0.W_r(v) == st3.W_r(v)) && (st0.W_w(v) == st3.W_w(v)) && (st0.R_r(v) == st3.R_r(v)) && (st0.R_w(v) == st3.R_w(v))
       }
 
       // if D has changed, repeat
       if (DFixed) {
-        DPrime = st2.D
+        DPrime = st3.D
       } else {
-        st0 = st2
+        st0 = st3
       }
     }
     println("dfixed loops " + dfixedloops)
@@ -155,12 +156,6 @@ object Exec {
     case Malformed =>
       throw error.InvalidProgram("parser")
 
-      /*
-    case Atomic(expr) =>
-      val st1 = DFixedPoint(expr, st0)
-      st1.resetReadWrite()
-       */
-
     case block: Block =>
       DFixedPoint(block.statements, st0)
 
@@ -176,18 +171,20 @@ object Exec {
     case If(test, left, None) =>
       // evaluate test which updates D
       val st1 = DFixedPoint(test, st0)
+      val st2 = st1.updateDGuard(test)
 
       // right branch is empty
-      val _left = DFixedPoint(left, st1)
-      st1.copy(D = _left.mergeD(st1))
+      val _left = DFixedPoint(left, st2)
+      st2.copy(D = _left.mergeD(st2))
 
     case If(test, left, Some(right)) =>
       // evaluate test which updates D
       val st1 = DFixedPoint(test, st0)
+      val st2 = st1.updateDGuard(test)
 
-      val _left = DFixedPoint(left, st1)
-      val _right = DFixedPoint(right, st1)
-      st1.copy(D =_left.mergeD(_right))
+      val _left = DFixedPoint(left, st2)
+      val _right = DFixedPoint(right, st2)
+      st2.copy(D =_left.mergeD(_right))
 
     case While(test, invariants, gamma, body) =>
       st0.copy(D = DFixedPoint(test, body, st0))
@@ -329,23 +326,25 @@ object Exec {
     // IF rule
     // evaluate test which updates D
     val (_test, state1) = eval(test, state0)
+    val state2 = state1.updateDGuard(_test)
+
 
     // check test is LOW
-    val PRestrict = state1.restrictP(state1.knownW()) // calculate P_b
-    if (state1.security(_test, PRestrict) == High) {
+    val PRestrict = state2.restrictP(state2.knownW) // calculate P_b
+    if (state2.security(_test, PRestrict) == High) {
       throw error.IfError(line, test, "guard expression is HIGH")
     }
 
     // execute both sides of if statement
-    val _left = state1.updatePIfLeft(_test)
+    val _left = state2.updatePIfLeft(_test)
     val _left1 = execute(left, _left).st
 
     val _right1: State = right match {
       case Some(r) =>
-        val _right = state1.updatePIfRight(_test)
+        val _right = state2.updatePIfRight(_test)
         execute(r, _right).st
       case None =>
-        state1.updatePIfRight(_test)
+        state2.updatePIfRight(_test)
     }
 
     // merge states
@@ -391,56 +390,56 @@ object Exec {
 
     val state1 = state0.copy(P = PPrime, gamma = gammaPrime, D = DPrime)
 
-    // check D' is subset of D - tested
+    // check D' is subset of D
     for (v <- state0.variables) {
       if (!((state1.W_r(v) subsetOf state0.W_r(v)) && (state1.W_w(v) subsetOf state0.W_w(v)) && (state1.R_r(v) subsetOf state0.R_r(v)) && (state1.R_w(v) subsetOf state0.R_w(v))))
-        throw error.WhileError(line, test, "D' " + state1.D.DStr + " is not a subset of D" + state0.D.DStr)
+        throw error.InvalidProgram("line " + line + ":D' " + state1.D.DStr + " is not a subset of D" + state0.D.DStr + " caused by error in calculating D'")
     }
 
     // evaluate test which updates D
     val (_test, state2) = eval(test, state1)
+    val state3 = state2.updateDGuard(_test)
 
     // check test is LOW with regards to P', gamma' - tested
-    if (state2.security(_test, state2.P) == High) {
+    if (state3.security(_test, state3.P) == High) {
       throw error.WhileError(line, test, "guard expression is HIGH")
     }
 
     // add test to P
-    val state3 = state2.updatePIfLeft(_test)
+    val state4 = state3.updatePIfLeft(_test)
 
     // evaluate body
-    val _body = execute(body, state3)
-    val state4 = _body.st
+    val _body = execute(body, state4)
+    val state5 = _body.st
 
     println("while rule:")
     println("gamma':" + gammaPrime.gammaStr)
     println("P':" + PPrime.PStr)
 
-    println("gamma'':" + state4.gamma.gammaStr)
-    println("P'':" + state4.P.PStr)
+    println("gamma'':" + state5.gamma.gammaStr)
+    println("P'':" + state5.P.PStr)
 
     // check D' is subset of D''
     for (v <- state0.variables) {
-      if (!((state1.W_r(v) subsetOf state4.W_r(v)) && (state1.W_w(v) subsetOf state4.W_w(v)) && (state1.R_r(v) subsetOf state4.R_r(v)) && (state1.R_w(v) subsetOf state4.R_w(v))))
-        throw error.WhileError(line, test, "D' " + state1.D.DStr + " is not a subset of D'' P" + state0.D.DStr)
+      if (!((state1.W_r(v) subsetOf state5.W_r(v)) && (state1.W_w(v) subsetOf state5.W_w(v)) && (state1.R_r(v) subsetOf state5.R_r(v)) && (state1.R_w(v) subsetOf state5.R_w(v))))
+        throw error.WhileError(line, test, "D' " + state1.D.DStr + " is not a subset of D'' " + state0.D.DStr)
     }
 
     // check gamma' is greater or equal than gamma'' for all x - tested
-    val gammaPrimeGreater = for (g <- gammaPrime.keySet if state4.gamma(g) == High && gammaPrime(g) == Low)
+    val gammaPrimeGreater = for (g <- gammaPrime.keySet if state5.gamma(g) == High && gammaPrime(g) == Low)
       yield g
     if (gammaPrimeGreater.nonEmpty) {
-        throw error.WhileError(line, test, "gamma' " + state4.gamma.gammaStr + " is not greater than gamma'' " + gammaPrime.gammaStr + " for: " + gammaPrimeGreater.mkString(" "))
+        throw error.WhileError(line, test, "gamma' " + state5.gamma.gammaStr + " is not greater than gamma'' " + gammaPrime.gammaStr + " for: " + gammaPrimeGreater.mkString(" "))
     }
 
     // check P'' is stronger than P' - tested
-    if (!SMT.proveImplies(state4.P, PPrime)) {
-      throw error.WhileError(line, test, "provided P' " + PPrime.PStr + " does not hold after loop body. P'': " + state3.P.PStr)
+    if (!SMT.proveImplies(state5.P, PPrime)) {
+      throw error.WhileError(line, test, "provided P' " + PPrime.PStr + " does not hold after loop body. P'': " + state5.P.PStr)
     }
 
     // state1 used here as do not keep gamma'', P'', D'' from after loop body execution
     // remove test from P'
-    val state5 = state1.updatePIfRight(_test)
-    state5
+    state1.updatePIfRight(_test)
   }
 
   def assignRule(lhs: Id, rhs: Expression, st0: State, line: Int): State = {
@@ -451,7 +450,7 @@ object Exec {
     // at this point the rd and wr sets are complete for the current line
 
     // calculate P_x:=e
-    val PRestrict = st2.restrictP(st2.knownW())
+    val PRestrict = st2.restrictP(st2.knownW)
 
     // if x's mode is not NoRW, ensure that e's security level is not higher than x's security level, given P_x:=e - tested
     if (!st2.noReadWrite.contains(lhs)) {
@@ -480,7 +479,7 @@ object Exec {
     // at this point the rd and wr sets are complete for the current line
 
     // calculate P_x:=e
-    val PRestrict = st2.restrictP(st2.knownW())
+    val PRestrict = st2.restrictP(st2.knownW)
 
     // check _rhs is LOW - tested
     val t = st2.security(_rhs, PRestrict)
@@ -490,7 +489,7 @@ object Exec {
 
     // secure_update
     val PPrime = st2.assign(lhs, _rhs) // calculate PPrime
-    val PPrimeRestrict = PPrime.restrictP(st2.knownW())
+    val PPrimeRestrict = PPrime.restrictP(st2.knownW)
 
 
     val falling = for (i <- st2.controlledBy(lhs) if (!st2.lowP(i, PRestrict)) && !st2.highP(i, PPrimeRestrict))
@@ -499,7 +498,7 @@ object Exec {
     println("falling: " + falling)
     println("knownW: " + st2.knownW)
 
-    val fallingFail = for (y <- falling -- st2.noReadWrite if !st2.knownW().contains(y) || st2.security(y, PRestrict) == High)
+    val fallingFail = for (y <- falling -- st2.noReadWrite if !st2.knownW.contains(y) || st2.security(y, PRestrict) == High)
       yield y
 
     if (fallingFail.nonEmpty) {
@@ -511,7 +510,7 @@ object Exec {
 
     println("rising: " + rising)
 
-    val risingFail = for (y <- rising if !st2.knownR().contains(y))
+    val risingFail = for (y <- rising if !st2.knownR.contains(y))
       yield y
 
     if (risingFail.nonEmpty) {
