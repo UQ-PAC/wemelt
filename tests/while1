@@ -10,7 +10,7 @@ _var r_secret:
 _L: FALSE
 
 _var q:
-_L: TRUE:
+_L: TRUE
 _Mode: RW
 
 _P_0: z % 2 == 0

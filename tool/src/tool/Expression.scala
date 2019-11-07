@@ -42,11 +42,6 @@ case class Id(name: String) extends Expression {
   def free = Set()
 }
 
-object Id {
-  val result = Id("result")
-  val main = Id("main")
-}
-
 // logical variable for use in predicates
 case class Var(name: String, index: Option[Int] = None) extends Expression {
   def this(name: String) = this(name, None)

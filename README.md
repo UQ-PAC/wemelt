@@ -7,6 +7,30 @@
 * Linux
 
 
+## Building
+
+The tool should build by typing `make` in the top-level directory.
+
+```
+make
+```
+
+This should produce a shell script `armlogictool.sh` for running it.
+
+## Running
+
+Run `armlogictool.sh`, supplying a list of files to analyse as command line
+arguments.
+
+`-v` can be used ato print the P, D, and Gamma values after each statement
+
+`-d` can be used to print additional debug information 
+
+```
+./armlogictool.sh file1 file2 ..
+./armlogictool.sh -v file1 file2 ..
+./armlogictool.sh -d file1 file2 ..
+```
 
 ## Input file format
 
@@ -29,7 +53,7 @@ Variables must be defined at the start of the file, before any statements. Varia
 _P_0: z == 0
 _Gamma_0: x == LOW, r_secret == HIGH
 ```
-Defining the P_0 and/or Gamma_0 is optional. By default, P_0 will be set to `TRUE` and Gamma_0 will be set to `HIGH` for all variables in its domain. Predicates in P_0 can be separated with `,`.
+Defining the P_0 and/or Gamma_0 is optional, but can occur between the variable definitions and the program. By default, P_0 will be set to `TRUE` and Gamma_0 will be set to `HIGH` for all variables in its domain. Predicates in P_0 can be separated with `,`.
 
 ### While statements
 ```
@@ -45,7 +69,7 @@ _Gamma: x == LOW, r_secret == HIGH
   z = z + 1;
 }
 ```
-While statements must have the loop invariant defined, and the gamma 
+While statements must have the loop invariants for P and Gamma defined with `_invariant: ` for P' and `_Gamma:` for Gamma'.
 
 
 ### Supported operations

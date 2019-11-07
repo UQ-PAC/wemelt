@@ -58,7 +58,8 @@ object Exec {
        */
 
     case Assignment(lhs, rhs) =>
-      println("line " + statement.line + ": " + lhs + " = " + rhs + ":")
+      if (state0.toLog)
+        println("line " + statement.line + ": " + lhs + " = " + rhs + ":")
       // check if lhs is a control variable
       val state1 = if (state0.controls.contains(lhs)) {
         assignCRule(lhs, rhs, state0, statement.line)
@@ -71,19 +72,25 @@ object Exec {
     case Fence =>
       // reset D
       val state1 = state0.updateDFence()
-      println("fence")
+      if (state0.toLog)
+        println("fence:")
       state1.log
       Cont.next(state1)
 
     case If(test, left, right) =>
       // IF rule
       // evaluate test which updates D
-      println("If(" + "test" + ") then {" + left + "} else { " + right + "} :")
+      if (state0.toLog)
+        println("line " + statement.line + ": If(" + test + ") {")
       val state1 = IfRule(test, left, right, state0, statement.line)
       state1.log
+      if (state0.toLog)
+        println("}")
       Cont.next(state1)
 
     case While(test, invariants, gamma, body) =>
+      if (state0.toLog)
+        println("line " + statement.line + ": While(" + test + ") {")
       // replace Ids in invariant with vars
       val idToVar: Subst = {
         for (v <- state0.variables)
@@ -108,6 +115,8 @@ object Exec {
 
       val state1 = whileRule(test, PPrime, gammaPrime, body, state0, statement.line)
       state1.log
+      if (state0.toLog)
+        println("}")
       Cont.next(state1)
 
     case _ =>
@@ -140,7 +149,7 @@ object Exec {
         st0 = st3
       }
     }
-    println("dfixed loops " + dfixedloops)
+    //println("dfixed loops " + dfixedloops)
     DPrime
   }
 
@@ -324,10 +333,12 @@ object Exec {
 
   def IfRule(test: Expression, left: Statement, right: Option[Statement], state0: State, line: Int): State = {
     // IF rule
+    if (state0.toLog)
+      println("IF applying")
+
     // evaluate test which updates D
     val (_test, state1) = eval(test, state0)
     val state2 = state1.updateDGuard(_test)
-
 
     // check test is LOW
     val PRestrict = state2.restrictP(state2.knownW) // calculate P_b
@@ -341,11 +352,14 @@ object Exec {
 
     val _right1: State = right match {
       case Some(r) =>
+        if (state0.toLog)
+          println("} else {")
         val _right = state2.updatePIfRight(_test)
         execute(r, _right).st
       case None =>
         state2.updatePIfRight(_test)
     }
+
 
     // merge states
     _left1.mergeIf(_right1)
@@ -354,9 +368,11 @@ object Exec {
   def whileRule(test: Expression, PPrime: List[Expression], gammaPrime: Map[Id, Security], body: Statement, state0: State, line: Int): State = {
     // WHILE rule
 
-    println("while rule:")
-    println("gamma':" + gammaPrime)
-    println("P':" + PPrime)
+    //println("while rule:")
+    //println("gamma':" + gammaPrime)
+    //println("P':" + PPrime)
+    if (state0.toLog)
+      println("WHILE applying")
 
     // P' only contains stable variables - tested
     val PPrimeVar: Set[Var] = (PPrime flatMap {x => x.free}).toSet
@@ -367,13 +383,13 @@ object Exec {
     }
 
     // check P' is weaker than previous P - tested
-    if (!SMT.proveImplies(state0.P, PPrime)) {
+    if (!SMT.proveImplies(state0.P, PPrime, state0.debug)) {
       throw error.WhileError(line, test, "provided P' " + PPrime.PStr + " is not weaker than P " + state0.P.PStr)
     }
 
     // gamma' has same domain as gamma - tested
     if (state0.gamma.keySet != gammaPrime.keySet) {
-      throw error.InvalidProgram("input gamma " + gammaPrime.gammaStr + " for if ( + " +  test + ") { ... at line " + line + " does not have same domain as gamma: " + state0.gamma.gammaStr)
+      throw error.InvalidProgram("input gamma " + gammaPrime.gammaStr + " for if (" +  test + ") { ... at line " + line + " does not have same domain as gamma: " + state0.gamma.gammaStr)
     }
 
     // check gamma' is greater or equal than gamma for all x - tested
@@ -383,17 +399,32 @@ object Exec {
       throw error.WhileError(line, test, "gamma' " + gammaPrime.gammaStr + " is not greater than gamma " + state0.gamma.gammaStr + " for: " + gammaGreater.mkString(" "))
     }
 
+    // D' will always be a subset of D as it equals D intersect DFixed
+
+    // calculating DFixed will always terminate, as whether variables are added or removed from D is dependent on
+    // laterW and laterR, which will always be the same for each loop iteration as they are dependent on the type of
+    // statement, so variables will always be added or removed from each part of D on each loop iteration, causing it
+    // to terminate.
+
+    // D' will also always be a subset of D'', as for it not to be, D' would have to contain an element that is
+    // not in D''. for an element to be in D' it must be in both D and DFixed. D'' is the result of calculating D on
+    // a single loop iteration starting with D'. for D' to contain an element that is not in D'', it must be in both
+    // D and DFixed, but not D''. this is impossible as if an element is in D and D_fixed, it will not be removed after
+    // the single loop iteration that produces D''
+
     val DFixed = DFixedPoint(test, body, state0)
-    println("DFixed: " + DFixed.DStr)
+    if (state0.debug)
+      println("DFixed: " + DFixed.DStr)
     val DPrime = State.mergeD(state0.D, DFixed)
-    println("D': " + DPrime.DStr)
+    if (state0.debug)
+      println("D': " + DPrime.DStr)
 
     val state1 = state0.copy(P = PPrime, gamma = gammaPrime, D = DPrime)
 
     // check D' is subset of D
     for (v <- state0.variables) {
       if (!((state1.W_r(v) subsetOf state0.W_r(v)) && (state1.W_w(v) subsetOf state0.W_w(v)) && (state1.R_r(v) subsetOf state0.R_r(v)) && (state1.R_w(v) subsetOf state0.R_w(v))))
-        throw error.InvalidProgram("line " + line + ":D' " + state1.D.DStr + " is not a subset of D" + state0.D.DStr + " caused by error in calculating D'")
+        throw error.ProgramError("line " + line + ": D' " + state1.D.DStr + " is not a subset of D" + state0.D.DStr + " caused by error in calculating D'")
     }
 
     // evaluate test which updates D
@@ -412,17 +443,20 @@ object Exec {
     val _body = execute(body, state4)
     val state5 = _body.st
 
-    println("while rule:")
-    println("gamma':" + gammaPrime.gammaStr)
-    println("P':" + PPrime.PStr)
+    if (state0.debug) {
+      println("while rule:")
+      println("gamma':" + gammaPrime.gammaStr)
+      println("P':" + PPrime.PStr)
 
-    println("gamma'':" + state5.gamma.gammaStr)
-    println("P'':" + state5.P.PStr)
+      println("gamma'':" + state5.gamma.gammaStr)
+      println("P'':" + state5.P.PStr)
+    }
 
+    // this shouldn't be able to happen if D' is calculated correctly
     // check D' is subset of D''
     for (v <- state0.variables) {
       if (!((state1.W_r(v) subsetOf state5.W_r(v)) && (state1.W_w(v) subsetOf state5.W_w(v)) && (state1.R_r(v) subsetOf state5.R_r(v)) && (state1.R_w(v) subsetOf state5.R_w(v))))
-        throw error.WhileError(line, test, "D' " + state1.D.DStr + " is not a subset of D'' " + state0.D.DStr)
+        throw error.ProgramError("line " + line + ": D' " + state1.D.DStr + " is not a subset of D'' " + state0.D.DStr)
     }
 
     // check gamma' is greater or equal than gamma'' for all x - tested
@@ -433,7 +467,7 @@ object Exec {
     }
 
     // check P'' is stronger than P' - tested
-    if (!SMT.proveImplies(state5.P, PPrime)) {
+    if (!SMT.proveImplies(state5.P, PPrime, state0.debug)) {
       throw error.WhileError(line, test, "provided P' " + PPrime.PStr + " does not hold after loop body. P'': " + state5.P.PStr)
     }
 
@@ -444,7 +478,8 @@ object Exec {
 
   def assignRule(lhs: Id, rhs: Expression, st0: State, line: Int): State = {
     // ASSIGN rule
-    println("ASSIGN applying")
+    if (st0.toLog)
+      println("ASSIGN applying")
     val (_rhs, st1) = eval(rhs, st0)
     val st2 = st1.updateWritten(lhs)
     // at this point the rd and wr sets are complete for the current line
@@ -463,6 +498,7 @@ object Exec {
       }
       if (t == High && xSecurity == Low) {
         throw error.AssignError(line, lhs, rhs, "HIGH expression assigned to LOW variable")
+        // need to make this expression low
       }
     }
     val st3 = st2.updateGammaAssign(lhs, rhs)
@@ -473,7 +509,8 @@ object Exec {
 
   def assignCRule(lhs: Id, rhs: Expression, st0: State, line: Int): State = {
     // ASSIGNC rule
-    println("ASSIGNC applying")
+    if (st0.toLog)
+      println("ASSIGNC applying")
     val (_rhs, st1) = eval(rhs, st0)
     val st2 = st1.updateWritten(lhs)
     // at this point the rd and wr sets are complete for the current line
@@ -495,8 +532,10 @@ object Exec {
     val falling = for (i <- st2.controlledBy(lhs) if (!st2.lowP(i, PRestrict)) && !st2.highP(i, PPrimeRestrict))
       yield i
 
-    println("falling: " + falling)
-    println("knownW: " + st2.knownW)
+    if (st0.debug) {
+      println("falling: " + falling)
+      println("knownW: " + st2.knownW)
+    }
 
     val fallingFail = for (y <- falling -- st2.noReadWrite if !st2.knownW.contains(y) || st2.security(y, PRestrict) == High)
       yield y
@@ -508,8 +547,9 @@ object Exec {
     val rising = for (i <- st2.controlledBy(lhs) if (!st2.highP(i, PRestrict)) && !st2.lowP(i, PPrimeRestrict))
       yield i
 
-    println("rising: " + rising)
-
+    if (st0.debug) {
+      println("rising: " + rising)
+    }
     val risingFail = for (y <- rising if !st2.knownR.contains(y))
       yield y
 

@@ -8,13 +8,15 @@ object SMT {
   val ctx = new z3.Context(cfg)
   val solver = ctx.mkSolver()
 
-  def prove(cond: Expression, given: List[Expression]) = {
-    println("smt checking !" + cond + " given " + given)
+  def prove(cond: Expression, given: List[Expression], debug: Boolean) = {
+    if (debug)
+      println("smt checking !" + cond + " given " + given)
     solver.push()
     val res = try {
       for (p <- given) {
         solver.add(formula(p))
       }
+      // check that (NOT cond) AND P is unsatisfiable
       solver.add(formula(PreOp("!", cond)))
 
       solver.check
@@ -25,7 +27,8 @@ object SMT {
       solver.pop()
     }
 
-    println(res)
+    if (debug)
+      println(res)
     res == z3.Status.UNSATISFIABLE
   }
 
@@ -40,8 +43,9 @@ object SMT {
         x
     }
 
-  def proveImplies(strong: List[Expression], weak: List[Expression]) = {
-    println("smt checking !(" + strong + " implies " + weak + ")")
+  def proveImplies(strong: List[Expression], weak: List[Expression], debug: Boolean) = {
+    if (debug)
+      println("smt checking !(" + strong + " implies " + weak + ")")
     solver.push()
     val res = try {
       solver.add(ctx.mkNot(ctx.mkImplies(PToAnd(strong), PToAnd(weak))))
@@ -52,8 +56,8 @@ object SMT {
     } finally {
       solver.pop()
     }
-
-    println(res)
+    if (debug)
+      println(res)
     res == z3.Status.UNSATISFIABLE
   }
 

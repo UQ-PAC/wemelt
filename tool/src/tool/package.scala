@@ -8,6 +8,7 @@ package object tool {
     }
 
     case class InvalidProgram(info: Any*) extends Error
+    case class ProgramError(info: Any*) extends Error
     case class Z3Error(info: Any*) extends Error
 
     case class WhileError(line: Int, test: Expression, message: String) extends Exception {

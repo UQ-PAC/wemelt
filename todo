@@ -1,17 +1,13 @@
--make output nicer
--test - D' in while especially
+-test
+-on error assume everything is valid afterwards to handle multiple errors?
 -organise expression class - boolean expression subclass & clean up operations
 -bitwise in SMT - ensure conversion works properly - test thoroughly
--verbose option to print out state before/after each operation
--debug option to print out more
--switch variables for OR CNF to reduce complexity
+-comment everything
+-profiling
 
 tests for
--D' isnt subset of D - remove from D outside loop, add to D inside loop
--D' isnt subset of D''
 -multiple layers of if/while
 
 eventually:
-make sure everything is commented clearly
 arrays?
 bitwise arithmetic instead of int arithmetic?

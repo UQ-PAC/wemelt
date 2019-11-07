@@ -25,12 +25,15 @@ case class State(
   read: Set[Id],
   written: Set[Id],
 
-  errors: List[String]) {
+  toLog: Boolean,
+  debug: Boolean) {
 
   def log = {
-    println("gamma: " + gamma.gammaStr)
-    println("P: " + P.PStr)
-    println("D: " + D.DStr)
+    if (toLog) {
+      println("gamma: " + gamma.gammaStr)
+      println("P: " + P.PStr)
+      println("D: " + D.DStr)
+    }
   }
 
   // update P with strongest post-condition after assignment
@@ -93,24 +96,26 @@ case class State(
   }
 
   def updateD(laterW: Set[Id], laterR: Set[Id]): Map[Id, (Set[Id], Set[Id], Set[Id], Set[Id])] = {
+    val knownw = knownW
+    val knownr = knownR
     for (i <- variables) yield {
       val w_w = if (laterW.contains(i)) {
-        W_w(i) ++ knownW
+        W_w(i) ++ knownw
       } else {
         W_w(i) -- written
       }
       val w_r = if (laterR.contains(i)) {
-        W_r(i) ++ knownW
+        W_r(i) ++ knownw
       } else {
         W_r(i) -- written
       }
       val r_w = if (laterW.contains(i)) {
-        R_w(i) ++ knownR
+        R_w(i) ++ knownr
       } else {
         R_w(i) -- read
       }
       val r_r = if (laterR.contains(i)) {
-        R_r(i) ++ knownR
+        R_r(i) ++ knownr
       } else {
         R_r(i) -- read
       }
@@ -126,10 +131,12 @@ case class State(
     } else {
       Set()
     }
-    println("laterW: " + laterW)
-    println("laterR: " + laterR)
-    println("rd: " + read)
-    println("wr: " + written)
+    if (debug) {
+      println("laterW: " + laterW)
+      println("laterR: " + laterR)
+      println("rd: " + read)
+      println("wr: " + written)
+    }
     val DPrime: Map[Id, (Set[Id], Set[Id], Set[Id], Set[Id])] = updateD(laterW, laterR)
 
     copy(D = DPrime)
@@ -155,20 +162,23 @@ case class State(
   }
 
   def lowP(id: Id, p: List[Expression]): Boolean = {
-    println("checking lowP for " + id)
+    if (debug)
+      println("checking lowP for " + id)
     // prove if L(x) holds given P
-    SMT.prove(L(id), p)
+    SMT.prove(L(id), p, debug)
   }
 
   def highP(id: Id, p: List[Expression]): Boolean = {
-    println("checking highP for " + id)
+    if (debug)
+      println("checking highP for " + id)
     // prove if L(x) doesn't hold given P
-    SMT.prove(PreOp("!", L(id)), p)
+    SMT.prove(PreOp("!", L(id)), p, debug)
   }
 
   // x is variable to get security of, p is P value given so can substitute in P_a etc.
   def security(x: Id, p: List[Expression]): Security = {
-    println("checking security for " + x)
+    if (debug)
+      println("checking security for " + x)
     var sec: Security = High
     if (gamma.contains(x)) {
       sec = gamma(x)
@@ -177,17 +187,15 @@ case class State(
         sec = Low
       } // true/LOW if L(x) holds given P, false/HIGH otherwise
     }
-    if (sec == Low) {
-      println(x + " security is low")
-    } else {
-      println(x + " security is high")
-    }
+    if (debug)
+      println(x + " security is " + sec)
     sec
   }
 
   // e is expression to get security of, p is P value given so can substitute in P_a etc.
   def security(e: Expression, p: List[Expression]): Security = {
-    println("checking security for " + e)
+    if (debug)
+      println("checking security for " + e)
     var sec: Security = Low
     val it = e.getVariables.toIterator
     // if x security is high, return, otherwise keep checking
@@ -195,11 +203,8 @@ case class State(
       val x: Id = it.next()
       sec = security(x, p)
     }
-    if (sec == Low) {
-      println(e + "security is low")
-    } else {
-      println(e + "security is high")
-    }
+    if (debug)
+      println(e + " security is " + sec)
     sec
   }
 
@@ -219,17 +224,17 @@ case class State(
 
   def updatePIfLeft(b: Expression): State = {
     // remove free occurrences of unstable variables
-    val bRestrict = b.restrict(noReadWrite ++ noWrite)
+    val bRestrict = b.restrict(stable)
 
     val PPrime = bRestrict :: this.P
     copy(P = PPrime)
   }
 
   def updatePIfRight(b: Expression): State = {
-    // negate B
+    // negate b
     val notB = PreOp("!", b)
     // remove free occurrences of unstable variables
-    val bRestrict = notB.restrict(noReadWrite ++ noWrite)
+    val bRestrict = notB.restrict(stable)
 
     val PPrime = bRestrict :: this.P
     copy(P = PPrime)
@@ -264,20 +269,27 @@ case class State(
     State.mergeD(this.D, state2.D)
   }
 
-  // P1 OR P2 converted to CNF
-  // assumes P1 and P2 are already in CNF - may need to add further conversion later to distribute nots etc.?
-  // also consider using switching variables to keep the converted formula small
+  // P1 OR P2 converted to CNF, using switching variable _switch to keep converted formula small
   def mergeP(P1: List[Expression], P2: List[Expression]): List[Expression] = {
+    /*
     for (p1 <- P1;
          p2 <- P2) yield {
       BinOp("||", p1, p2)
+    } */
+    val switch = Var.fresh("_switch")
+    val p1List: List[Expression] = for (p1 <- P1) yield {
+      BinOp("||", PreOp("!", switch), p1)
     }
+    val p2List: List[Expression] = for (p2 <- P2) yield {
+      BinOp("||", switch, p2)
+    }
+    p1List ++ p2List
   }
 
 }
 
 object State {
-  def init(variables: Set[VarDef], P_0: Option[List[Expression]], gamma_0: Option[List[Expression]]): State = {
+  def init(variables: Set[VarDef], P_0: Option[List[Expression]], gamma_0: Option[List[Expression]], toLog: Boolean, debug: Boolean): State = {
     var globals: Set[Id] = Set()
     var locals: Set[Id] = Set()
     var noReadWrite: Set[Id] = Set()
@@ -365,7 +377,6 @@ object State {
         yield i -> i.toVar
       }.toMap
 
-
     // initialise P - true by default
     val P: List[Expression] = P_0 match {
       case None =>
@@ -375,7 +386,6 @@ object State {
         p map {i => i.subst(idToVar)}
     }
 
-
     // init L - map variables to their L predicates
     val L: Map[Id, Expression] = {
       for (v <- variables) yield {
@@ -383,20 +393,24 @@ object State {
         v.name -> predVar
       }
     }.toMap
+    if (debug) {
+      println("globals: " + globals)
+      println("locals: " + locals)
+      println("no read write: " + noReadWrite)
+      println("read write: " + readWrite)
+      println("no write: " + noWrite)
+      println("stable: " + stable)
+      println("controls: " + controls)
+      println("controlled: " + controlled)
+      println("controlled by: " + controlledBy)
+      println("L: " + L)
+    }
+    if (toLog) {
+      println("gamma: " + gamma.gammaStr)
+      println("P: " + P.PStr)
+      println("D: " + D.DStr)
+    }
 
-    println("globals: " + globals)
-    println("locals: " + locals)
-    println("no read write: " + noReadWrite)
-    println("read write: " + readWrite)
-    println("no write: " + noWrite)
-    println("stable: " + stable)
-    println("controls: " + controls)
-    println("controlled: " + controlled)
-    println("controlled by: " + controlledBy)
-    println("D: " + D.DStr)
-    println("P: " + P.PStr)
-    println("L: " + L)
-    println("gamma: " + gamma.gammaStr)
 
     State(
       gamma = gamma,
@@ -415,7 +429,8 @@ object State {
       variables = ids,
       read = Set(),
       written = Set(),
-      errors = List(),
+      toLog = toLog,
+      debug = debug
     )
   }
 
