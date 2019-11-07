@@ -4,6 +4,7 @@
 -bitwise in SMT - ensure conversion works properly - test thoroughly
 -comment everything
 -profiling
+-nonblocking rule
 
 tests for
 -multiple layers of if/while

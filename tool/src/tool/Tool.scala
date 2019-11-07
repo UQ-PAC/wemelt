@@ -19,6 +19,7 @@ object Tool {
           debug = true
           toLog = true
         case _ =>
+          val start = System.currentTimeMillis()
           try {
             println(file)
             val res = parse(file)
@@ -33,7 +34,6 @@ object Tool {
               println(gamma_0)
             }
             val state0: State = State.init(variables, P_0, gamma_0, toLog, debug)
-            val start = System.currentTimeMillis()
             Exec.execute(statements, state0)
             val end = System.currentTimeMillis()
             val time = end - start
@@ -47,20 +47,68 @@ object Tool {
             case e: java.io.FileNotFoundException =>
               println("file does not exist")
             case e: InvalidProgram =>
+              val end = System.currentTimeMillis()
+              val time = end - start
               println("invalid input file: " + e)
+              if (time >= 1000) {
+                println("time: " + (time / 1000) + "s")
+              } else {
+                println("time: " + time + "ms")
+              }
             case e: ProgramError =>
-              println("internal error has lead to: " + e)
+              val end = System.currentTimeMillis()
+              val time = end - start
+              println("internal error: " + e)
+              if (time >= 1000) {
+                println("time: " + (time / 1000) + "s")
+              } else {
+                println("time: " + time + "ms")
+              }
             case e: Z3Error =>
+              val end = System.currentTimeMillis()
+              val time = end - start
               println("Z3 Failed: " + e)
+              if (time >= 1000) {
+                println("time: " + (time / 1000) + "s")
+              } else {
+                println("time: " + time + "ms")
+              }
             case e: WhileError =>
+              val end = System.currentTimeMillis()
+              val time = end - start
               println(e)
+              if (time >= 1000) {
+                println("time: " + (time / 1000) + "s")
+              } else {
+                println("time: " + time + "ms")
+              }
             case e: IfError =>
+              val end = System.currentTimeMillis()
+              val time = end - start
               println(e)
+              if (time >= 1000) {
+                println("time: " + (time / 1000) + "s")
+              } else {
+                println("time: " + time + "ms")
+              }
             case e: AssignCError =>
+              val end = System.currentTimeMillis()
+              val time = end - start
               println(e)
+              if (time >= 1000) {
+                println("time: " + (time / 1000) + "s")
+              } else {
+                println("time: " + time + "ms")
+              }
             case e: AssignError =>
+              val end = System.currentTimeMillis()
+              val time = end - start
               println(e)
-
+              if (time >= 1000) {
+                println("time: " + (time / 1000) + "s")
+              } else {
+                println("time: " + time + "ms")
+              }
           }
       }
     }

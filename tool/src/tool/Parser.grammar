@@ -28,7 +28,7 @@
 %terminals COMMA, SEMICOLON;
 
 %terminals FENCE;
-%terminals INVARIANT, GAMMA, P_0, GAMMA_0;
+%terminals INVARIANT, GAMMA, P_0, GAMMA_0, NONBLOCKING;
 %terminals LPRED, MODE;
 %terminals NORW, NOW, RW;
 
@@ -110,6 +110,7 @@ local1
     | IF LPAREN expr.a RPAREN local.b   {: return new If(a, b);  :}
     | IF LPAREN expr.a RPAREN local.b ELSE local.c     {: return new If(a, b, c);   :}
     | WHILE LPAREN expr.a RPAREN INVARIANT COLON exprs.i GAMMA COLON exprs.g local.b      {: return new While(a, i, g, b);   :}
+    | WHILE LPAREN expr.a RPAREN INVARIANT COLON exprs.i GAMMA COLON exprs.g NONBLOCKING COLON ID.n local.b      {: return new While(a, i, g, n, b);   :}
     //| DO local.b WHILE LPAREN expr.a RPAREN SEMICOLON  {: return new DoWhile(b, a); :}
     //| FOR LPAREN expr.a SEMICOLON expr.b SEMICOLON expr.c SEMICOLON RPAREN local.p        {: return new For(a, b, c, p); :}
     | error SEMICOLON {: return Malformed.self(); :}

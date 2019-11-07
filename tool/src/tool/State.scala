@@ -208,9 +208,8 @@ case class State(
     sec
   }
 
-  def updateGammaAssign(x: Id, e: Expression): State = {
+  def updateGamma(x: Id, t: Security): State = {
     if (gamma.contains(x)) {
-      val t = security(e, P)
       val gammaPrime = gamma + (x -> t)
       copy(gamma = gammaPrime)
     } else {

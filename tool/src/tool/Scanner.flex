@@ -123,6 +123,7 @@ WS = {NL} | [ \t\f]
 "_Gamma" {return newToken(Terminals.GAMMA);}
 "_Gamma_0" {return newToken(Terminals.GAMMA_0);}
 "_P_0" {return newToken(Terminals.P_0);}
+"_nonblocking" {return newToken(Terminals.NONBLOCKING);}
 
 "TRUE" { return newToken(Terminals.TRUE);    }
 "FALSE" { return newToken(Terminals.FALSE);    }

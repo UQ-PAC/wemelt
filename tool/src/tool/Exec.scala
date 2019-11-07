@@ -88,7 +88,7 @@ object Exec {
         println("}")
       Cont.next(state1)
 
-    case While(test, invariants, gamma, body) =>
+    case While(test, invariants, gamma, None, body) =>
       if (state0.toLog)
         println("line " + statement.line + ": While(" + test + ") {")
       // replace Ids in invariant with vars
@@ -113,11 +113,66 @@ object Exec {
         }
         }.toMap
 
-      val state1 = whileRule(test, PPrime, gammaPrime, body, state0, statement.line)
+      val state1 = whileRule(test, PPrime, gammaPrime, body, state0, statement.line, false)
       state1.log
       if (state0.toLog)
         println("}")
       Cont.next(state1)
+
+      // nonblocking rule
+    case While(test, invariants, gamma, Some(nonblocking), body) =>
+      // add z to gamma
+      val state1 = state0.updateRead(nonblocking)
+      val PRestrict = state1.restrictP(state1.knownW)
+      val t = state1.security(nonblocking, PRestrict)
+      val state2 = state1.updateGamma(nonblocking, t) // need to modify this to update gamma domain
+      val state3 = state2.resetReadWrite()
+
+      // make z noW
+
+      val oldMode = if (state3.noWrite.contains(nonblocking)) {
+        "noW"
+      } else if (state3.noReadWrite.contains(nonblocking)) {
+        "noRW"
+      } else if (state3.readWrite.contains(nonblocking)) {
+        "RW"
+      }
+
+
+      if (state0.toLog)
+        println("line " + statement.line + ": While(" + test + ") {")
+      // replace Ids in invariant with vars
+      val idToVar: Subst = {
+        for (v <- state0.variables)
+          yield v -> v.toVar
+        }.toMap
+
+      val PPrime = invariants map {i => i.subst(idToVar)}
+
+      // convert gammaPrime to map instead of list
+      val gammaPrime: Map[Id, Security] = {
+        for (g <- gamma) yield {
+          g match {
+            case BinOp("==", arg1: Id, Const.low) =>
+              arg1 -> Low
+            case BinOp("==", arg1: Id, Const.high) =>
+              arg1 -> High
+            case _ =>
+              throw error.InvalidProgram(g + " is not a valid input to gamma")
+          }
+        }
+        }.toMap
+
+      val state5 = whileRule(test, PPrime, gammaPrime, body, state0, statement.line, true)
+      state5.log
+
+      // remove z from gamma
+      // restore original z mode
+
+
+      if (state0.toLog)
+        println("}")
+      Cont.next(state5)
 
     case _ =>
       throw error.InvalidProgram("unimplemented statement " + statement + " at line " + statement.line)
@@ -149,7 +204,8 @@ object Exec {
         st0 = st3
       }
     }
-    //println("dfixed loops " + dfixedloops)
+    if (st0.debug)
+      println("dfixed loops " + dfixedloops)
     DPrime
   }
 
@@ -195,7 +251,7 @@ object Exec {
       val _right = DFixedPoint(right, st2)
       st2.copy(D =_left.mergeD(_right))
 
-    case While(test, invariants, gamma, body) =>
+    case While(test, invariants, gamma, None, body) =>
       st0.copy(D = DFixedPoint(test, body, st0))
 
     case _ =>
@@ -365,7 +421,7 @@ object Exec {
     _left1.mergeIf(_right1)
   }
 
-  def whileRule(test: Expression, PPrime: List[Expression], gammaPrime: Map[Id, Security], body: Statement, state0: State, line: Int): State = {
+  def whileRule(test: Expression, PPrime: List[Expression], gammaPrime: Map[Id, Security], body: Statement, state0: State, line: Int, nonBlocking: Boolean): State = {
     // WHILE rule
 
     //println("while rule:")
@@ -486,10 +542,10 @@ object Exec {
 
     // calculate P_x:=e
     val PRestrict = st2.restrictP(st2.knownW)
+    val t = st2.security(rhs, PRestrict)
 
     // if x's mode is not NoRW, ensure that e's security level is not higher than x's security level, given P_x:=e - tested
     if (!st2.noReadWrite.contains(lhs)) {
-      val t = st2.security(rhs, PRestrict)
       // evalP
       val xSecurity = if (st2.highP(lhs, PRestrict)) {
         High
@@ -501,7 +557,7 @@ object Exec {
         // need to make this expression low
       }
     }
-    val st3 = st2.updateGammaAssign(lhs, rhs)
+    val st3 = st2.updateGamma(lhs, t)
 
     val st4 = st3.assign(lhs, _rhs) // update P
     st4.updateDAssign(lhs, _rhs)
