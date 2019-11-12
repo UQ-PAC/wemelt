@@ -18,4 +18,8 @@ if (r_inmode == 0) {
 } else {
     high = data;
 }
+fence;
+r_inmode = 2;
+fence;
+high = data; 
 

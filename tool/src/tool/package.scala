@@ -23,13 +23,12 @@ package object tool {
     case class IfError(line: Int, test: Expression, message: String) extends Exception {
       override def toString = "line " + line + ": IF rule not valid for if(" + test + ") {...} as " + message
     }
+    case class NonblockingError(line: Int, lhs: Id, rhs: Expression, message: String) extends Exception {
+      override def toString = "line " + line + ": NONBLOCKING rule not valid for " + lhs + " = " + rhs + " as " + message
+    }
 
   }
-
-  sealed trait Security
-  case object High extends Security
-  case object Low extends Security
-
+  
   type Rename = Map[Var, Var]
   type Subst = Map[Expression, Expression]
 

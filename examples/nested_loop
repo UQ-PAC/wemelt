@@ -1,0 +1,25 @@
+_var x:
+_L: TRUE
+_Mode: NoW
+
+_var r_y:
+_L: TRUE
+
+_Gamma_0: x -> LOW, r_y -> LOW
+
+x = r_y;
+
+while(TRUE)
+_invariant: x >= r_y
+_Gamma: x -> LOW, r_y -> LOW
+{
+  x = x + 1;
+  while(x < (r_y + 10)) 
+  _invariant: x > r_y
+  _Gamma: x -> LOW, r_y -> LOW
+  {
+    x = x + 2;
+  }
+}
+
+// this is just to test that nested loops function

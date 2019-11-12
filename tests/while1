@@ -14,11 +14,11 @@ _L: TRUE
 _Mode: RW
 
 _P_0: z % 2 == 0
-_Gamma_0: x == LOW, r_secret == HIGH
+_Gamma_0: x -> LOW, r_secret -> HIGH
 
 while(TRUE) // should fail - WHILE rule - unstable variable in loop invariant
 _invariant: z % 2 == 0, q == 0
-_Gamma: x == LOW, r_secret == HIGH
+_Gamma: x -> LOW, r_secret -> HIGH
 {
   z = z + 1;
   fence;

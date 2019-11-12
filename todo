@@ -1,12 +1,12 @@
 -test
--on error assume everything is valid afterwards to handle multiple errors?
 -organise expression class - boolean expression subclass & clean up operations
 -bitwise in SMT - ensure conversion works properly - test thoroughly
 -comment everything
 -profiling
--nonblocking rule
+-nonblocking rule - test
 
 tests for
+-control/controlled variable
 -multiple layers of if/while
 
 eventually:

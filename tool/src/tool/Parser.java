@@ -21,49 +21,50 @@ public class Parser extends beaver.Parser {
 		static public final short NUM = 8;
 		static public final short BANG = 9;
 		static public final short TILDE = 10;
-		static public final short LOW = 11;
-		static public final short HIGH = 12;
-		static public final short TRUE = 13;
-		static public final short FALSE = 14;
-		static public final short STAR = 15;
-		static public final short DIV = 16;
-		static public final short MOD = 17;
-		static public final short SHL = 18;
-		static public final short SHR = 19;
-		static public final short ASHR = 20;
-		static public final short LT = 21;
-		static public final short LE = 22;
-		static public final short GE = 23;
-		static public final short GT = 24;
-		static public final short SEMICOLON = 25;
-		static public final short EQ = 26;
-		static public final short NEQ = 27;
-		static public final short AMP = 28;
-		static public final short WHILE = 29;
-		static public final short IF = 30;
-		static public final short LBRACE = 31;
-		static public final short FENCE = 32;
-		static public final short CARET = 33;
-		static public final short COLON = 34;
-		static public final short PIPE = 35;
-		static public final short AND = 36;
-		static public final short OR = 37;
-		static public final short COMMA = 38;
-		static public final short RBRACE = 39;
-		static public final short RPAREN = 40;
-		static public final short GAMMA_0 = 41;
-		static public final short VAR = 42;
-		static public final short ASG = 43;
-		static public final short MODE = 44;
-		static public final short LPRED = 45;
-		static public final short INVARIANT = 46;
-		static public final short GAMMA = 47;
-		static public final short NONBLOCKING = 48;
-		static public final short P_0 = 49;
-		static public final short ELSE = 50;
-		static public final short NORW = 51;
-		static public final short NOW = 52;
-		static public final short RW = 53;
+		static public final short TRUE = 11;
+		static public final short FALSE = 12;
+		static public final short STAR = 13;
+		static public final short DIV = 14;
+		static public final short MOD = 15;
+		static public final short SHL = 16;
+		static public final short SHR = 17;
+		static public final short ASHR = 18;
+		static public final short LT = 19;
+		static public final short LE = 20;
+		static public final short GE = 21;
+		static public final short GT = 22;
+		static public final short SEMICOLON = 23;
+		static public final short EQ = 24;
+		static public final short NEQ = 25;
+		static public final short AMP = 26;
+		static public final short WHILE = 27;
+		static public final short IF = 28;
+		static public final short LBRACE = 29;
+		static public final short FENCE = 30;
+		static public final short CARET = 31;
+		static public final short COLON = 32;
+		static public final short PIPE = 33;
+		static public final short AND = 34;
+		static public final short OR = 35;
+		static public final short COMMA = 36;
+		static public final short RBRACE = 37;
+		static public final short RPAREN = 38;
+		static public final short GAMMA_0 = 39;
+		static public final short VAR = 40;
+		static public final short ASG = 41;
+		static public final short MODE = 42;
+		static public final short LPRED = 43;
+		static public final short MAPSTO = 44;
+		static public final short LOW = 45;
+		static public final short HIGH = 46;
+		static public final short INVARIANT = 47;
+		static public final short GAMMA = 48;
+		static public final short STABLE = 49;
+		static public final short P_0 = 50;
+		static public final short ELSE = 51;
+		static public final short NORW = 52;
+		static public final short NOW = 53;
+		static public final short RW = 54;
 
 		static public final String[] NAMES = {
 			"EOF",
@@ -77,8 +78,6 @@ public class Parser extends beaver.Parser {
 			"NUM",
 			"BANG",
 			"TILDE",
-			"LOW",
-			"HIGH",
 			"TRUE",
 			"FALSE",
 			"STAR",
@@ -112,9 +111,12 @@ public class Parser extends beaver.Parser {
 			"ASG",
 			"MODE",
 			"LPRED",
+			"MAPSTO",
+			"LOW",
+			"HIGH",
 			"INVARIANT",
 			"GAMMA",
-			"NONBLOCKING",
+			"STABLE",
 			"P_0",
 			"ELSE",
 			"NORW",
@@ -124,34 +126,36 @@ public class Parser extends beaver.Parser {
 	}
 
 	static final ParsingTables PARSING_TABLES = new ParsingTables(
-		"U9pjLsbm54KK$cOcQn8HY8301X0sI3WIG0Xi0YGaG995H57mu114K3nGl414K11H5521Agk" +
-		"iiieVMgL$$85MAOeSYXUA9tY2Y2A7U24HHG5fl#vvE$Hk9gXL5aTLGdtplNxzldclcvxkNY" +
-		"2Z43beWi6u2LCn1nwgK8bJSHeQOJxk5giPcgCbSj4QPw8Tif27iv1lTCEewuHhq0M5w8Rpb" +
-		"K8v5c9Ug6w4fNi0YwcxHNId888BS94w7AgxrD9bem5r2T5TWT4u1oFHC5JNsDATZgPMlgjn" +
-		"1iQY1QAXkbQMhWtQMhhh4CELQ8yEeRgEbgup2YpTT7JLuqFtK5tSqfMWRyZuIaDr$O$eL0t" +
-		"EHIVra#Zyw0inF5HtiPNl4enArgb#nKoCCNLU5ggROEaknqIfyofC2kgyDbHtWwMx6LEeyr" +
-		"VRRSZKgqtzXJl2TEgGw7gZ63rHX3ASZHxeXJxeXmeCm40CgkyxoVlilUTsi$VeLZLcOsxeM" +
-		"hh7h8aJQGJrVSTZjSp3BBDQxZM##t1$w6e9srNsyNnQO7OvhLm25y1TM8GxrJxrF6tTWnHb" +
-		"mkGSbzpb#0P8NC9O6S7#vskd4LccPuP#C3uXySau$UThimAVpZ5UV0bJ6wpuwyMJbLQRxxK" +
-		"zEez#r#HGxuqcWpwrasC0RWtodCVMK688gzuJUFqSfYRrSvhNpv7a1$4G7WvQ3kUsc2TQ7v" +
-		"uI$NY6bV54pk59x776VAi9J#LcF8kRyonkoPq#bsTlwq0NutdPdbzx1vvquAbHo5CqJ1UrT" +
-		"ELSAp6UgBwkBtSBdGt$g8lpNumUNzU6AwMjEPd3TF5QkYFvugmpVanrUdp$LlVVnmVUQcA4" +
-		"h$EZ2#hG5QJaYmPrWdL6Zb9dnDBr3Ehinl#xP9rveReyInVb#sEosl9ajQ4E7IoThYh2#sS" +
-		"clwnihji6NBaDPUtMzvtSVQbxZzyQKCUQA3ThuaGRGNtViLujNMMrvCak5hvQmdULGfuzEe" +
-		"DMyhx2tyALr5UpPp1jzl1fAwEICxdBGIa$3b5ZTGvwV6qF8j$lCK$eE1ClSSRhQ$C3hSaXl" +
-		"gYkZLOGppkMxybFgyttsXwTnwytr6ioq4gEWS$#GGs3sAeY4aJ7mEldC3NLyfeSGGL5l0Vs" +
-		"3bh0qZamixKPyARJp2SuVyumjX#bNKLxB7aXUV8SSzLnPWZF5tw4#WFa9zdOH7wM5xd6v3N" +
-		"afkJtoBbadMCcUJVvRV9#yWR0ZP2ta1dhyHRbniZZoDq9dZqkRsrE4NaIkGLvAlCS9CybRz" +
-		"Krf8DzYuKV5tv6U8NmEZsxuLfiOvwCL9#tdO#Lqh#QxJrM$AjytwVaLjBcU5qTNopjdJ9F3" +
-		"lqrD4OG5SHtn3Bfutnvsj2toht4ORORiKJ6E#pmMXDFI2nlYKuljWz8kutaUVf8JGxds#j2" +
-		"pAFDN4vRsYN4Cjf3PGwYeikctPbzNMMifOJ#rbuZLx26GsJHUEE9ch1va$uong#tvYQJ#Lo" +
-		"nsmd7X0k4uyAbmcN2bSBLmWdXuS8ZXKS9ZnUU83nHU8hmLE5fmhE4PzSz7YmGblM49SAF2J" +
-		"zLbzRlTtDIszvQkysvsfMMRtbQUrqTTMsKzuqMNcJrxKYBBRViCOnzBgscLKSV0xWlkDbMU" +
-		"pqrxQmnPgV6kosiTnTOO#Ktw$KvMYvv$r96xqJAdzvVr4V4XyG7nFi4lpFrBi5wr3i4znIr" +
-		"ZdYBU9DuWtYTu3fMQmb#f#eLOetQfBvGdwlF5BzQzGdnCR6Hs61ohLQhr4hribfXMh#fFzK" +
-		"VnlhMF7zH#wMcRSBV45y7bMublaB8dzeY$2MnMHrKUzNljMAsgnrgbx5#K3yQVabwlZVF5z" +
-		"LozOBQhVJUCOI$GrqY8iZYhmE7y7YoE0RzYL83rzpYosZt8mOPk7ft9np#8dLupcOG7X4nT" +
-		"YLzbOpHEq4rxO54CVkBpJcbeK$w2959D20Q6L#SSRNXfi7xdv6Qhvo#2WibVmFt$Qvh");
+		"U9pjM5bq54KKlTsT20YonJ2oPX12P1LacG490K8WG51aKH1GS0K5L4341GL5GKL4HKNnntF" +
+		"yy1CL414HHMHHDbd47MLH5cLn0nNAMzLlPcgIdZEHupdwaSwvVQjUlrllzLBrQW9uQt4HMg" +
+		"0Efc4wF6JXKTGslVDn8PgY6LgX3ThY4dH09qJH65tG5TsCfY6zkYk5dkY5tZWNDT0WK9EPq" +
+		"AWpk0VTSOwbkIfGCygASnwgKrD5DBvtaERUCfe9egcAYRW#K7ExfQbcSfjavNPBsZWBy0Gr" +
+		"CzBcLjFIr39nPeb6F#iRWZJgXALv6YzGKzVIt1Ie#T7Iv21CJHEZqOh9o0tCBS$ID4TBljE" +
+		"VgMcDHhZQF8KWpSMM9Xlj6ASzRiPeX72DqGLfEbgQ23fJfxEwAwuBqbngD0DmEVgXFuQY67" +
+		"rHWYim6CCmlC9#blR4ZA$46P$F6VySdiV2m3UGVeoP7AE0Oyp7O#ZnZyQeiF#dTlKB2b5av" +
+		"gj#cttOlmm3JNyGXk1AZ4nwczaOWMin9ZvVit6TyOtrCt0ZndACSLnjjVr1t8hnk1#tuGxw" +
+		"tecfk3lkg#CzGDziL4uQmyHJf$4GxLFa#teOMUelVb$Ph4rQPuyn1uzp1QwSbAVTrZvpJOH" +
+		"vU39#fqyb#MZh0h4yWsU1U0HhHLD76PyLJ$qKj#hZFYIE#lIeHxuWxl4YUounctW4KA#Pw4" +
+		"677zsXTvGhOnUkUrtfsqrwkfhLO0sfnQUGnSgiLyuGuzHbl9WcXwCqvZXDMCKpE0#3D65B0" +
+		"yxx7CxRXAPPsZYj#RnogFCrldUG9b96qrqqhSnz1cdQMfgYSkPcnsd1ofM8apgtLYdZf7xM" +
+		"i3GzEMToM4dJQN8jJNDccaDeZQ#8fBsVYD7eTnenJq0ZdIOaSUfp9zQGNsrvD3fEIBAAwL9" +
+		"hj4AFciazN2NEkohS8LJbpgd2VlRsn8oFSCPtu3wfK#0RAFyOsYlu2$i$td#5lHhdUKJckJ" +
+		"yd4$s8$DblCyGL9SGnOlCr9BwnVXvtuvbcZAR6diVzUfYxiGZF8SBZEUQhuuNf6nBVv3K0l" +
+		"DQK#$l4zmL#No7M9gspn#X5pvRqjVEqs$xQgIE4hJiD9$beQmkn52BCtvQn2FQAbYlhLMxC" +
+		"gdYWXueVw4EFlkJ#SLqlzdeJnKG$eaH7Lm57$BuNpU29XczOma#pgTVYckPvmCiZToAwpF2" +
+		"hTn7HHBTZyEizygNzCU1KIRxkJUHfiLn$Z$r9bdOD$GVgRFo#Cr9uhF0KOKtzo7F92yc4rv" +
+		"dy2dagUJ5vANabsI6l9mybxo2F8EyXJo0V8KxoFgiJtC6uRTddD#ZoRJiDoSLaZpo4SGwIH" +
+		"vEtsFUJoDqTBpnDU9RmVE6NUAfRIiFuxgjij9U#tBTNc#qbR0nW$5osJz0sNQurPdyrz5uD" +
+		"xXdsTUvypjp1mjrDdabRBV8SSdtHP17jY7dIRsGzyqNMksd0CVQHEOUylWJtR4vLSZunI7n" +
+		"QIwxCmoiWEefzC6t7sE1pzuQJfv27oJNcwcmEUcvoVHnV#SPOd#q$wBz6ygjZvLfGLel9bc" +
+		"vRgN57sNrUtrTAkyngBnTU9Rn1U8lmLk4Tmdk53maV4Jxji#C9PmY7X6LSvx3mKP$TTSBhX" +
+		"JULljT4hgxav4fExdPXoStTcKAtAuNzWEG#M$XbwzhnP5$4tlyfoyPvWXN9VavcglmjtHZw" +
+		"xRVw$5NXPIVwNhraVw#DrSwtTFFPBon7l4Ny2WuWwL3Bp7cfUaEzRbfBpFbNTKgTDAszvdn" +
+		"C$Ix#tn7RYAt45c8piOdW75GV4Hk93GJN7BME#91OItn0S7rJxnDSzzHgubtrkVfCxLQVgb" +
+		"tixIIuGgdjn2ScrYhrZbefSRybziIpvkgilaQfGyyRmry9VqbyeTvKVwhZwhSotllKVlMzQ" +
+		"HrMHmo$BLSEcVCAzPPQhWwg7w1Nbn9MhH9MLn#L#Ol38JnMHyUW1z7Lm6MbrDNIOTrqM9Cq" +
+		"NFx#1k6mDZcicHc4HsIQTZ5jnVJXcauuw4r4UJtAQpvSy$$KAFSEKUuRegnLKRDVS0BWbeB" +
+		"tByEFesjweOK2sWh8#O8YzZKw$mqbqSAA");
 
 	private final Action[] actions;
 
@@ -169,14 +173,14 @@ public class Parser extends beaver.Parser {
 					 return new Global(v, s);
 				}
 			},
-			new Action() {	// [1] unit = vardefs.v GAMMA_0 COLON exprs.f locals.s
+			new Action() {	// [1] unit = vardefs.v GAMMA_0 COLON gamma_mappings.f locals.s
 				public Symbol reduce(Symbol[] _symbols, int offset) {
 					final Symbol _symbol_v = _symbols[offset + 1];
 					final ArrayList _list_v = (ArrayList) _symbol_v.value;
 					final VarDef[] v = _list_v == null ? new VarDef[0] : (VarDef[]) _list_v.toArray(new VarDef[_list_v.size()]);
 					final Symbol _symbol_f = _symbols[offset + 4];
 					final ArrayList _list_f = (ArrayList) _symbol_f.value;
-					final Expression[] f = _list_f == null ? new Expression[0] : (Expression[]) _list_f.toArray(new Expression[_list_f.size()]);
+					final GammaMapping[] f = _list_f == null ? new GammaMapping[0] : (GammaMapping[]) _list_f.toArray(new GammaMapping[_list_f.size()]);
 					final Symbol _symbol_s = _symbols[offset + 5];
 					final ArrayList _list_s = (ArrayList) _symbol_s.value;
 					final Statement[] s = _list_s == null ? new Statement[0] : (Statement[]) _list_s.toArray(new Statement[_list_s.size()]);
@@ -194,10 +198,10 @@ public class Parser extends beaver.Parser {
 					final Symbol _symbol_s = _symbols[offset + 5];
 					final ArrayList _list_s = (ArrayList) _symbol_s.value;
 					final Statement[] s = _list_s == null ? new Statement[0] : (Statement[]) _list_s.toArray(new Statement[_list_s.size()]);
-					 return new Global(e, v, s);
+					 return new Global(v, e, s);
 				}
 			},
-			new Action() {	// [3] unit = vardefs.v P_0 COLON exprs.e GAMMA_0 COLON exprs.f locals.s
+			new Action() {	// [3] unit = vardefs.v P_0 COLON exprs.e GAMMA_0 COLON gamma_mappings.f locals.s
 				public Symbol reduce(Symbol[] _symbols, int offset) {
 					final Symbol _symbol_v = _symbols[offset + 1];
 					final ArrayList _list_v = (ArrayList) _symbol_v.value;
@@ -207,11 +211,11 @@ public class Parser extends beaver.Parser {
 					final Expression[] e = _list_e == null ? new Expression[0] : (Expression[]) _list_e.toArray(new Expression[_list_e.size()]);
 					final Symbol _symbol_f = _symbols[offset + 7];
 					final ArrayList _list_f = (ArrayList) _symbol_f.value;
-					final Expression[] f = _list_f == null ? new Expression[0] : (Expression[]) _list_f.toArray(new Expression[_list_f.size()]);
+					final GammaMapping[] f = _list_f == null ? new GammaMapping[0] : (GammaMapping[]) _list_f.toArray(new GammaMapping[_list_f.size()]);
 					final Symbol _symbol_s = _symbols[offset + 8];
 					final ArrayList _list_s = (ArrayList) _symbol_s.value;
 					final Statement[] s = _list_s == null ? new Statement[0] : (Statement[]) _list_s.toArray(new Statement[_list_s.size()]);
-					 return new Global(e, v, f, s);
+					 return new Global(v, e, f, s);
 				}
 			},
 			new Action() {	// [4] exprs = expr
@@ -357,7 +361,7 @@ public class Parser extends beaver.Parser {
 					 return new If(a, b, c);
 				}
 			},
-			new Action() {	// [34] local1 = WHILE LPAREN expr.a RPAREN INVARIANT COLON exprs.i GAMMA COLON exprs.g local.b
+			new Action() {	// [34] local1 = WHILE LPAREN expr.a RPAREN INVARIANT COLON exprs.i GAMMA COLON gamma_mappings.g local.b
 				public Symbol reduce(Symbol[] _symbols, int offset) {
 					final Symbol _symbol_a = _symbols[offset + 3];
 					final Expression a = (Expression) _symbol_a.value;
@@ -366,13 +370,13 @@ public class Parser extends beaver.Parser {
 					final Expression[] i = _list_i == null ? new Expression[0] : (Expression[]) _list_i.toArray(new Expression[_list_i.size()]);
 					final Symbol _symbol_g = _symbols[offset + 10];
 					final ArrayList _list_g = (ArrayList) _symbol_g.value;
-					final Expression[] g = _list_g == null ? new Expression[0] : (Expression[]) _list_g.toArray(new Expression[_list_g.size()]);
+					final GammaMapping[] g = _list_g == null ? new GammaMapping[0] : (GammaMapping[]) _list_g.toArray(new GammaMapping[_list_g.size()]);
 					final Symbol _symbol_b = _symbols[offset + 11];
 					final Statement b = (Statement) _symbol_b.value;
 					 return new While(a, i, g, b);
 				}
 			},
-			new Action() {	// [35] local1 = WHILE LPAREN expr.a RPAREN INVARIANT COLON exprs.i GAMMA COLON exprs.g NONBLOCKING COLON ID.n local.b
+			new Action() {	// [35] local1 = WHILE LPAREN expr.a RPAREN INVARIANT COLON exprs.i GAMMA COLON gamma_mappings.g STABLE COLON ID.n local.b
 				public Symbol reduce(Symbol[] _symbols, int offset) {
 					final Symbol _symbol_a = _symbols[offset + 3];
 					final Expression a = (Expression) _symbol_a.value;
@@ -381,7 +385,7 @@ public class Parser extends beaver.Parser {
 					final Expression[] i = _list_i == null ? new Expression[0] : (Expression[]) _list_i.toArray(new Expression[_list_i.size()]);
 					final Symbol _symbol_g = _symbols[offset + 10];
 					final ArrayList _list_g = (ArrayList) _symbol_g.value;
-					final Expression[] g = _list_g == null ? new Expression[0] : (Expression[]) _list_g.toArray(new Expression[_list_g.size()]);
+					final GammaMapping[] g = _list_g == null ? new GammaMapping[0] : (GammaMapping[]) _list_g.toArray(new GammaMapping[_list_g.size()]);
 					final Symbol _symbol_n = _symbols[offset + 13];
 					final String n = (String) _symbol_n.value;
 					final Symbol _symbol_b = _symbols[offset + 14];
@@ -623,46 +627,74 @@ public class Parser extends beaver.Parser {
 					 return (Symbol) e;
 				}
 			},
-			new Action() {	// [66] expr = LOW
-				public Symbol reduce(Symbol[] _symbols, int offset) {
-					 return new Const("Low");
-				}
-			},
-			new Action() {	// [67] expr = HIGH
-				public Symbol reduce(Symbol[] _symbols, int offset) {
-					 return new Const("High");
-				}
-			},
-			new Action() {	// [68] expr = TRUE
+			new Action() {	// [66] expr = TRUE
 				public Symbol reduce(Symbol[] _symbols, int offset) {
 					 return new Const("True");
 				}
 			},
-			new Action() {	// [69] expr = FALSE
+			new Action() {	// [67] expr = FALSE
 				public Symbol reduce(Symbol[] _symbols, int offset) {
 					 return new Const("False");
 				}
 			},
-			new Action() {	// [70] lpred = LPRED COLON expr.a
+			new Action() {	// [68] lpred = LPRED COLON expr.a
 				public Symbol reduce(Symbol[] _symbols, int offset) {
 					final Symbol _symbol_a = _symbols[offset + 3];
 					final Expression a = (Expression) _symbol_a.value;
 					 return (Symbol) a;
 				}
 			},
-			new Action() {	// [71] mode = MODE COLON NORW
+			new Action() {	// [69] mode = MODE COLON NORW
 				public Symbol reduce(Symbol[] _symbols, int offset) {
-					 return new Mode("NoRW");
+					 return NoRW.instance();
 				}
 			},
-			new Action() {	// [72] mode = MODE COLON NOW
+			new Action() {	// [70] mode = MODE COLON NOW
 				public Symbol reduce(Symbol[] _symbols, int offset) {
-					 return new Mode("NoW");
+					 return NoW.instance();
 				}
 			},
-			new Action() {	// [73] mode = MODE COLON RW
+			new Action() {	// [71] mode = MODE COLON RW
 				public Symbol reduce(Symbol[] _symbols, int offset) {
-					 return new Mode("RW");
+					 return RW.instance();
+				}
+			},
+			new Action() {	// [72] gamma_mappings = gamma_mapping
+				public Symbol reduce(Symbol[] _symbols, int offset) {
+					ArrayList lst = new ArrayList(); lst.add(_symbols[offset + 1].value); return new Symbol(lst);
+				}
+			},
+			new Action() {	// [73] gamma_mappings = gamma_mappings COMMA gamma_mapping
+				public Symbol reduce(Symbol[] _symbols, int offset) {
+					((ArrayList) _symbols[offset + 1].value).add(_symbols[offset + 3].value); return _symbols[offset + 1];
+				}
+			},
+			new Action() {	// [74] gamma_mapping = ID.n MAPSTO security.s
+				public Symbol reduce(Symbol[] _symbols, int offset) {
+					final Symbol _symbol_n = _symbols[offset + 1];
+					final String n = (String) _symbol_n.value;
+					final Symbol _symbol_s = _symbols[offset + 3];
+					final Security s = (Security) _symbol_s.value;
+					 return new GammaMapping(n, s);
+				}
+			},
+			new Action() {	// [75] gamma_mapping = REG_ID.n MAPSTO security.s
+				public Symbol reduce(Symbol[] _symbols, int offset) {
+					final Symbol _symbol_n = _symbols[offset + 1];
+					final String n = (String) _symbol_n.value;
+					final Symbol _symbol_s = _symbols[offset + 3];
+					final Security s = (Security) _symbol_s.value;
+					 return new GammaMapping(n, s);
+				}
+			},
+			new Action() {	// [76] security = LOW
+				public Symbol reduce(Symbol[] _symbols, int offset) {
+					 return Low.instance();
+				}
+			},
+			new Action() {	// [77] security = HIGH
+				public Symbol reduce(Symbol[] _symbols, int offset) {
+					 return High.instance();
 				}
 			}
 		};

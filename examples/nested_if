@@ -13,9 +13,19 @@ _Mode: RW
 _var r_inmode:
 _L: TRUE
 
-if (r_inmode == 0) {
-    low = data;
-} else {
-    high = data;
-}
+_var num:
+_L: TRUE
+_Mode: NoRW
 
+num = 0;
+if (r_inmode == 0) {
+  low = data;
+  if (num > 0) {
+    num = 0;
+  }
+} else {
+  high = data;
+  if (num < 0) {
+    num = 4;
+  }
+}

@@ -1,3 +1,3 @@
 make clean
 make
-./armlogictool.sh -v examples/secret_write
+./armlogictool.sh -v examples/simple_load_after

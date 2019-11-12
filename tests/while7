@@ -1,25 +1,25 @@
-_var x:
+_var z:
 _L: TRUE
 _Mode: NoW
 
-_var r_y:
-_L: TRUE
+_var x:
+_L: z % 2 == 0
+_Mode: NoW
 
-_Gamma_0: x == LOW, r_y == LOW
+_var r_secret:
+_L: FALSE
 
-x = r_y;
+_P_0: z == 0
+_Gamma_0: x -> LOW, r_secret -> HIGH
 
-while(TRUE)
-_invariant: x >= r_y
-_Gamma: x == LOW, r_y == LOW
+while(TRUE) // should fail - WHILE rule - P'' not stronger than P'
+_invariant: z == 0
+_Gamma: x -> LOW, r_secret -> HIGH
 {
-  x = x + 1;
-  while(x < (r_y + 10)) 
-  _invariant: x > r_y
-  _Gamma: x == LOW, r_y == LOW
-  {
-    x = x + 2;
-  }
+  z = z + 1;
+  fence;
+  x = r_secret;
+  x = 0;
+  fence;
+  z = z + 1;
 }
-
-// this is just to test that nested loops function

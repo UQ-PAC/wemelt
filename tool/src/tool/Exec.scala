@@ -24,7 +24,7 @@ object Exec {
       execute(rest, st)
   }
 
-  def execute (statement: Statement, state0: State): Cont = statement match {
+  def execute(statement: Statement, state0: State): Cont = statement match {
     case Malformed =>
       throw error.InvalidProgram("parser")
 
@@ -66,6 +66,9 @@ object Exec {
       } else {
         assignRule(lhs, rhs, state0, statement.line)
       }
+      if (state1.nonblocking && state1.globals.contains(lhs)) {
+        throw error.NonblockingError(statement.line, lhs, rhs, "global variable " + lhs + " was written to within a nonblocking while loop")
+      }
       state1.log
       Cont.next(state1.resetReadWrite())
 
@@ -82,7 +85,9 @@ object Exec {
       // evaluate test which updates D
       if (state0.toLog)
         println("line " + statement.line + ": If(" + test + ") {")
-      val state1 = IfRule(test, left, right, state0, statement.line)
+      val state1 = ifRule(test, left, right, state0, statement.line)
+      if (state0.toLog)
+        println("end of line " + statement.line + ": If(" + test + ")")
       state1.log
       if (state0.toLog)
         println("}")
@@ -99,45 +104,38 @@ object Exec {
 
       val PPrime = invariants map {i => i.subst(idToVar)}
 
-      // convert gammaPrime to map instead of list
-      val gammaPrime: Map[Id, Security] = {
-        for (g <- gamma) yield {
-          g match {
-            case BinOp("==", arg1: Id, Const.low) =>
-              arg1 -> Low
-            case BinOp("==", arg1: Id, Const.high) =>
-              arg1 -> High
-            case _ =>
-              throw error.InvalidProgram(g + " is not a valid input to gamma")
-          }
-        }
-        }.toMap
+      // convert gammaPrime to map
+      val gammaPrime: Map[Id, Security] = (gamma map {g => g.variable -> g.security}).toMap
 
-      val state1 = whileRule(test, PPrime, gammaPrime, body, state0, statement.line, false)
+      val state1 = whileRule(test, PPrime, gammaPrime, body, state0, statement.line)
+      if (state0.toLog)
+        println("end of line " + statement.line + ": While(" + test + ")")
       state1.log
       if (state0.toLog)
         println("}")
       Cont.next(state1)
 
-      // nonblocking rule
-    case While(test, invariants, gamma, Some(nonblocking), body) =>
+
+    // nonblocking rule
+    case While(test, invariants, gamma, Some(z), body) =>
       // add z to gamma
-      val state1 = state0.updateRead(nonblocking)
+      val state1 = state0.updateRead(z)
       val PRestrict = state1.restrictP(state1.knownW)
-      val t = state1.security(nonblocking, PRestrict)
-      val state2 = state1.updateGamma(nonblocking, t) // need to modify this to update gamma domain
+      val t = state1.security(z, PRestrict)
+      val state2 = state1.updateGammaDomain(z, t)
       val state3 = state2.resetReadWrite()
 
       // make z noW
-
-      val oldMode = if (state3.noWrite.contains(nonblocking)) {
-        "noW"
-      } else if (state3.noReadWrite.contains(nonblocking)) {
-        "noRW"
-      } else if (state3.readWrite.contains(nonblocking)) {
-        "RW"
+      val oldMode: Mode = if (state3.noWrite.contains(z)) {
+        NoW
+      } else if (state3.noReadWrite.contains(z)) {
+        NoRW
+      } else if (state3.readWrite.contains(z)) {
+        RW
+      } else {
+        throw error.ProgramError(z + " does not have a mode - internal error")
       }
-
+      val state4 = state3.setMode(z, NoW)
 
       if (state0.toLog)
         println("line " + statement.line + ": While(" + test + ") {")
@@ -149,30 +147,32 @@ object Exec {
 
       val PPrime = invariants map {i => i.subst(idToVar)}
 
-      // convert gammaPrime to map instead of list
-      val gammaPrime: Map[Id, Security] = {
-        for (g <- gamma) yield {
-          g match {
-            case BinOp("==", arg1: Id, Const.low) =>
-              arg1 -> Low
-            case BinOp("==", arg1: Id, Const.high) =>
-              arg1 -> High
-            case _ =>
-              throw error.InvalidProgram(g + " is not a valid input to gamma")
-          }
-        }
-        }.toMap
+      // convert gammaPrime to map
+      val gammaPrime: Map[Id, Security] = (gamma map {g => g.variable -> g.security}).toMap
 
-      val state5 = whileRule(test, PPrime, gammaPrime, body, state0, statement.line, true)
-      state5.log
+      // increment nonblocking depth so that the nonblocking rule will be checked while executing loop contents
+      val state5 = state4.copy(nonblocking = true, nonblockingDepth = state4.nonblockingDepth + 1)
+
+      val state6 = whileRule(test, PPrime, gammaPrime, body, state5, statement.line)
+      state6.log
+
+      // restore original z mode
+      val state7 = state6.setMode(z, oldMode)
 
       // remove z from gamma
-      // restore original z mode
+      val state8 = state7.removeGamma(z)
 
-
-      if (state0.toLog)
+      // decrement nonblocking depth so that the nonblocking rule will not be applied anymore if all nonblocking loops
+      // are finished
+      val state9 = if (state8.nonblockingDepth == 1) {
+        state8.copy(nonblocking = false, nonblockingDepth = state8.nonblockingDepth - 1)
+      } else {
+        state8.copy(nonblockingDepth = state8.nonblockingDepth - 1)
+      }
+      if (state9.toLog)
         println("}")
-      Cont.next(state5)
+
+      Cont.next(state8)
 
     case _ =>
       throw error.InvalidProgram("unimplemented statement " + statement + " at line " + statement.line)
@@ -251,7 +251,7 @@ object Exec {
       val _right = DFixedPoint(right, st2)
       st2.copy(D =_left.mergeD(_right))
 
-    case While(test, invariants, gamma, None, body) =>
+    case While(test, invariants, gamma, _, body) =>
       st0.copy(D = DFixedPoint(test, body, st0))
 
     case _ =>
@@ -387,7 +387,7 @@ object Exec {
 
   }
 
-  def IfRule(test: Expression, left: Statement, right: Option[Statement], state0: State, line: Int): State = {
+  def ifRule(test: Expression, left: Statement, right: Option[Statement], state0: State, line: Int): State = {
     // IF rule
     if (state0.toLog)
       println("IF applying")
@@ -421,7 +421,7 @@ object Exec {
     _left1.mergeIf(_right1)
   }
 
-  def whileRule(test: Expression, PPrime: List[Expression], gammaPrime: Map[Id, Security], body: Statement, state0: State, line: Int, nonBlocking: Boolean): State = {
+  def whileRule(test: Expression, PPrime: List[Expression], gammaPrime: Map[Id, Security], body: Statement, state0: State, line: Int): State = {
     // WHILE rule
 
     //println("while rule:")
@@ -495,17 +495,23 @@ object Exec {
     // add test to P
     val state4 = state3.updatePIfLeft(_test)
 
+    if (state0.debug) {
+      println("while rule before loop body after test:")
+      println("gamma :" + state4.gamma.gammaStr)
+      println("P:" + state4.P.PStr)
+    }
+
     // evaluate body
     val _body = execute(body, state4)
     val state5 = _body.st
 
     if (state0.debug) {
-      println("while rule:")
-      println("gamma':" + gammaPrime.gammaStr)
-      println("P':" + PPrime.PStr)
+      println("while rule after loop body:")
+      println("gamma': " + gammaPrime.gammaStr)
+      println("P' :" + PPrime.PStr)
 
-      println("gamma'':" + state5.gamma.gammaStr)
-      println("P'':" + state5.P.PStr)
+      println("gamma'': " + state5.gamma.gammaStr)
+      println("P'' :" + state5.P.PStr)
     }
 
     // this shouldn't be able to happen if D' is calculated correctly
@@ -519,7 +525,7 @@ object Exec {
     val gammaPrimeGreater = for (g <- gammaPrime.keySet if state5.gamma(g) == High && gammaPrime(g) == Low)
       yield g
     if (gammaPrimeGreater.nonEmpty) {
-        throw error.WhileError(line, test, "gamma' " + state5.gamma.gammaStr + " is not greater than gamma'' " + gammaPrime.gammaStr + " for: " + gammaPrimeGreater.mkString(" "))
+        throw error.WhileError(line, test, "gamma' " + gammaPrime.gammaStr + " is not greater or equal than than gamma'' " +  state5.gamma.gammaStr + " for: " + gammaPrimeGreater.mkString(" "))
     }
 
     // check P'' is stronger than P' - tested

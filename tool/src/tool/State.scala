@@ -25,6 +25,9 @@ case class State(
   read: Set[Id],
   written: Set[Id],
 
+  nonblocking: Boolean, // whether the nonblocking rule is currently being applied
+  nonblockingDepth: Int, // how many layers of the nonblocking rule are currently being applied
+
   toLog: Boolean,
   debug: Boolean) {
 
@@ -55,6 +58,10 @@ case class State(
     // restrict PPrime to stable variables
     val PPrimeRestrict = State.restrictP(PPrime, stable)
 
+    if (debug) {
+      println("P: " + P.PStr)
+      println("P': " + PPrimeRestrict.PStr)
+    }
     copy(P = PPrimeRestrict)
   }
 
@@ -217,6 +224,16 @@ case class State(
     }
   }
 
+  def updateGammaDomain(x: Id, t: Security): State = {
+    val gammaPrime = gamma + (x -> t)
+    copy(gamma = gammaPrime)
+  }
+
+  def removeGamma(x: Id): State = {
+    val gammaPrime = gamma - x
+    copy(gamma = gammaPrime)
+  }
+
   def restrictP(restricted: Set[Id]): List[Expression] = {
     State.restrictP(P, restricted)
   }
@@ -268,14 +285,15 @@ case class State(
     State.mergeD(this.D, state2.D)
   }
 
-  // P1 OR P2 converted to CNF, using switching variable _switch to keep converted formula small
+  // P1 OR P2 converted to CNF, using switching variable to keep converted formula small
   def mergeP(P1: List[Expression], P2: List[Expression]): List[Expression] = {
-    /*
+  /*
     for (p1 <- P1;
          p2 <- P2) yield {
       BinOp("||", p1, p2)
-    } */
-    val switch = Var.fresh("_switch")
+    }
+  */
+    val switch = Switch.fresh
     val p1List: List[Expression] = for (p1 <- P1) yield {
       BinOp("||", PreOp("!", switch), p1)
     }
@@ -285,10 +303,34 @@ case class State(
     p1List ++ p2List
   }
 
+
+  def setMode(z: Id, mode: Mode): State = {
+    mode match {
+      case NoW =>
+        val noWritePrime = noWrite + z
+        val readWritePrime = readWrite - z
+        val noReadWritePrime = readWrite - z
+        copy(noWrite = noWritePrime, noReadWrite = noReadWritePrime, readWrite = readWritePrime)
+      case RW =>
+        val noWritePrime = noWrite - z
+        val readWritePrime = readWrite + z
+        val noReadWritePrime = readWrite - z
+        copy(noWrite = noWritePrime, noReadWrite = noReadWritePrime, readWrite = readWritePrime)
+      case NoRW =>
+        val noWritePrime = noWrite - z
+        val readWritePrime = readWrite - z
+        val noReadWritePrime = readWrite + z
+        copy(noWrite = noWritePrime, noReadWrite = noReadWritePrime, readWrite = readWritePrime)
+      case _ =>
+        this
+    }
+  }
+
+
 }
 
 object State {
-  def init(variables: Set[VarDef], P_0: Option[List[Expression]], gamma_0: Option[List[Expression]], toLog: Boolean, debug: Boolean): State = {
+  def init(variables: Set[VarDef], P_0: Option[List[Expression]], gamma_0: Option[List[GammaMapping]], toLog: Boolean, debug: Boolean): State = {
     var globals: Set[Id] = Set()
     var locals: Set[Id] = Set()
     var noReadWrite: Set[Id] = Set()
@@ -302,17 +344,17 @@ object State {
       yield v.name
 
     for (v <- variables) {
-      v.mode.mode match {
-        case "Reg" =>
+      v.mode match {
+        case Reg =>
           locals += v.name
           noReadWrite += v.name
-        case "NoRW" =>
+        case NoRW =>
           globals += v.name
           noReadWrite += v.name
-        case "NoW" =>
+        case NoW =>
           globals += v.name
           noWrite += v.name
-        case "RW" =>
+        case RW =>
           globals += v.name
           readWrite += v.name
       }
@@ -351,24 +393,14 @@ object State {
         }
         }.toMap
       // user provided
-      case Some(gs) => {
-        for (g <- gs) yield {
-          g match {
-            case BinOp("==", arg1: Id, Const.low) =>
-              arg1 -> Low
-            case BinOp("==", arg1: Id, Const.high) =>
-              arg1 -> High
-            case _ =>
-              throw error.InvalidProgram(g + " is not a valid input to gamma")
-          }
-        }
-        }.toMap
+      case Some(gs) =>
+        (gs map {g => g.variable -> g.security}).toMap
     }
 
     // check gamma domain
     val gammaDom: Set[Id] = for (i <- ids if !controls.contains(i) && stable.contains(i)) yield i
     if (gamma.keySet != gammaDom)
-      throw error.InvalidProgram("provided gamma has invalid domain")
+      throw error.InvalidProgram("provided gamma has invalid domain, correct domain is " + gammaDom.mkString(","))
 
     // for replacing Ids in predicates with Vars
     val idToVar: Subst = {
@@ -382,6 +414,14 @@ object State {
         List(Const._true)
 
       case Some(p) =>
+        // check no unstable variables in user-defined P_0
+        val PVars = (p flatMap {x => x.getVariables}).toSet
+        println(PVars)
+        val unstableP = for (i <- PVars if !stable.contains(i))
+          yield i
+        if (unstableP.nonEmpty) {
+          throw error.InvalidProgram("unstable variables in P_0: " + unstableP.mkString(", "))
+        }
         p map {i => i.subst(idToVar)}
     }
 
@@ -428,6 +468,8 @@ object State {
       variables = ids,
       read = Set(),
       written = Set(),
+      nonblocking = false,
+      nonblockingDepth = 0,
       toLog = toLog,
       debug = debug
     )

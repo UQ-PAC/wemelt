@@ -109,6 +109,15 @@ object Tool {
               } else {
                 println("time: " + time + "ms")
               }
+            case e: NonblockingError =>
+              val end = System.currentTimeMillis()
+              val time = end - start
+              println(e)
+              if (time >= 1000) {
+                println("time: " + (time / 1000) + "s")
+              } else {
+                println("time: " + time + "ms")
+              }
           }
       }
     }

@@ -74,6 +74,22 @@ object Var {
   }
 }
 
+
+// switching logical variable for CNF format
+case class Switch(index: Int) extends Expression {
+  def getVariables: Set[Id] = Set()
+  def free: Set[Var] = Set()
+  def subst(su: Subst): Expression = this
+}
+
+object Switch {
+  var index = 0
+  def fresh = {
+    index += 1
+    Switch(index)
+  }
+}
+
 case class PreOp(op: String, arg: Expression) extends Expression {
   override def toString = "(" + op + " " + arg + ")"
   override def getVariables: Set[Id] = arg.getVariables
@@ -97,8 +113,6 @@ case class BinOp(op: String, arg1: Expression, arg2: Expression) extends Express
 }
 
 object Const {
-  object low extends Const("Low")
-  object high extends Const("High")
   object _true extends Const("True")
   object _false extends Const("False")
 }

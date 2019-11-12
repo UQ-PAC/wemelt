@@ -10,7 +10,7 @@ object SMT {
 
   def prove(cond: Expression, given: List[Expression], debug: Boolean) = {
     if (debug)
-      println("smt checking !" + cond + " given " + given)
+      println("smt checking !" + cond + " given " + given.PStr)
     solver.push()
     val res = try {
       for (p <- given) {
@@ -22,7 +22,7 @@ object SMT {
       solver.check
     } catch {
       case e: Throwable =>
-        throw error.Z3Error("Z3 failed", cond, given, e)
+        throw error.Z3Error("Z3 failed", cond, given.PStr, e)
     } finally {
       solver.pop()
     }
@@ -63,23 +63,23 @@ object SMT {
 
   def formula(prop: Expression): z3.BoolExpr = translate(prop) match {
     case b: z3.BoolExpr => b
-    case _ =>
-      throw error.InvalidProgram("not a boolean expression", prop)
+    case e =>
+      throw error.InvalidProgram("not a boolean expression", prop, e)
   }
 
   def arith(prop: Expression): z3.IntExpr = translate(prop) match {
     case arith: z3.IntExpr => arith
     // treating bit vectors as unsigned
     case bitVec: z3.BitVecExpr => ctx.mkBV2Int(bitVec, false)
-    case _ =>
-      throw error.InvalidProgram("not an arithmetic expression", prop)
+    case e =>
+      throw error.InvalidProgram("not an arithmetic expression", prop, e)
   }
 
   def bitwise(prop: Expression): z3.BitVecExpr = translate(prop) match {
     case bitVec: z3.BitVecExpr => bitVec
     case arith: z3.IntExpr => ctx.mkInt2BV(intSize, arith)
-    case _ =>
-      throw error.InvalidProgram("not a bitwise expression", prop)
+    case e =>
+      throw error.InvalidProgram("not a bitwise expression", prop, e)
   }
 
   /* currently doing all arithmetic operations on ints - may want to switch to bitvectors
@@ -92,6 +92,8 @@ object SMT {
     case Const._false => ctx.mkFalse
 
     case Lit(n: Int) => ctx.mkInt(n)
+
+    case Switch(n: Int) => ctx.mkBoolConst("Switch" + n)
 
     case x: Id =>
       throw error.InvalidProgram("unresolved program variable", x)

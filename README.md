@@ -51,7 +51,7 @@ Variables must be defined at the start of the file, before any statements. Varia
 ### P_0 and Gamma_0 definitions
 ```
 _P_0: z == 0
-_Gamma_0: x == LOW, r_secret == HIGH
+_Gamma_0: x -> LOW, r_secret -> HIGH
 ```
 Defining the P_0 and/or Gamma_0 is optional, but can occur between the variable definitions and the program. By default, P_0 will be set to `TRUE` and Gamma_0 will be set to `HIGH` for all variables in its domain. Predicates in P_0 can be separated with `,`.
 
@@ -59,7 +59,7 @@ Defining the P_0 and/or Gamma_0 is optional, but can occur between the variable 
 ```
 while(TRUE)
 _invariant: z % 2 == 0
-_Gamma: x == LOW, r_secret == HIGH
+_Gamma: x -> LOW, r_secret -> HIGH
 {
   z = z + 1;
   fence;

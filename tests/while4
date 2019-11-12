@@ -10,11 +10,11 @@ _var r_secret:
 _L: FALSE
 
 _P_0: z % 2 == 0
-_Gamma_0: x == LOW, r_secret == HIGH
+_Gamma_0: x -> LOW, r_secret -> HIGH
 
 while(TRUE) // should fail - WHILE rule - provided Gamma' is lower than Gamma for r_secret
 _invariant: z % 2 == 0
-_Gamma: x == LOW, r_secret == LOW
+_Gamma: x -> LOW, r_secret -> LOW
 {
   z = z + 1;
   fence;

@@ -10,10 +10,10 @@ _var r_secret:
 _L: FALSE
 
 _P_0: z % 2 == 0
-_Gamma_0: x -> LOW, r_secret -> HIGH
+_Gamma_0: x -> LOW, r_secret v HIGH
 
-while(TRUE) // should fail - WHILE rule - loop invariant is not weaker than previous P
-_invariant: z == 0
+while(r_secret) // should fail - WHILE rule - guard is HIGH
+_invariant: z % 2 == 0
 _Gamma: x -> LOW, r_secret -> HIGH
 {
   z = z + 1;

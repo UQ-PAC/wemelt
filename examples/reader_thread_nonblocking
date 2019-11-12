@@ -1,0 +1,34 @@
+_var r_r1:
+
+_var r_r2:
+
+_var x:
+_Mode: RW
+
+_var z:
+_Mode: RW
+
+while(TRUE)
+_Stable: z
+{
+  fence;
+  r2 = x;
+  fence;
+  r1 = z;
+  while ((r1 % 2) != 0)
+  {
+    r1 = z;
+  } 
+  while (z != r1)
+  {
+    fence;
+    r2 = x;
+    fence;
+    r1 = z;
+    while ((r1 % 2) != 0)
+    {
+      r1 = z;
+    }
+  }
+  y = r2;
+}

@@ -59,7 +59,6 @@ WS = {NL} | [ \t\f]
 //"++"        { return newToken(Terminals.INCR);     }
 //"--"        { return newToken(Terminals.DECR);     }
 //"."         { return newToken(Terminals.DOT);      }
-//"->"        { return newToken(Terminals.ARROW);    }
 "!"         { return newToken(Terminals.BANG);     }
 "~"         { return newToken(Terminals.TILDE);    }
 //"sizeof"    { return newToken(Terminals.SIZEOF);   }
@@ -123,12 +122,14 @@ WS = {NL} | [ \t\f]
 "_Gamma" {return newToken(Terminals.GAMMA);}
 "_Gamma_0" {return newToken(Terminals.GAMMA_0);}
 "_P_0" {return newToken(Terminals.P_0);}
-"_nonblocking" {return newToken(Terminals.NONBLOCKING);}
+"_Stable" {return newToken(Terminals.STABLE);}
 
 "TRUE" { return newToken(Terminals.TRUE);    }
 "FALSE" { return newToken(Terminals.FALSE);    }
 "LOW"   { return newToken(Terminals.LOW);    }
 "HIGH" { return newToken(Terminals.HIGH);    }
+
+"->"        { return newToken(Terminals.MAPSTO);    }
 
 [a-zA-Z_][a-zA-Z_0-9]*
             { return resolve(yytext()); }

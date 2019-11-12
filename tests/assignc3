@@ -15,4 +15,4 @@ _P_0: c == 0
 c = 0;
 fence;
 low = x;
-c = 1; // should fail 
+c = 1; // should fail with rising variable x 

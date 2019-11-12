@@ -28,9 +28,10 @@
 %terminals COMMA, SEMICOLON;
 
 %terminals FENCE;
-%terminals INVARIANT, GAMMA, P_0, GAMMA_0, NONBLOCKING;
+%terminals INVARIANT, GAMMA, P_0, GAMMA_0, STABLE;
 %terminals LPRED, MODE;
 %terminals NORW, NOW, RW;
+%terminals MAPSTO;
 
 %nonassoc IF;
 %nonassoc ELSE;
@@ -65,20 +66,23 @@
 %typeof lpred = "Expression";
 %typeof mode = "Mode";
 %typeof unit = "Global";
+%typeof gamma_mapping = "GammaMapping";
+%typeof security = "Security";
 
 %goal unit;
 
 unit = vardefs.v locals.s {: return new Global(v, s); :}
-     | vardefs.v GAMMA_0 COLON exprs.f locals.s {: return new Global(v, f, s); :}
-     | vardefs.v P_0 COLON exprs.e locals.s {: return new Global(e, v, s); :}
-     | vardefs.v P_0 COLON exprs.e GAMMA_0 COLON exprs.f locals.s {: return new Global(e, v, f, s); :};
+     | vardefs.v GAMMA_0 COLON gamma_mappings.f locals.s {: return new Global(v, f, s); :}
+     | vardefs.v P_0 COLON exprs.e locals.s {: return new Global(v, e, s); :}
+     | vardefs.v P_0 COLON exprs.e GAMMA_0 COLON gamma_mappings.f locals.s {: return new Global(v, e, f, s); :};
 
 exprs = expr @ ASG | exprs COMMA expr;
 
 
 local
     = SEMICOLON {: return Block.empty(); :}
-    | local1;
+    | local1
+    ;
 
 local2
 	=  local1
@@ -109,8 +113,8 @@ local1
     | FENCE SEMICOLON                   {: return Fence.self();  :}
     | IF LPAREN expr.a RPAREN local.b   {: return new If(a, b);  :}
     | IF LPAREN expr.a RPAREN local.b ELSE local.c     {: return new If(a, b, c);   :}
-    | WHILE LPAREN expr.a RPAREN INVARIANT COLON exprs.i GAMMA COLON exprs.g local.b      {: return new While(a, i, g, b);   :}
-    | WHILE LPAREN expr.a RPAREN INVARIANT COLON exprs.i GAMMA COLON exprs.g NONBLOCKING COLON ID.n local.b      {: return new While(a, i, g, n, b);   :}
+    | WHILE LPAREN expr.a RPAREN INVARIANT COLON exprs.i GAMMA COLON gamma_mappings.g local.b      {: return new While(a, i, g, b);   :}
+    | WHILE LPAREN expr.a RPAREN INVARIANT COLON exprs.i GAMMA COLON gamma_mappings.g STABLE COLON ID.n local.b      {: return new While(a, i, g, n, b);   :}
     //| DO local.b WHILE LPAREN expr.a RPAREN SEMICOLON  {: return new DoWhile(b, a); :}
     //| FOR LPAREN expr.a SEMICOLON expr.b SEMICOLON expr.c SEMICOLON RPAREN local.p        {: return new For(a, b, c, p); :}
     | error SEMICOLON {: return Malformed.self(); :}
@@ -147,8 +151,6 @@ expr
     | expr.a OR     expr.b              {: return new BinOp("||",a, b); :}
     //| expr.a ASG    expr.b              {: return new BinOp("=", a, b); :}
     | LPAREN expr.e RPAREN              {: return (Symbol) e;           :}
-    | LOW                               {: return new Const("Low");  :}
-    | HIGH                              {: return new Const("High");  :}
     | TRUE                              {: return new Const("True");  :}
     | FALSE                             {: return new Const("False");  :}
     ;
@@ -160,7 +162,20 @@ lpred
 
 // for _Mode(x): NoRW etc. construction to set variable mode
 mode
-    = MODE COLON NORW {: return new Mode("NoRW"); :}
-    | MODE COLON NOW {: return new Mode("NoW"); :}
-    | MODE COLON RW {: return new Mode("RW"); :}
+    = MODE COLON NORW {: return NoRW.instance(); :}
+    | MODE COLON NOW {: return NoW.instance(); :}
+    | MODE COLON RW {: return RW.instance(); :}
+    ;
+
+gamma_mappings
+    = gamma_mapping | gamma_mappings COMMA gamma_mapping;
+
+gamma_mapping
+    = ID.n MAPSTO security.s {: return new GammaMapping(n, s); :}
+    | REG_ID.n MAPSTO security.s {: return new GammaMapping(n, s); :}
+    ;
+
+security
+    = LOW {: return Low.instance(); :}
+    | HIGH {: return High.instance(); :}
     ;
