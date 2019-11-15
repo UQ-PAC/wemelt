@@ -2,15 +2,13 @@ package tool
 
 trait Expression extends beaver.Symbol {
 
-  def getVariables: Set[Id]
-
-  def free: Set[Var]
+  def variables: Set[Id]
   def subst(su: Subst): Expression
 
   // existentially quantify (substitute with fresh variables) all variables that aren't in restricted
   def restrict(restricted: Set[Id]): Expression = {
     // get variables that aren't in restricted
-    val toSubst = for (v <- getVariables if !restricted.contains(v))
+    val toSubst = for (v <- variables if !restricted.contains(v))
       yield v
 
     // if no variables need to be bound then predicate stays the same
@@ -26,20 +24,18 @@ trait Expression extends beaver.Symbol {
 }
 
 case class Lit(arg: Any) extends Expression {
-  def free = Set()
   override def toString = arg.toString
-  override def getVariables: Set[Id] = Set()
-  override def subst(su: Subst) = this
+  override def variables: Set[Id] = Set()
+  override def subst(su: Subst): Lit = this
 }
 
 // id parsed from input - need to convert to Var before use in predicates etc.
 case class Id(name: String) extends Expression {
   //override def toString = "ID_" + name
   override def toString = name
-  override def getVariables: Set[Id] = Set(this)
-  override def subst(su: Subst) = su.getOrElse(this, this)
+  override def variables: Set[Id] = Set(this)
+  override def subst(su: Subst): Expression = su.getOrElse(this, this)
   def toVar = Var(name, None)
-  def free = Set()
 }
 
 // logical variable for use in predicates
@@ -47,15 +43,14 @@ case class Var(name: String, index: Option[Int] = None) extends Expression {
   def this(name: String) = this(name, None)
 
   def ident = Id(name)
-  def free = Set(this)
 
   def fresh = Var.fresh(name)
 
   // replaces the Var with the value it is to be substituted with, if there is one
-  def subst(su: Subst) = su.getOrElse(this, this)
+  override def subst(su: Subst): Var = su.getOrElse(this, this)
 
   // only return free variables
-  override def getVariables: Set[Id] = this match {
+  override def variables: Set[Id] = this match {
     case Var(name, Some(index)) =>
       Set()
     case Var(name, None) =>
@@ -74,10 +69,21 @@ object Var {
   }
 }
 
+case class IdArray(name: String, array: IndexedSeq[Id]) {
+}
+
+object IdArray {
+  def apply(name: String, size: Int): IdArray = {
+    val array = for (i <- 0 until size)
+      yield Id(name + "[" + i + "]")
+    this(name: String, array)
+  }
+}
+
 
 // switching logical variable for CNF format
 case class Switch(index: Int) extends Expression {
-  def getVariables: Set[Id] = Set()
+  def variables: Set[Id] = Set()
   def free: Set[Var] = Set()
   def subst(su: Subst): Expression = this
 }
@@ -92,23 +98,20 @@ object Switch {
 
 case class PreOp(op: String, arg: Expression) extends Expression {
   override def toString = "(" + op + " " + arg + ")"
-  override def getVariables: Set[Id] = arg.getVariables
-  def free = arg.free
+  override def variables: Set[Id] = arg.variables
   def subst(su: Subst) =  PreOp(op, arg.subst(su))
 
 }
 
 case class PostOp(op: String, arg: Expression) extends Expression {
   override def toString = "(" + arg + " " + op + ")"
-  override def getVariables: Set[Id] = arg.getVariables
-  def free = arg.free
+  override def variables: Set[Id] = arg.variables
   def subst(su: Subst) = PostOp(op, arg.subst(su))
 }
 
 case class BinOp(op: String, arg1: Expression, arg2: Expression) extends Expression {
   override def toString = "(" + arg1 + " " + op + " " + arg2 + ")"
-  override def getVariables: Set[Id] = arg1.getVariables ++ arg2.getVariables
-  def free = arg1.free ++ arg2.free
+  override def variables: Set[Id] = arg1.variables ++ arg2.variables
   def subst(su: Subst) = BinOp(op, arg1.subst(su), arg2.subst(su))
 }
 
@@ -120,6 +123,6 @@ object Const {
 case class Const(name: String) extends Expression {
   def free = Set()
   override def toString = name.toString
-  override def getVariables: Set[Id] = Set()
+  override def variables: Set[Id] = Set()
   override def subst(su: Subst): Const = this
 }

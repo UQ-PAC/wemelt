@@ -106,7 +106,7 @@ WS = {NL} | [ \t\f]
 //"break"     { return newToken(Terminals.BREAK);    }
 //"return"    { return newToken(Terminals.RETURN);   }
 //"continue"  { return newToken(Terminals.CONTINUE); }
-//"do"        { return newToken(Terminals.DO);       }
+"do"        { return newToken(Terminals.DO);       }
 "while"     { return newToken(Terminals.WHILE);    }
 //"for"       { return newToken(Terminals.FOR);      }
 "if"        { return newToken(Terminals.IF);       }

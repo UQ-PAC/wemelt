@@ -25,6 +25,8 @@ case class State(
   read: Set[Id],
   written: Set[Id],
 
+  arrays: Map[Id, IdArray],
+
   nonblocking: Boolean, // whether the nonblocking rule is currently being applied
   nonblockingDepth: Int, // how many layers of the nonblocking rule are currently being applied
 
@@ -59,6 +61,7 @@ case class State(
     val PPrimeRestrict = State.restrictP(PPrime, stable)
 
     if (debug) {
+      println("assigning " + arg + " to " + id + ":")
       println("P: " + P.PStr)
       println("P': " + PPrimeRestrict.PStr)
     }
@@ -131,7 +134,7 @@ case class State(
   }.toMap
 
   def updateDAssign(x: Id, e: Expression) : State = {
-    val varE = e.getVariables // var(e)
+    val varE = e.variables // var(e)
     val laterW: Set[Id] = Set(x) ++ varE
     val laterR: Set[Id] = if (varE.intersect(globals).nonEmpty) {
       Set(x) ++ varE.intersect(globals)
@@ -150,7 +153,7 @@ case class State(
   }
 
   def updateDGuard(b: Expression) : State = {
-    val varB = b.getVariables // var(b)
+    val varB = b.variables // var(b)
     val laterW: Set[Id] = globals ++ varB
     val laterR: Set[Id] = globals & varB
 
@@ -204,7 +207,7 @@ case class State(
     if (debug)
       println("checking security for " + e)
     var sec: Security = Low
-    val it = e.getVariables.toIterator
+    val it = e.variables.toIterator
     // if x security is high, return, otherwise keep checking
     while (it.hasNext && sec == Low) {
       val x: Id = it.next()
@@ -215,6 +218,7 @@ case class State(
     sec
   }
 
+  // update gamma with new value t mapped to x, if x is in the domain of gamma
   def updateGamma(x: Id, t: Security): State = {
     if (gamma.contains(x)) {
       val gammaPrime = gamma + (x -> t)
@@ -224,6 +228,7 @@ case class State(
     }
   }
 
+  // update gamma with new value t mapped to x, regardless if x was in domain of gamma previously
   def updateGammaDomain(x: Id, t: Security): State = {
     val gammaPrime = gamma + (x -> t)
     copy(gamma = gammaPrime)
@@ -285,6 +290,7 @@ case class State(
     State.mergeD(this.D, state2.D)
   }
 
+  // https://www.cs.jhu.edu/~jason/tutorials/convert-to-CNF.html
   // P1 OR P2 converted to CNF, using switching variable to keep converted formula small
   def mergeP(P1: List[Expression], P2: List[Expression]): List[Expression] = {
   /*
@@ -310,17 +316,20 @@ case class State(
         val noWritePrime = noWrite + z
         val readWritePrime = readWrite - z
         val noReadWritePrime = readWrite - z
-        copy(noWrite = noWritePrime, noReadWrite = noReadWritePrime, readWrite = readWritePrime)
+        val stablePrime = stable + z
+        copy(noWrite = noWritePrime, noReadWrite = noReadWritePrime, readWrite = readWritePrime, stable = stablePrime)
       case RW =>
         val noWritePrime = noWrite - z
         val readWritePrime = readWrite + z
         val noReadWritePrime = readWrite - z
-        copy(noWrite = noWritePrime, noReadWrite = noReadWritePrime, readWrite = readWritePrime)
+        val stablePrime = stable - z
+        copy(noWrite = noWritePrime, noReadWrite = noReadWritePrime, readWrite = readWritePrime, stable = stablePrime)
       case NoRW =>
         val noWritePrime = noWrite - z
         val readWritePrime = readWrite - z
         val noReadWritePrime = readWrite + z
-        copy(noWrite = noWritePrime, noReadWrite = noReadWritePrime, readWrite = readWritePrime)
+        val stablePrime = stable + z
+        copy(noWrite = noWritePrime, noReadWrite = noReadWritePrime, readWrite = readWritePrime, stable = stablePrime)
       case _ =>
         this
     }
@@ -358,14 +367,10 @@ object State {
           globals += v.name
           readWrite += v.name
       }
-      val controlling: Set[Id] = v.pred.getVariables
+      val controlling: Set[Id] = v.pred.variables
       if (controlling.nonEmpty) {
-        if (controls.contains(v.name)) {
-          throw error.InvalidProgram(v.name + " is both controlled and a control variable")
-        }
         controlled += v.name
       }
-
       for (i <- controlling) {
         if (controlledBy.contains(i))
           controlledBy += (i -> (controlledBy(i) + v.name))
@@ -373,6 +378,10 @@ object State {
           controlledBy += (i -> Set(v.name))
         controls += i
       }
+    }
+    val controlAndControlled = controls & controlled
+    if (controlAndControlled.nonEmpty) {
+      throw error.InvalidProgram("the following variables are both control and controlled variables: " + controlAndControlled.mkString(", "))
     }
 
     // init D - every variable maps to Var
@@ -415,7 +424,9 @@ object State {
 
       case Some(p) =>
         // check no unstable variables in user-defined P_0
-        val PVars = (p flatMap {x => x.getVariables}).toSet
+        val PVars = (p flatMap {x => x.variables}).toSet
+        if (debug)
+          println("variables in P_0: " + PVars.mkString(" "))
         println(PVars)
         val unstableP = for (i <- PVars if !stable.contains(i))
           yield i
@@ -470,6 +481,7 @@ object State {
       written = Set(),
       nonblocking = false,
       nonblockingDepth = 0,
+      arrays = Map(),
       toLog = toLog,
       debug = debug
     )

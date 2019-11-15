@@ -1,3 +1,3 @@
 make clean
 make
-./armlogictool.sh -v examples/simple_load_after
+./armlogictool.sh -d examples/reader_thread_nonblocking

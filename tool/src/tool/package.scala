@@ -30,18 +30,13 @@ package object tool {
   }
   
   type Rename = Map[Var, Var]
-  type Subst = Map[Expression, Expression]
+  type Subst = Map[Expression, Var]
 
   object Subst {
     val empty: Subst = Map()
 
-    def apply(xs: (Expression, Expression)*): Subst = {
+    def apply(xs: (Expression, Var)*): Subst = {
       xs.toMap
-    }
-
-    def apply(ps: List[Id], as: List[Expression]): Subst = {
-      val xs = ps map (_.toVar)
-      apply(xs zip as: _*)
     }
 
     def fresh(xs: Set[Var]): Rename = {
@@ -55,9 +50,6 @@ package object tool {
       (bound -- xs ++ ty, su)
     }
 
-    def free(env: Subst): Set[Var] = {
-      Set() ++ (env.values flatMap (_.free))
-    }
   }
 
   val sub = "₀₁₂₃₄₅₆₇₈₉"

@@ -4,11 +4,11 @@
 -comment everything
 -profiling
 -nonblocking rule - test
+-arrays
+-try to compile on mac, other linux computers
+-fix d fixed point to do intersect inside loop isntead of at end
+-change register mode stuff
 
 tests for
--control/controlled variable
 -multiple layers of if/while
 
-eventually:
-arrays?
-bitwise arithmetic instead of int arithmetic?

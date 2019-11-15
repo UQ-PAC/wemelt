@@ -4,7 +4,7 @@
 %terminals VAR;
 
 //%terminals RETURN, BREAK, CONTINUE;
-%terminals IF, ELSE, WHILE; /* THEN, DO, FOR */
+%terminals IF, ELSE, WHILE, DO;
 
 %terminals ID, REG_ID;
 %terminals NUM;
@@ -115,8 +115,8 @@ local1
     | IF LPAREN expr.a RPAREN local.b ELSE local.c     {: return new If(a, b, c);   :}
     | WHILE LPAREN expr.a RPAREN INVARIANT COLON exprs.i GAMMA COLON gamma_mappings.g local.b      {: return new While(a, i, g, b);   :}
     | WHILE LPAREN expr.a RPAREN INVARIANT COLON exprs.i GAMMA COLON gamma_mappings.g STABLE COLON ID.n local.b      {: return new While(a, i, g, n, b);   :}
-    //| DO local.b WHILE LPAREN expr.a RPAREN SEMICOLON  {: return new DoWhile(b, a); :}
-    //| FOR LPAREN expr.a SEMICOLON expr.b SEMICOLON expr.c SEMICOLON RPAREN local.p        {: return new For(a, b, c, p); :}
+    | DO INVARIANT COLON exprs.i GAMMA COLON gamma_mappings.g local.b WHILE LPAREN expr.a RPAREN    {: return new DoWhile(a, i, g, b);   :}
+    | DO INVARIANT COLON exprs.i GAMMA COLON gamma_mappings.g STABLE COLON ID.n local.b WHILE LPAREN expr.a RPAREN     {: return new DoWhile(a, i, g, n, b);   :}
     | error SEMICOLON {: return Malformed.self(); :}
     ;
 

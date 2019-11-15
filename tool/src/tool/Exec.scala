@@ -66,6 +66,7 @@ object Exec {
       } else {
         assignRule(lhs, rhs, state0, statement.line)
       }
+      // check nonblocking rule if necessary
       if (state1.nonblocking && state1.globals.contains(lhs)) {
         throw error.NonblockingError(statement.line, lhs, rhs, "global variable " + lhs + " was written to within a nonblocking while loop")
       }
@@ -81,8 +82,6 @@ object Exec {
       Cont.next(state1)
 
     case If(test, left, right) =>
-      // IF rule
-      // evaluate test which updates D
       if (state0.toLog)
         println("line " + statement.line + ": If(" + test + ") {")
       val state1 = ifRule(test, left, right, state0, statement.line)
@@ -115,28 +114,7 @@ object Exec {
         println("}")
       Cont.next(state1)
 
-
-    // nonblocking rule
-    case While(test, invariants, gamma, Some(z), body) =>
-      // add z to gamma
-      val state1 = state0.updateRead(z)
-      val PRestrict = state1.restrictP(state1.knownW)
-      val t = state1.security(z, PRestrict)
-      val state2 = state1.updateGammaDomain(z, t)
-      val state3 = state2.resetReadWrite()
-
-      // make z noW
-      val oldMode: Mode = if (state3.noWrite.contains(z)) {
-        NoW
-      } else if (state3.noReadWrite.contains(z)) {
-        NoRW
-      } else if (state3.readWrite.contains(z)) {
-        RW
-      } else {
-        throw error.ProgramError(z + " does not have a mode - internal error")
-      }
-      val state4 = state3.setMode(z, NoW)
-
+    case DoWhile(test, invariants, gamma, None, body) =>
       if (state0.toLog)
         println("line " + statement.line + ": While(" + test + ") {")
       // replace Ids in invariant with vars
@@ -150,35 +128,82 @@ object Exec {
       // convert gammaPrime to map
       val gammaPrime: Map[Id, Security] = (gamma map {g => g.variable -> g.security}).toMap
 
-      // increment nonblocking depth so that the nonblocking rule will be checked while executing loop contents
-      val state5 = state4.copy(nonblocking = true, nonblockingDepth = state4.nonblockingDepth + 1)
+      // execute loop body once at start
+      val state1 = execute(body, state0).st
 
-      val state6 = whileRule(test, PPrime, gammaPrime, body, state5, statement.line)
-      state6.log
+      val state2 = whileRule(test, PPrime, gammaPrime, body, state1, statement.line)
+      if (state0.toLog)
+        println("end of line " + statement.line + ": While(" + test + ")")
+      state2.log
+      if (state0.toLog)
+        println("}")
+      Cont.next(state2)
 
-      // restore original z mode
-      val state7 = state6.setMode(z, oldMode)
 
-      // remove z from gamma
-      val state8 = state7.removeGamma(z)
 
-      // decrement nonblocking depth so that the nonblocking rule will not be applied anymore if all nonblocking loops
-      // are finished
-      val state9 = if (state8.nonblockingDepth == 1) {
-        state8.copy(nonblocking = false, nonblockingDepth = state8.nonblockingDepth - 1)
-      } else {
-        state8.copy(nonblockingDepth = state8.nonblockingDepth - 1)
-      }
-      if (state9.toLog)
+    // nonblocking rule
+    case While(test, invariants, gamma, Some(z), body) =>
+
+      val (oldZMode, state1) = startNonBlocking(z, state0)
+
+      if (state1.toLog)
+        println("line " + statement.line + ": While(" + test + ") {")
+      // replace Ids in invariant with vars
+      val idToVar: Subst = {
+        for (v <- state0.variables)
+          yield v -> v.toVar
+        }.toMap
+
+      val PPrime = invariants map {i => i.subst(idToVar)}
+
+      // convert gammaPrime to map
+      val gammaPrime: Map[Id, Security] = (gamma map {g => g.variable -> g.security}).toMap
+
+      val state2 = whileRule(test, PPrime, gammaPrime, body, state1, statement.line)
+      state2.log
+      val state3 = endNonBlocking(z, oldZMode, state2)
+      state3.log
+      if (state3.toLog)
         println("}")
 
-      Cont.next(state8)
+      Cont.next(state3)
+
+    // nonblocking rule
+    case DoWhile(test, invariants, gamma, Some(z), body) =>
+
+      val (oldZMode, state1) = startNonBlocking(z, state0)
+
+      if (state1.toLog)
+        println("line " + statement.line + ": While(" + test + ") {")
+      // replace Ids in invariant with vars
+      val idToVar: Subst = {
+        for (v <- state1.variables)
+          yield v -> v.toVar
+        }.toMap
+
+      val PPrime = invariants map {i => i.subst(idToVar)}
+
+      // convert gammaPrime to map
+      val gammaPrime: Map[Id, Security] = (gamma map {g => g.variable -> g.security}).toMap
+
+      // execute loop body once at start
+      val state2 = execute(body, state1).st
+
+      val state3 = whileRule(test, PPrime, gammaPrime, body, state2, statement.line)
+      state3.log
+      val state4 = endNonBlocking(z, oldZMode, state3)
+      state4.log
+      if (state4.toLog)
+        println("}")
+
+      Cont.next(state4)
 
     case _ =>
       throw error.InvalidProgram("unimplemented statement " + statement + " at line " + statement.line)
 
   }
 
+  // compute fixed point of D
   def DFixedPoint(test: Expression, body: Statement, state: State): Map[Id, (Set[Id], Set[Id], Set[Id], Set[Id])] = {
     var DFixed = false
     var st0 = state
@@ -186,11 +211,11 @@ object Exec {
     var dfixedloops = 0
     while (!DFixed) {
       dfixedloops = dfixedloops + 1
-      val st1 = DFixedPoint(test, st0)
+      val st1 = DFixedPoint(test, st0) // update rd for the guard
       val st2 = st1.updateDGuard(test)
       val st3 = DFixedPoint(body, st2)
 
-      // compare st2.D to st0.D
+      // compare st3.D to st0.D
       val it = st0.variables.toIterator
       while (it.hasNext && !DFixed) {
         val v = it.next
@@ -253,6 +278,10 @@ object Exec {
 
     case While(test, invariants, gamma, _, body) =>
       st0.copy(D = DFixedPoint(test, body, st0))
+
+    case DoWhile(test, invariants, gamma, _, body) =>
+      val st1 = DFixedPoint(body, st0)
+      st1.copy(D = DFixedPoint(test, body, st0))
 
     case _ =>
       throw error.InvalidProgram("unimplemented statement at line " + statement.line + ": " + statement)
@@ -416,7 +445,6 @@ object Exec {
         state2.updatePIfRight(_test)
     }
 
-
     // merge states
     _left1.mergeIf(_right1)
   }
@@ -431,8 +459,8 @@ object Exec {
       println("WHILE applying")
 
     // P' only contains stable variables - tested
-    val PPrimeVar: Set[Var] = (PPrime flatMap {x => x.free}).toSet
-    val unstablePPrime = for (i <- PPrimeVar if !state0.stable.contains(i.ident))
+    val PPrimeVar: Set[Id] = (PPrime flatMap {x => x.variables}).toSet
+    val unstablePPrime = for (i <- PPrimeVar if !state0.stable.contains(i))
       yield i
     if (unstablePPrime.nonEmpty) {
       throw error.WhileError(line, test, unstablePPrime.mkString(", ") + " in invariant is/are not stable")
@@ -496,9 +524,9 @@ object Exec {
     val state4 = state3.updatePIfLeft(_test)
 
     if (state0.debug) {
-      println("while rule before loop body after test:")
-      println("gamma :" + state4.gamma.gammaStr)
-      println("P:" + state4.P.PStr)
+      println("while rule after test, before loop body:")
+      println("gamma':" + state4.gamma.gammaStr)
+      println("P and [e]_M:" + state4.P.PStr)
     }
 
     // evaluate body
@@ -538,12 +566,13 @@ object Exec {
     state1.updatePIfRight(_test)
   }
 
+
   def assignRule(lhs: Id, rhs: Expression, st0: State, line: Int): State = {
     // ASSIGN rule
     if (st0.toLog)
       println("ASSIGN applying")
-    val (_rhs, st1) = eval(rhs, st0)
-    val st2 = st1.updateWritten(lhs)
+    val (_rhs, st1) = eval(rhs, st0) // computes rd
+    val st2 = st1.updateWritten(lhs) // computes wr
     // at this point the rd and wr sets are complete for the current line
 
     // calculate P_x:=e
@@ -590,7 +619,6 @@ object Exec {
     val PPrime = st2.assign(lhs, _rhs) // calculate PPrime
     val PPrimeRestrict = PPrime.restrictP(st2.knownW)
 
-
     val falling = for (i <- st2.controlledBy(lhs) if (!st2.lowP(i, PRestrict)) && !st2.highP(i, PPrimeRestrict))
       yield i
 
@@ -598,6 +626,8 @@ object Exec {
       println("falling: " + falling)
       println("knownW: " + st2.knownW)
     }
+
+    // falling can only succeed if y is in gamma and maps to low
 
     val fallingFail = for (y <- falling -- st2.noReadWrite if !st2.knownW.contains(y) || st2.security(y, PRestrict) == High)
       yield y
@@ -621,6 +651,49 @@ object Exec {
 
     val st3 = st2.assign(lhs, _rhs) // update P
     st3.updateDAssign(lhs, _rhs)
+  }
+
+  def startNonBlocking(z: Id, state0: State): (Mode, State) = {
+    // add z to gamma
+    val state1 = state0.updateRead(z)
+    val PRestrict = state1.restrictP(state1.knownW)
+    val t = state1.security(z, PRestrict)
+    val state2 = state1.updateGammaDomain(z, t)
+    val state3 = state2.resetReadWrite()
+
+    // make z noW
+    val oldMode: Mode = if (state3.noWrite.contains(z)) {
+      NoW
+    } else if (state3.noReadWrite.contains(z)) {
+      NoRW
+    } else if (state3.readWrite.contains(z)) {
+      RW
+    } else {
+      throw error.ProgramError(z + " does not have a mode - internal error")
+    }
+    val state4 = state3.setMode(z, NoW)
+
+    // increment nonblocking depth so that the nonblocking rule will be checked while executing loop contents
+    val state5 = state4.copy(nonblocking = true, nonblockingDepth = state4.nonblockingDepth + 1)
+
+    (oldMode, state5)
+  }
+
+  def endNonBlocking(z: Id, oldMode: Mode, state0: State) = {
+    // restore original z mode
+    val state1 = state0.setMode(z, oldMode)
+
+    // remove z from gamma
+    val state2 = state1.removeGamma(z)
+
+    // decrement nonblocking depth so that the nonblocking rule will not be applied anymore if all nonblocking loops
+    // are finished
+    val state3 = if (state2.nonblockingDepth == 1) {
+      state2.copy(nonblocking = false, nonblockingDepth = state2.nonblockingDepth - 1)
+    } else {
+      state2.copy(nonblockingDepth = state2.nonblockingDepth - 1)
+    }
+    state2
   }
 
   // evaluate multiple expressions
