@@ -20,7 +20,7 @@ import tool.Parser.Terminals;
 
 %{
     Symbol resolve(String name) {
-      if (name.startsWith("r_")) {
+      if (name.matches("r[0-9]+") || name.startsWith("r_")) {
           return newToken(Terminals.REG_ID, name);
       } else {
           return newToken(Terminals.ID,   name);
@@ -52,8 +52,8 @@ WS = {NL} | [ \t\f]
 
 "("         { return newToken(Terminals.LPAREN);   }
 ")"         { return newToken(Terminals.RPAREN);   }
-//"["         { return newToken(Terminals.LBRACK);   }
-//"]"         { return newToken(Terminals.RBRACK);   }
+"["         { return newToken(Terminals.LBRACK);   }
+"]"         { return newToken(Terminals.RBRACK);   }
 "{"         { return newToken(Terminals.LBRACE);   }
 "}"         { return newToken(Terminals.RBRACE);   }
 //"++"        { return newToken(Terminals.INCR);     }
@@ -88,21 +88,6 @@ WS = {NL} | [ \t\f]
 ","         { return newToken(Terminals.COMMA);    }
 ";"         { return newToken(Terminals.SEMICOLON);}
 
-
-"_var"      { return newToken(Terminals.VAR);     }
-//"void"      { return newToken(Terminals.VOID);     }
-//"char"      { return newToken(Terminals.CHAR);     }
-// "short"     { return newToken(Terminals.SHORT);    }
-//"int"       { return newToken(Terminals.INT);      }
-// "long"      { return newToken(Terminals.LONG);     }
-// "signed"    { return newToken(Terminals.SIGNED);   }
-// "unsigned"  { return newToken(Terminals.UNSIGNED); }
-
-//"struct"    { return newToken(Terminals.STRUCT);   }
-//"union"     { return newToken(Terminals.UNION);    }
-//"enum"      { return newToken(Terminals.ENUM);     }
-//"typedef"   { return newToken(Terminals.TYPEDEF);  }
-
 //"break"     { return newToken(Terminals.BREAK);    }
 //"return"    { return newToken(Terminals.RETURN);   }
 //"continue"  { return newToken(Terminals.CONTINUE); }
@@ -123,6 +108,8 @@ WS = {NL} | [ \t\f]
 "_Gamma_0" {return newToken(Terminals.GAMMA_0);}
 "_P_0" {return newToken(Terminals.P_0);}
 "_Stable" {return newToken(Terminals.STABLE);}
+"_var"      { return newToken(Terminals.VAR);     }
+"_array"    { return newToken(Terminals.ARRAY);     }
 
 "TRUE" { return newToken(Terminals.TRUE);    }
 "FALSE" { return newToken(Terminals.FALSE);    }

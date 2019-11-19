@@ -1,7 +1,7 @@
 %package "tool";
 %class "Parser";
 
-%terminals VAR;
+%terminals VAR, ARRAY;
 
 //%terminals RETURN, BREAK, CONTINUE;
 %terminals IF, ELSE, WHILE, DO;
@@ -10,7 +10,7 @@
 %terminals NUM;
 %terminals LOW, HIGH, TRUE, FALSE;
 
-%terminals LPAREN, RPAREN, /* LBRACK, RBRACK, */ LBRACE, RBRACE;
+%terminals LPAREN, RPAREN, LBRACK, RBRACK, LBRACE, RBRACE;
 %terminals POSTFIX;
 %terminals PREFIX,  BANG, TILDE;
 %terminals STAR, DIV, MOD;
@@ -62,19 +62,20 @@
 %typeof local1  = "Statement";
 %typeof local2  = "Statement";
 
-%typeof vardef = "VarDef";
+%typeof definition = "Definition";
 %typeof lpred = "Expression";
 %typeof mode = "Mode";
 %typeof unit = "Global";
 %typeof gamma_mapping = "GammaMapping";
 %typeof security = "Security";
+%typeof lpredindex = "Expression";
 
 %goal unit;
 
-unit = vardefs.v locals.s {: return new Global(v, s); :}
-     | vardefs.v GAMMA_0 COLON gamma_mappings.f locals.s {: return new Global(v, f, s); :}
-     | vardefs.v P_0 COLON exprs.e locals.s {: return new Global(v, e, s); :}
-     | vardefs.v P_0 COLON exprs.e GAMMA_0 COLON gamma_mappings.f locals.s {: return new Global(v, e, f, s); :};
+unit = defs.v locals.s {: return new Global(v, s); :}
+     | defs.v GAMMA_0 COLON gamma_mappings.f locals.s {: return new Global(v, f, s); :}
+     | defs.v P_0 COLON exprs.e locals.s {: return new Global(v, e, s); :}
+     | defs.v P_0 COLON exprs.e GAMMA_0 COLON gamma_mappings.f locals.s {: return new Global(v, e, f, s); :};
 
 exprs = expr @ ASG | exprs COMMA expr;
 
@@ -92,20 +93,28 @@ local2
 locals  = local *;
 locals2 = local2 *;
 
-vardef
+definition
     =     VAR REG_ID.n COLON lpred.l                 {: return new VarDef(n, l); :}
-          | VAR REG_ID.n COLON                         {: return new VarDef(n); :}
+          | VAR REG_ID.n                        {: return new VarDef(n); :}
           | VAR ID.n COLON lpred.l mode.m              {:  return new VarDef(n, l, m); :}
           | VAR ID.n COLON mode.m                      {: return new VarDef(n, m); :}
+          | ARRAY ID.n LBRACK NUM.s RBRACK COLON lpred.l mode.m {: return new ArrayDef(n, s, l, m); :}
+          | ARRAY ID.n LBRACK NUM.s RBRACK COLON lpredindexes.l mode.m {: return new ArrayDef(n, s, l, m); :}
+          | ARRAY ID.n LBRACK NUM.s RBRACK COLON mode.m {: return new ArrayDef(n, s, m); :}
+          | ARRAY REG_ID.n LBRACK NUM.s RBRACK COLON lpred.l {: return new ArrayDef(n, s, l); :}
+          | ARRAY REG_ID.n LBRACK NUM.s RBRACK COLON lpredindexes.l {: return new ArrayDef(n, s, l); :}
+          | ARRAY REG_ID.n LBRACK NUM.s RBRACK  {: return new ArrayDef(n, s); :}
           ;
 
-vardefs = vardef *;
+defs = definition *;
 
 local1
     = LBRACE locals2.ss RBRACE          {: return new Block(ss); :}
     //| expr.a   SEMICOLON                {: return new Atomic(a); :}
     | ID.n ASG    expr.b SEMICOLON              {: return new Assignment(n, b); :}
     | REG_ID.n ASG    expr.b   SEMICOLON           {: return new Assignment(n, b); :}
+    | ID.n LBRACK expr.i RBRACK ASG    expr.b SEMICOLON        {: return new Assignment(Access(n, i), b); :}
+    | REG_ID.n LBRACK expr.i RBRACK ASG    expr.b   SEMICOLON      {: return new Assignment(Access(n, i), b); :}
     //| RETURN   SEMICOLON                {: return Return.none(); :}
     //| RETURN expr.a SEMICOLON           {: return new Return(a); :}
     //| BREAK    SEMICOLON                {: return Break.self();  :}
@@ -125,7 +134,8 @@ expr
     | ID.n                              {: return new Id(n);  :}
     | REG_ID.n                          {: return new Id(n);  :}
     | NUM.n                             {: return new Lit(n); :}
-    //| expr.a LBRACK expr.i RBRACK       {: return new PreOp("*", new BinOp("+", a, i)); :}
+    | ID.n LBRACK expr.i RBRACK       {: return new BinOp("access", n, i); :}
+    | REG_ID.n LBRACK expr.i RBRACK       {: return new BinOp("access", n, i); :}
     | PLUS  expr.a @ PREFIX             {: return new PreOp("+", a);    :}
     | MINUS expr.a @ PREFIX             {: return new PreOp("-", a);    :}
     | BANG  expr.a @ PREFIX             {: return new PreOp("!", a);    :}
@@ -159,6 +169,10 @@ expr
 lpred
     = LPRED COLON expr.a {: return (Symbol) a; :}
     ;
+
+lpredindex = LPRED LBRACK NUM.n RBRACK COLON expr.a {: return (Symbol) a; :};
+
+lpredindexes = lpredindex | lpredindexes lpredindex;
 
 // for _Mode(x): NoRW etc. construction to set variable mode
 mode

@@ -320,6 +320,10 @@ object Exec {
     case res: Const =>
       (res, st0)
 
+    case Access(name, index) =>
+      val (_index, st1) = eval(index, st0)
+      (Access(name, _index), st1)
+
     case BinOp("==", arg1, arg2) =>
       val (List(_arg1, _arg2), st1) = evals(List(arg1, arg2), st0)
       (BinOp("==", _arg1, _arg2), st1)
@@ -473,7 +477,7 @@ object Exec {
 
     // gamma' has same domain as gamma - tested
     if (state0.gamma.keySet != gammaPrime.keySet) {
-      throw error.InvalidProgram("input gamma " + gammaPrime.gammaStr + " for if (" +  test + ") { ... at line " + line + " does not have same domain as gamma: " + state0.gamma.gammaStr)
+      throw error.InvalidProgram("input gamma " + gammaPrime.gammaStr + " for While(" +  test + ") { ... at line " + line + " does not have same domain as gamma: " + state0.gamma.gammaStr)
     }
 
     // check gamma' is greater or equal than gamma for all x - tested
@@ -693,7 +697,7 @@ object Exec {
     } else {
       state2.copy(nonblockingDepth = state2.nonblockingDepth - 1)
     }
-    state2
+    state3
   }
 
   // evaluate multiple expressions

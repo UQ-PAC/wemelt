@@ -16,7 +16,7 @@ case class Block(statements: List[Statement]) extends Statement {
   def this(statements: Array[Statement]) = this(statements.toList)
 }
 
-case class Assignment(lhs: Id, expression: Expression) extends Statement {
+case class Assignment(lhs: Loc, expression: Expression) extends Statement {
   def this(lhs: String, expression: Expression) = this(Id(lhs), expression)
   override def toString = lhs + " = " + expression
 }

@@ -3,7 +3,6 @@
 -bitwise in SMT - ensure conversion works properly - test thoroughly
 -comment everything
 -profiling
--nonblocking rule - test
 -arrays
 -try to compile on mac, other linux computers
 -fix d fixed point to do intersect inside loop isntead of at end

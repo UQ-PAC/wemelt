@@ -29,14 +29,23 @@ case class Lit(arg: Any) extends Expression {
   override def subst(su: Subst): Lit = this
 }
 
+sealed trait Loc
+
 // id parsed from input - need to convert to Var before use in predicates etc.
-case class Id(name: String) extends Expression {
+case class Id(name: String) extends Expression with Loc {
   //override def toString = "ID_" + name
   override def toString = name
   override def variables: Set[Id] = Set(this)
   override def subst(su: Subst): Expression = su.getOrElse(this, this)
   def toVar = Var(name, None)
 }
+
+case class Access(name: Id, index: Expression) extends Expression with Loc {
+  def variables: Set[Id] = Set(name) ++ index.variables
+  def subst(su: Subst) = Access(name, index.subst(su))
+  override def toString = name + "[" + index + "]"
+}
+
 
 // logical variable for use in predicates
 case class Var(name: String, index: Option[Int] = None) extends Expression {
@@ -69,14 +78,13 @@ object Var {
   }
 }
 
-case class IdArray(name: String, array: IndexedSeq[Id]) {
-}
+case class IdArray(name: Id, array: IndexedSeq[Id])
 
 object IdArray {
-  def apply(name: String, size: Int): IdArray = {
+  def apply(name: Id, size: Int): IdArray = {
     val array = for (i <- 0 until size)
-      yield Id(name + "[" + i + "]")
-    this(name: String, array)
+      yield Id(name.toString.arrayIndex(i))
+    this(name, array)
   }
 }
 
@@ -84,7 +92,6 @@ object IdArray {
 // switching logical variable for CNF format
 case class Switch(index: Int) extends Expression {
   def variables: Set[Id] = Set()
-  def free: Set[Var] = Set()
   def subst(su: Subst): Expression = this
 }
 
@@ -121,7 +128,6 @@ object Const {
 }
 
 case class Const(name: String) extends Expression {
-  def free = Set()
   override def toString = name.toString
   override def variables: Set[Id] = Set()
   override def subst(su: Subst): Const = this

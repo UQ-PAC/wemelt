@@ -83,7 +83,7 @@ object SMT {
   }
 
   /* currently doing all arithmetic operations on ints - may want to switch to bitvectors
-   and bitwise arithmetic operations for better simulation of the assembly semantics
+   and bitwise arithmetic operations for better simulation of the assembly semantics if this ends up being important
   https://z3prover.github.io/api/html/classcom_1_1microsoft_1_1z3_1_1_context.html */
   def translate(prop: Expression): z3.Expr = prop match {
     case x: Var => ctx.mkConst(x.toString, ctx.getIntSort)
@@ -126,13 +126,6 @@ object SMT {
     case BinOp(">>>", arg1, arg2) => ctx.mkBVASHR(bitwise(arg1), bitwise(arg2))
     case BinOp("<<", arg1, arg2) => ctx.mkBVSHL(bitwise(arg1), bitwise(arg2))
 
-
-        /*
-    case Pure.array_select(arg1, arg2) =>
-      ctx.mkSelect(array(arg1), translate(arg2))
-    case Pure.array_store(arg1, arg2, arg3) =>
-      ctx.mkStore(array(arg1), translate(arg2), translate(arg3))
-         */
 
     case _ =>
       throw error.InvalidProgram("cannot translate to SMT", prop)

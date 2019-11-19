@@ -65,6 +65,8 @@ package object tool {
       case Some(index) => this __ index
     }
 
+    def arrayIndex(index: Int): String = self + "[" + index + "]"
+
   }
 
   implicit class DToString(D: Map[Id, (Set[Id], Set[Id], Set[Id], Set[Id])]) {

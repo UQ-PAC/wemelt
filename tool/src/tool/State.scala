@@ -339,7 +339,7 @@ case class State(
 }
 
 object State {
-  def init(variables: Set[VarDef], P_0: Option[List[Expression]], gamma_0: Option[List[GammaMapping]], toLog: Boolean, debug: Boolean): State = {
+  def init(definitions: Set[Definition], P_0: Option[List[Expression]], gamma_0: Option[List[GammaMapping]], toLog: Boolean, debug: Boolean): State = {
     var globals: Set[Id] = Set()
     var locals: Set[Id] = Set()
     var noReadWrite: Set[Id] = Set()
@@ -348,6 +348,9 @@ object State {
     var controls: Set[Id] = Set()
     var controlled: Set[Id] = Set()
     var controlledBy: Map[Id, Set[Id]] = Map()
+
+    val arrays: Map[Id, IdArray] = (definitions collect {case a: ArrayDef => a.name -> IdArray(a.name, a.size)}).toMap
+    val variables: Set[VarDef] = definitions flatMap {case v: VarDef => Set(v) case a:ArrayDef => a.toVarDefs}
 
     val ids: Set[Id] = for (v <- variables)
       yield v.name
@@ -481,7 +484,7 @@ object State {
       written = Set(),
       nonblocking = false,
       nonblockingDepth = 0,
-      arrays = Map(),
+      arrays = arrays,
       toLog = toLog,
       debug = debug
     )
