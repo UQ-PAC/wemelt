@@ -1,5 +1,6 @@
 package tool
 
+// remnant of handling break/continue/returns - might be useful in future
 sealed trait Cont {
   def st: State
 }
@@ -15,7 +16,6 @@ object Cont {
 
 
 object Exec {
-
   def execute(statements: List[Statement], state: State): Cont = statements match {
     case Nil =>
       Cont.next(state)
@@ -38,7 +38,7 @@ object Exec {
 
 
     case block: Block =>
-      // println("blocks currently leak local definitions!")
+      // blocks currently leak local definitions but this isn't important for this application
       execute(block.statements, state0)
 
       /*
@@ -139,8 +139,6 @@ object Exec {
         println("}")
       Cont.next(state2)
 
-
-
     // nonblocking rule
     case While(test, invariants, gamma, Some(z), body) =>
 
@@ -211,22 +209,25 @@ object Exec {
     var dfixedloops = 0
     while (!DFixed) {
       dfixedloops = dfixedloops + 1
-      val st1 = DFixedPoint(test, st0) // update rd for the guard
+      // update rd for the guard
+      val st1 = DFixedPoint(test, st0)
       val st2 = st1.updateDGuard(test)
       val st3 = DFixedPoint(body, st2)
+      // D intersect D after loop body
+      val st4 = st3.copy(D = st3.mergeD(st0))
 
-      // compare st3.D to st0.D
+      // compare st4.D to st0.D
       val it = st0.variables.toIterator
       while (it.hasNext && !DFixed) {
         val v = it.next
-        DFixed = (st0.W_r(v) == st3.W_r(v)) && (st0.W_w(v) == st3.W_w(v)) && (st0.R_r(v) == st3.R_r(v)) && (st0.R_w(v) == st3.R_w(v))
+        DFixed = (st0.W_r(v) == st4.W_r(v)) && (st0.W_w(v) == st4.W_w(v)) && (st0.R_r(v) == st4.R_r(v)) && (st0.R_w(v) == st4.R_w(v))
       }
 
       // if D has changed, repeat
       if (DFixed) {
-        DPrime = st3.D
+        DPrime = st4.D
       } else {
-        st0 = st3
+        st0 = st4
       }
     }
     if (st0.debug)
@@ -320,10 +321,11 @@ object Exec {
     case res: Const =>
       (res, st0)
 
+      /*
     case Access(name, index) =>
       val (_index, st1) = eval(index, st0)
       (Access(name, _index), st1)
-
+       */
     case BinOp("==", arg1, arg2) =>
       val (List(_arg1, _arg2), st1) = evals(List(arg1, arg2), st0)
       (BinOp("==", _arg1, _arg2), st1)
@@ -500,10 +502,7 @@ object Exec {
     // D and DFixed, but not D''. this is impossible as if an element is in D and D_fixed, it will not be removed after
     // the single loop iteration that produces D''
 
-    val DFixed = DFixedPoint(test, body, state0)
-    if (state0.debug)
-      println("DFixed: " + DFixed.DStr)
-    val DPrime = State.mergeD(state0.D, DFixed)
+    val DPrime = DFixedPoint(test, body, state0)
     if (state0.debug)
       println("D': " + DPrime.DStr)
 
@@ -593,7 +592,6 @@ object Exec {
       }
       if (t == High && xSecurity == Low) {
         throw error.AssignError(line, lhs, rhs, "HIGH expression assigned to LOW variable")
-        // need to make this expression low
       }
     }
     val st3 = st2.updateGamma(lhs, t)
@@ -657,6 +655,7 @@ object Exec {
     st3.updateDAssign(lhs, _rhs)
   }
 
+  // start application of the nonblocking rule
   def startNonBlocking(z: Id, state0: State): (Mode, State) = {
     // add z to gamma
     val state1 = state0.updateRead(z)
@@ -683,7 +682,8 @@ object Exec {
     (oldMode, state5)
   }
 
-  def endNonBlocking(z: Id, oldMode: Mode, state0: State) = {
+  // end application of the nonblocking rule for z, restoring its mode to oldMode
+  def endNonBlocking(z: Id, oldMode: Mode, state0: State): State = {
     // restore original z mode
     val state1 = state0.setMode(z, oldMode)
 

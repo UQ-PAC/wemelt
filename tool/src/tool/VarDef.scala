@@ -1,5 +1,6 @@
 package tool
 
+// highest level parsed data structure
 case class Global(variables: Set[Definition], P_0: Option[List[Expression]], gamma_0: Option[List[GammaMapping]], statements: List[Statement]) extends beaver.Symbol {
   def this(variables: Array[Definition], P_0: Array[Expression], gamma_0: Array[GammaMapping], statements: Array[Statement]) = this(variables.toSet, Some(P_0.toList), Some(gamma_0.toList), statements.toList)
   def this(variables: Array[Definition], P_0: Array[Expression], statements: Array[Statement]) = this(variables.toSet, Some(P_0.toList), None, statements.toList)
@@ -41,8 +42,6 @@ case class VarDef(name: Id, pred: Expression, mode: Mode) extends Definition {
   def this(name: String, pred: Expression) = this(Id(name), pred, Reg)
   def this(name: String) = this(Id(name), Const._true, Reg)
 }
-
-
 
 case class ArrayDef(name: Id, size: Int, preds: IndexedSeq[Expression], mode: Mode) extends Definition {
   def this(name: String, size: Int, lpred: Expression, mode: Mode) = this(Id(name), size, ArrayDef.predArray(size, lpred), mode)

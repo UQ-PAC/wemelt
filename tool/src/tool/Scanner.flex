@@ -52,8 +52,8 @@ WS = {NL} | [ \t\f]
 
 "("         { return newToken(Terminals.LPAREN);   }
 ")"         { return newToken(Terminals.RPAREN);   }
-"["         { return newToken(Terminals.LBRACK);   }
-"]"         { return newToken(Terminals.RBRACK);   }
+//"["         { return newToken(Terminals.LBRACK);   }
+//"]"         { return newToken(Terminals.RBRACK);   }
 "{"         { return newToken(Terminals.LBRACE);   }
 "}"         { return newToken(Terminals.RBRACE);   }
 //"++"        { return newToken(Terminals.INCR);     }
@@ -109,7 +109,7 @@ WS = {NL} | [ \t\f]
 "_P_0" {return newToken(Terminals.P_0);}
 "_Stable" {return newToken(Terminals.STABLE);}
 "_var"      { return newToken(Terminals.VAR);     }
-"_array"    { return newToken(Terminals.ARRAY);     }
+//"_array"    { return newToken(Terminals.ARRAY);     }
 
 "TRUE" { return newToken(Terminals.TRUE);    }
 "FALSE" { return newToken(Terminals.FALSE);    }

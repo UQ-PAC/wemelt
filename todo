@@ -3,10 +3,9 @@
 -bitwise in SMT - ensure conversion works properly - test thoroughly
 -comment everything
 -profiling
--arrays
 -try to compile on mac, other linux computers
--fix d fixed point to do intersect inside loop isntead of at end
--change register mode stuff
+-change register mode stuff?
+-arrays???
 
 tests for
 -multiple layers of if/while

@@ -126,6 +126,8 @@ object SMT {
     case BinOp(">>>", arg1, arg2) => ctx.mkBVASHR(bitwise(arg1), bitwise(arg2))
     case BinOp("<<", arg1, arg2) => ctx.mkBVSHL(bitwise(arg1), bitwise(arg2))
 
+    //case Access(id, index) => ctx.mkSelect(ctx.mkArrayConst(id.toString, ctx.getIntSort, ctx.getIntSort), translate(index))
+
 
     case _ =>
       throw error.InvalidProgram("cannot translate to SMT", prop)
