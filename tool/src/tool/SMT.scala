@@ -32,7 +32,31 @@ object SMT {
     res == z3.Status.UNSATISFIABLE
   }
 
-  // recursively convert each list into AND structures
+  def proveSat(cond: Expression, given: List[Expression], debug: Boolean) = {
+    if (debug)
+      println("smt checking " + cond + " given " + given.PStr)
+    solver.push()
+    val res = try {
+      for (p <- given) {
+        solver.add(formula(p))
+      }
+      // check that cond AND P is satisfiable
+      solver.add(formula(cond))
+
+      solver.check
+    } catch {
+      case e: Throwable =>
+        throw error.Z3Error("Z3 failed", cond, given.PStr, e)
+    } finally {
+      solver.pop()
+    }
+
+    if (debug)
+      println(res)
+    res == z3.Status.SATISFIABLE
+  }
+
+  // recursively convert expression list into AND structure
   def PToAnd(exprs: List[Expression]): z3.BoolExpr = exprs match {
       case Nil =>
         ctx.mkTrue

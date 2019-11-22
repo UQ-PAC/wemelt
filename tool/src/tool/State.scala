@@ -85,6 +85,18 @@ case class State(
     copy(written = written + id)
   }
 
+  def updateWritten(array: IdArray): State = {
+    val ids: Set[Id] = {for (i <- array.array.indices)
+      yield array.array(i)}.toSet
+    copy(written = written ++ ids)
+  }
+
+  def updateRead(array: IdArray): State = {
+    val ids: Set[Id] = {for (i <- array.array.indices)
+      yield array.array(i)}.toSet
+    copy(read = read ++ ids)
+  }
+
   def knownW: Set[Id] = {
     val w = for (v <- written) yield {
       W_w(v)
@@ -152,6 +164,21 @@ case class State(
     copy(D = DPrime)
   }
 
+  def updateDArrayAssign(x: Id, e: Expression) : State = {
+    val varE = e.variables // var(e)
+    val laterW: Set[Id] = varE
+    val laterR: Set[Id] = varE.intersect(globals)
+    if (debug) {
+      println("laterW: " + laterW)
+      println("laterR: " + laterR)
+      println("rd: " + read)
+      println("wr: " + written)
+    }
+    val DPrime: Map[Id, (Set[Id], Set[Id], Set[Id], Set[Id])] = updateD(laterW, laterR)
+
+    copy(D = DPrime)
+  }
+
   def updateDGuard(b: Expression) : State = {
     val varB = b.variables // var(b)
     val laterW: Set[Id] = globals ++ varB
@@ -183,6 +210,47 @@ case class State(
       println("checking highP for " + id)
     // prove if L(x) doesn't hold given P
     SMT.prove(PreOp("!", L(id)), p, debug)
+  }
+
+  // security for array access
+  def security(a: Id, index: Expression, p: List[Expression]): Security = {
+    val array = arrays(a)
+
+    if (!SMT.prove(BinOp("&&", BinOp(">=", index, Lit(0)), BinOp("<", index, Lit(array.array.size))), p, debug))
+      throw error.InvalidProgram("out of bounds array access") // fix
+    if (stable.contains(a)) {
+      val it = array.array.indices.toIterator
+      var sec: Security = Low
+      while (it.hasNext && sec == Low) {
+        val i = it.next
+        if (SMT.proveSat(BinOp("==", index, Lit(i)), p, debug)) {
+          sec = gamma(array.array(i))
+        }
+      }
+      sec
+    } else {
+      if (SMT.prove(arrayAccessCheck(array, index), p, debug)) {
+        Low
+      } else {
+        High
+      }
+    }
+  }
+
+  def arrayAccessCheck(array: IdArray, index: Expression): Expression = {
+    val list = {for (i <- array.array.indices)
+      yield BinOp("&&", BinOp("==", index, Lit(i)), L(array.array(i)))}.toList
+    orPredicates(list)
+  }
+
+  def orPredicates(exprs: List[Expression]): Expression = exprs match {
+    case Nil =>
+      Const._false
+
+    case expr :: rest =>
+      val xs = orPredicates(rest)
+      val x =  BinOp("||", expr, xs)
+      x
   }
 
   // x is variable to get security of, p is P value given so can substitute in P_a etc.
@@ -350,12 +418,15 @@ object State {
     var controlledBy: Map[Id, Set[Id]] = Map()
 
     val arrays: Map[Id, IdArray] = (definitions collect {case a: ArrayDef => a.name -> IdArray(a.name, a.size)}).toMap
-    val variables: Set[VarDef] = definitions flatMap {case v: VarDef => Set(v) case a:ArrayDef => a.toVarDefs}
+
+    val arrayDefs: Set[ArrayDef] = definitions collect {case a: ArrayDef => a}
+    val varDefs: Set[VarDef] = definitions collect {case v: VarDef => v}
+    val variables: Set[VarDef] = varDefs ++ (arrayDefs flatMap {a => a.toVarDefs})
 
     val ids: Set[Id] = for (v <- variables)
       yield v.name
 
-    for (v <- variables) {
+    for (v <- varDefs) {
       v.mode match {
         case Reg =>
           locals += v.name
@@ -382,6 +453,24 @@ object State {
         controls += i
       }
     }
+
+    for (a <- arrayDefs) {
+      a.mode match {
+        case Reg =>
+          locals += a.name
+          noReadWrite += a.name
+        case NoRW =>
+          globals += a.name
+          noReadWrite += a.name
+        case NoW =>
+          globals += a.name
+          noWrite += a.name
+        case RW =>
+          globals += a.name
+          readWrite += a.name
+      }
+    }
+
     val controlAndControlled = controls & controlled
     if (controlAndControlled.nonEmpty) {
       throw error.InvalidProgram("the following variables are both control and controlled variables: " + controlAndControlled.mkString(", "))
@@ -484,7 +573,7 @@ object State {
       written = Set(),
       nonblocking = false,
       nonblockingDepth = 0,
-      arrays = arrays,
+      arrays = Map(),
       toLog = toLog,
       debug = debug
     )

@@ -29,10 +29,8 @@ case class Lit(arg: Any) extends Expression {
   override def subst(su: Subst): Lit = this
 }
 
-//sealed trait Loc
-
 // id parsed from input - need to convert to Var before use in predicates etc.
-case class Id(name: String) extends Expression /* with Loc */ {
+case class Id(name: String) extends Expression {
   //override def toString = "ID_" + name
   override def toString = name
   override def variables: Set[Id] = Set(this)
@@ -40,13 +38,11 @@ case class Id(name: String) extends Expression /* with Loc */ {
   def toVar = Var(name, None)
 }
 
-/*
-case class Access(name: Id, index: Expression) extends Expression with Loc {
+case class Access(name: Id, index: Expression) extends Expression {
   def variables: Set[Id] = Set(name) ++ index.variables
   def subst(su: Subst) = Access(name, index.subst(su))
   override def toString = name + "[" + index + "]"
 }
-*/
 
 // logical variable for use in predicates
 case class Var(name: String, index: Option[Int] = None) extends Expression {

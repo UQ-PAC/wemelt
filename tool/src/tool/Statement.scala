@@ -21,6 +21,10 @@ case class Assignment(lhs: Id, expression: Expression) extends Statement {
   override def toString = lhs + " = " + expression
 }
 
+case class ArrayAssignment(lhs: Id, index: Expression, expression: Expression) extends Statement {
+  override def toString = lhs + "[" + index + "]" + " = " + expression
+}
+
 /*
 case object Break extends Statement {
   def self = this

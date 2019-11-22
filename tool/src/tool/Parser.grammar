@@ -2,7 +2,7 @@
 %class "Parser";
 
 %terminals VAR;
-//%terminals ARRAY;
+%terminals ARRAY;
 
 //%terminals RETURN, BREAK, CONTINUE;
 %terminals IF, ELSE, WHILE, DO;
@@ -11,7 +11,7 @@
 %terminals NUM;
 %terminals LOW, HIGH, TRUE, FALSE;
 
-%terminals LPAREN, RPAREN, /* LBRACK, RBRACK, */ LBRACE, RBRACE;
+%terminals LPAREN, RPAREN, LBRACK, RBRACK, LBRACE, RBRACE;
 %terminals POSTFIX;
 %terminals PREFIX,  BANG, TILDE;
 %terminals STAR, DIV, MOD;
@@ -69,7 +69,7 @@
 %typeof unit = "Global";
 %typeof gamma_mapping = "GammaMapping";
 %typeof security = "Security";
-//%typeof lpredindex = "Expression";
+%typeof lpredindex = "Expression";
 
 %goal unit;
 
@@ -88,7 +88,6 @@ local
 
 local2
 	=  local1
-    //| aux.a {: return new Ghost(a);  :}
     ;
 
 locals  = local *;
@@ -99,13 +98,12 @@ definition
           | VAR REG_ID.n                        {: return new VarDef(n); :}
           | VAR ID.n COLON lpred.l mode.m              {:  return new VarDef(n, l, m); :}
           | VAR ID.n COLON mode.m                      {: return new VarDef(n, m); :}
-          /*
           | ARRAY ID.n LBRACK NUM.s RBRACK COLON lpred.l mode.m {: return new ArrayDef(n, s, l, m); :}
           | ARRAY ID.n LBRACK NUM.s RBRACK COLON lpredindexes.l mode.m {: return new ArrayDef(n, s, l, m); :}
           | ARRAY ID.n LBRACK NUM.s RBRACK COLON mode.m {: return new ArrayDef(n, s, m); :}
           | ARRAY REG_ID.n LBRACK NUM.s RBRACK COLON lpred.l {: return new ArrayDef(n, s, l); :}
           | ARRAY REG_ID.n LBRACK NUM.s RBRACK COLON lpredindexes.l {: return new ArrayDef(n, s, l); :}
-          | ARRAY REG_ID.n LBRACK NUM.s RBRACK  {: return new ArrayDef(n, s); :} */
+          | ARRAY REG_ID.n LBRACK NUM.s RBRACK  {: return new ArrayDef(n, s); :}
           ;
 
 defs = definition *;
@@ -115,8 +113,8 @@ local1
     //| expr.a   SEMICOLON                {: return new Atomic(a); :}
     | ID.n ASG    expr.b SEMICOLON              {: return new Assignment(n, b); :}
     | REG_ID.n ASG    expr.b   SEMICOLON           {: return new Assignment(n, b); :}
-    //| ID.n LBRACK expr.i RBRACK ASG    expr.b SEMICOLON        {: return new Assignment(Access(n, i), b); :}
-    //| REG_ID.n LBRACK expr.i RBRACK ASG    expr.b   SEMICOLON      {: return new Assignment(Access(n, i), b); :}
+    | ID.n LBRACK expr.i RBRACK ASG    expr.b SEMICOLON        {: return new ArrayAssignment(n, i, b); :}
+    | REG_ID.n LBRACK expr.i RBRACK ASG    expr.b   SEMICOLON      {: return new ArrayAssignment(n, i, b); :}
     //| RETURN   SEMICOLON                {: return Return.none(); :}
     //| RETURN expr.a SEMICOLON           {: return new Return(a); :}
     //| BREAK    SEMICOLON                {: return Break.self();  :}
@@ -136,8 +134,8 @@ expr
     | ID.n                              {: return new Id(n);  :}
     | REG_ID.n                          {: return new Id(n);  :}
     | NUM.n                             {: return new Lit(n); :}
-    //| ID.n LBRACK expr.i RBRACK       {: return new Access(n, i); :}
-    //| REG_ID.n LBRACK expr.i RBRACK       {: return new Access(n, i); :}
+    | ID.n LBRACK expr.i RBRACK       {: return new Access(n, i); :}
+    | REG_ID.n LBRACK expr.i RBRACK       {: return new Access(n, i); :}
     | PLUS  expr.a @ PREFIX             {: return new PreOp("+", a);    :}
     | MINUS expr.a @ PREFIX             {: return new PreOp("-", a);    :}
     | BANG  expr.a @ PREFIX             {: return new PreOp("!", a);    :}
@@ -161,7 +159,6 @@ expr
     | expr.a PIPE   expr.b              {: return new BinOp("|", a, b); :}
     | expr.a AND    expr.b              {: return new BinOp("&&",a, b); :}
     | expr.a OR     expr.b              {: return new BinOp("||",a, b); :}
-    //| expr.a ASG    expr.b              {: return new BinOp("=", a, b); :}
     | LPAREN expr.e RPAREN              {: return (Symbol) e;           :}
     | TRUE                              {: return new Const("True");  :}
     | FALSE                             {: return new Const("False");  :}
@@ -172,9 +169,9 @@ lpred
     = LPRED COLON expr.a {: return (Symbol) a; :}
     ;
 
-//lpredindex = LPRED LBRACK NUM.n RBRACK COLON expr.a {: return (Symbol) a; :};
+lpredindex = LPRED LBRACK NUM.n RBRACK COLON expr.a {: return (Symbol) a; :};
 
-//lpredindexes = lpredindex | lpredindexes lpredindex;
+lpredindexes = lpredindex | lpredindexes lpredindex;
 
 // for _Mode(x): NoRW etc. construction to set variable mode
 mode

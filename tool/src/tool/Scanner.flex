@@ -52,8 +52,8 @@ WS = {NL} | [ \t\f]
 
 "("         { return newToken(Terminals.LPAREN);   }
 ")"         { return newToken(Terminals.RPAREN);   }
-//"["         { return newToken(Terminals.LBRACK);   }
-//"]"         { return newToken(Terminals.RBRACK);   }
+"["         { return newToken(Terminals.LBRACK);   }
+"]"         { return newToken(Terminals.RBRACK);   }
 "{"         { return newToken(Terminals.LBRACE);   }
 "}"         { return newToken(Terminals.RBRACE);   }
 //"++"        { return newToken(Terminals.INCR);     }

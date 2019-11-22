@@ -73,6 +73,18 @@ object Exec {
       state1.log
       Cont.next(state1.resetReadWrite())
 
+    case ArrayAssignment(lhs, index, rhs) =>
+      if (state0.toLog)
+        println("line " + statement.line + ": " + lhs + " = " + rhs + ":")
+      // check if lhs is a control variable
+      val state1 = arrayAssignRule(lhs, index, rhs, state0, statement.line)
+      // check nonblocking rule if necessary
+      if (state1.nonblocking && state1.globals.contains(lhs)) {
+        throw error.NonblockingError(statement.line, lhs, rhs, "global variable " + lhs + " was written to within a nonblocking while loop")
+      }
+      state1.log
+      Cont.next(state1.resetReadWrite())
+
     case Fence =>
       // reset D
       val state1 = state0.updateDFence()
@@ -569,6 +581,36 @@ object Exec {
     state1.updatePIfRight(_test)
   }
 
+
+  def arrayAssignRule(lhs: Id, index: Expression, rhs: Expression, st0: State, line: Int): State = {
+    // ASSIGN rule
+    if (st0.toLog)
+      println("ASSIGN applying")
+    val (_rhs, st1) = eval(rhs, st0) // computes rd
+    val st2 = st1.updateWritten(st1.arrays(lhs)) // computes wr
+    // at this point the rd and wr sets are complete for the current line
+
+    // calculate P_x:=e
+    val PRestrict = st2.restrictP(st2.knownW)
+    val t = st2.security(rhs, PRestrict)
+
+    // if x's mode is not NoRW, ensure that e's security level is not higher than x's security level, given P_x:=e - tested
+    if (!st2.noReadWrite.contains(lhs)) {
+      // evalP
+      val xSecurity = if (st2.highP(lhs, PRestrict)) {
+        High
+      } else {
+        Low
+      }
+      if (t == High && xSecurity == Low) {
+        throw error.AssignError(line, lhs, rhs, "HIGH expression assigned to LOW variable")
+      }
+    }
+    val st3 = st2.updateGamma(lhs, t)
+
+    val st4 = st3.assign(lhs, _rhs) // update P
+    st4.updateDAssign(lhs, _rhs)
+  }
 
   def assignRule(lhs: Id, rhs: Expression, st0: State, line: Int): State = {
     // ASSIGN rule
