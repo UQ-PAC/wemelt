@@ -267,6 +267,11 @@ object Exec {
       val st2 = st1.updateWritten(lhs)
       st2.updateDAssign(lhs, rhs)
 
+    case ArrayAssignment(name, index, rhs) =>
+      val st1 = DFixedPoint(rhs, st0)
+      val st2 = st1.updateWritten(st1.arrays(name))
+      st2.updateDArrayAssign(name, rhs)
+
     case Fence =>
       // reset D
       st0.updateDFence()
@@ -310,6 +315,10 @@ object Exec {
     case res: Const =>
       st0
 
+    case Access(name, index) =>
+      val st1 = DFixedPoint(index, st0)
+      st1.updateRead(st1.arrays(name))
+
     case BinOp(_, arg1, arg2) =>
       val st1 = DFixedPoint(arg1, st0)
       DFixedPoint(arg2, st1)
@@ -333,11 +342,11 @@ object Exec {
     case res: Const =>
       (res, st0)
 
-      /*
     case Access(name, index) =>
       val (_index, st1) = eval(index, st0)
-      (Access(name, _index), st1)
-       */
+      val st2 = st1.updateRead(st1.arrays(name))
+      (Access(name, _index), st2)
+
     case BinOp("==", arg1, arg2) =>
       val (List(_arg1, _arg2), st1) = evals(List(arg1, arg2), st0)
       (BinOp("==", _arg1, _arg2), st1)
@@ -582,34 +591,57 @@ object Exec {
   }
 
 
-  def arrayAssignRule(lhs: Id, index: Expression, rhs: Expression, st0: State, line: Int): State = {
-    // ASSIGN rule
+  def arrayAssignRule(a: Id, index: Expression, rhs: Expression, st0: State, line: Int): State = {
+    val array = st0.arrays(a)
+    // ARRAY ASSIGN rule
     if (st0.toLog)
-      println("ASSIGN applying")
+      println("ARRAY ASSIGN applying")
     val (_rhs, st1) = eval(rhs, st0) // computes rd
-    val st2 = st1.updateWritten(st1.arrays(lhs)) // computes wr
+    val (_index, st2) = eval(index, st1)
+    val st3 = st2.updateWritten(st2.arrays(a)) // computes wr
     // at this point the rd and wr sets are complete for the current line
 
     // calculate P_x:=e
-    val PRestrict = st2.restrictP(st2.knownW)
-    val t = st2.security(rhs, PRestrict)
+    val PRestrict = st3.restrictP(st3.knownW)
+    if (st0.debug) {
+      println("knownW: " + st3.knownW)
+      println("PRestrict: " + PRestrict.PStr)
+    }
+    // prove array access is inbounds
+    // index >= 0 && index < array size
+    if (!SMT.prove(BinOp("&&", BinOp(">=", _index, Lit(0)), BinOp("<", _index, Lit(array.array.size))), PRestrict, st3.debug))
+      throw error.InvalidProgram("out of bounds array access") // fix
+
+    // possible indices that the index expression could evaluate to
+    val possibleIndices = for (i <- array.array.indices if SMT.proveSat(BinOp("==", _index, Lit(i)), PRestrict, st3.debug))
+      yield i
+
+    if (st0.debug)
+      println("possible indices: " + possibleIndices.mkString(" "))
+
+    val t = st3.security(rhs, PRestrict)
 
     // if x's mode is not NoRW, ensure that e's security level is not higher than x's security level, given P_x:=e - tested
-    if (!st2.noReadWrite.contains(lhs)) {
-      // evalP
-      val xSecurity = if (st2.highP(lhs, PRestrict)) {
-        High
-      } else {
-        Low
+    if (!st3.noReadWrite.contains(a)) {
+      // check if any possible array value accessed is provably High
+      var arraySec: Security = Low
+      val it = possibleIndices.toIterator
+      while (arraySec == Low && it.hasNext) {
+        val i = it.next()
+        arraySec = if (st2.highP(array.array(i), PRestrict)) {
+          High
+        } else {
+          Low
+        }
       }
-      if (t == High && xSecurity == Low) {
-        throw error.AssignError(line, lhs, rhs, "HIGH expression assigned to LOW variable")
+      if (t == High && arraySec == Low) {
+        throw error.AssignError(line, a, rhs, "HIGH expression assigned to LOW variable")
       }
     }
-    val st3 = st2.updateGamma(lhs, t)
+    val st4 = st3.updateGammaArray(array, possibleIndices, t)
 
-    val st4 = st3.assign(lhs, _rhs) // update P
-    st4.updateDAssign(lhs, _rhs)
+    val st5 = st4.arrayAssign(a, index, _rhs) // update P
+    st5.updateDArrayAssign(a, _rhs)
   }
 
   def assignRule(lhs: Id, rhs: Expression, st0: State, line: Int): State = {
@@ -622,6 +654,10 @@ object Exec {
 
     // calculate P_x:=e
     val PRestrict = st2.restrictP(st2.knownW)
+    if (st0.debug) {
+      println("knownW: " + st2.knownW)
+      println("PRestrict: " + PRestrict.PStr)
+    }
     val t = st2.security(rhs, PRestrict)
 
     // if x's mode is not NoRW, ensure that e's security level is not higher than x's security level, given P_x:=e - tested
@@ -652,6 +688,11 @@ object Exec {
 
     // calculate P_x:=e
     val PRestrict = st2.restrictP(st2.knownW)
+    if (st0.debug) {
+      println("knownW: " + st2.knownW)
+      println("PRestrict: " + PRestrict.PStr)
+    }
+
 
     // check _rhs is LOW - tested
     val t = st2.security(_rhs, PRestrict)

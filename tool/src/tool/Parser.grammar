@@ -186,6 +186,8 @@ gamma_mappings
 gamma_mapping
     = ID.n MAPSTO security.s {: return new GammaMapping(n, s); :}
     | REG_ID.n MAPSTO security.s {: return new GammaMapping(n, s); :}
+    | ID.n LBRACK NUM.i RBRACK MAPSTO security.s {: return new GammaMapping(n + "[" + i + "]", s); :}
+    | REG_ID.n LBRACK NUM.i RBRACK MAPSTO security.s {: return new GammaMapping(n + "[" + i + "]", s); :}
     ;
 
 security

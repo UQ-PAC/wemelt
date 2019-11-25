@@ -6,6 +6,7 @@
 -try to compile on mac, other linux computers
 -change register mode stuff?
 -arrays???
+-z3 simplifier
 
 tests for
 -multiple layers of if/while

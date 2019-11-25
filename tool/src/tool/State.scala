@@ -68,6 +68,40 @@ case class State(
     copy(P = PPrimeRestrict)
   }
 
+  // update P with strongest post-condition after array assignment
+  def arrayAssign(a: Id, index: Expression, arg: Expression): State = {
+
+    val v = a.toVar
+    // create mapping from variable to fresh variable
+    val toSubst: Subst = Map(v -> Var.fresh(a.name))
+
+    // substitute variable in P for fresh variable
+    val PReplace = P map (p => p.subst(toSubst))
+
+    // substitute variable in expression for fresh variable
+    val argReplace = arg.subst(toSubst)
+
+    val indexToSubst: Subst = {
+      for (i <- index.variables)
+        yield i -> i.toVar
+      }.toMap ++ toSubst
+
+    val indexSubst = index.subst(indexToSubst)
+
+    // add new assignment statement to P
+    val PPrime = BinOp("==", VarAccess(v, indexSubst), argReplace) :: PReplace
+
+    // restrict PPrime to stable variables
+    val PPrimeRestrict = State.restrictP(PPrime, stable)
+
+    if (debug) {
+      println("assigning " + arg + " to " + a + "[" + index + "]" + ":")
+      println("P: " + P.PStr)
+      println("P': " + PPrimeRestrict.PStr)
+    }
+    copy(P = PPrimeRestrict)
+  }
+
   def W_w(v: Id): Set[Id] = D(v)._1
   def W_r(v: Id): Set[Id] = D(v)._2
   def R_w(v: Id): Set[Id] = D(v)._3
@@ -146,7 +180,7 @@ case class State(
   }.toMap
 
   def updateDAssign(x: Id, e: Expression) : State = {
-    val varE = e.variables // var(e)
+    val varE = e.variables -- arrays.keySet // var(e)
     val laterW: Set[Id] = Set(x) ++ varE
     val laterR: Set[Id] = if (varE.intersect(globals).nonEmpty) {
       Set(x) ++ varE.intersect(globals)
@@ -165,7 +199,7 @@ case class State(
   }
 
   def updateDArrayAssign(x: Id, e: Expression) : State = {
-    val varE = e.variables // var(e)
+    val varE = e.variables -- arrays.keySet // var(e)
     val laterW: Set[Id] = varE
     val laterR: Set[Id] = varE.intersect(globals)
     if (debug) {
@@ -180,7 +214,7 @@ case class State(
   }
 
   def updateDGuard(b: Expression) : State = {
-    val varB = b.variables // var(b)
+    val varB = b.variables -- arrays.keySet // var(b)
     val laterW: Set[Id] = globals ++ varB
     val laterR: Set[Id] = globals & varB
 
@@ -216,9 +250,10 @@ case class State(
   def security(a: Id, index: Expression, p: List[Expression]): Security = {
     val array = arrays(a)
 
+    // index >= 0 && index < array size
     if (!SMT.prove(BinOp("&&", BinOp(">=", index, Lit(0)), BinOp("<", index, Lit(array.array.size))), p, debug))
       throw error.InvalidProgram("out of bounds array access") // fix
-    if (stable.contains(a)) {
+    if (stable.contains(array.array(0))) { // lazy and should fix
       val it = array.array.indices.toIterator
       var sec: Security = Low
       while (it.hasNext && sec == Low) {
@@ -237,6 +272,7 @@ case class State(
     }
   }
 
+  // ((index == 0) && (L(A[0]))) || ((index == 1) && (L(A[1]))) || ... to array.size
   def arrayAccessCheck(array: IdArray, index: Expression): Expression = {
     val list = {for (i <- array.array.indices)
       yield BinOp("&&", BinOp("==", index, Lit(i)), L(array.array(i)))}.toList
@@ -275,12 +311,18 @@ case class State(
     if (debug)
       println("checking security for " + e)
     var sec: Security = Low
-    val it = e.variables.toIterator
+    val it = (e.variables -- arrays.keySet).toIterator
     // if x security is high, return, otherwise keep checking
     while (it.hasNext && sec == Low) {
       val x: Id = it.next()
       sec = security(x, p)
     }
+    val it2 = e.arrays.toIterator
+    while (it2.hasNext && sec == Low) {
+      val a: Access = it2.next()
+      sec = security(a.name, a.index, p)
+    }
+
     if (debug)
       println(e + " security is " + sec)
     sec
@@ -294,6 +336,12 @@ case class State(
     } else {
       this
     }
+  }
+
+  def updateGammaArray(a: IdArray, indices: Seq[Int], t: Security): State = {
+    val gammaPrime = gamma ++ {for (i <- indices if gamma.contains(a.array(i)))
+      yield a.array(i) -> t}
+    copy (gamma = gammaPrime)
   }
 
   // update gamma with new value t mapped to x, regardless if x was in domain of gamma previously
@@ -418,15 +466,15 @@ object State {
     var controlledBy: Map[Id, Set[Id]] = Map()
 
     val arrays: Map[Id, IdArray] = (definitions collect {case a: ArrayDef => a.name -> IdArray(a.name, a.size)}).toMap
-
-    val arrayDefs: Set[ArrayDef] = definitions collect {case a: ArrayDef => a}
-    val varDefs: Set[VarDef] = definitions collect {case v: VarDef => v}
-    val variables: Set[VarDef] = varDefs ++ (arrayDefs flatMap {a => a.toVarDefs})
+    val variables: Set[VarDef] = definitions flatMap {
+      case a: ArrayDef => a.toVarDefs
+      case v: VarDef => Seq(v)
+    }
 
     val ids: Set[Id] = for (v <- variables)
       yield v.name
 
-    for (v <- varDefs) {
+    for (v <- variables) {
       v.mode match {
         case Reg =>
           locals += v.name
@@ -454,23 +502,6 @@ object State {
       }
     }
 
-    for (a <- arrayDefs) {
-      a.mode match {
-        case Reg =>
-          locals += a.name
-          noReadWrite += a.name
-        case NoRW =>
-          globals += a.name
-          noReadWrite += a.name
-        case NoW =>
-          globals += a.name
-          noWrite += a.name
-        case RW =>
-          globals += a.name
-          readWrite += a.name
-      }
-    }
-
     val controlAndControlled = controls & controlled
     if (controlAndControlled.nonEmpty) {
       throw error.InvalidProgram("the following variables are both control and controlled variables: " + controlAndControlled.mkString(", "))
@@ -484,12 +515,32 @@ object State {
 
     val stable = noReadWrite ++ noWrite
 
+    if (debug) {
+      println("globals: " + globals)
+      println("locals: " + locals)
+      println("no read write: " + noReadWrite)
+      println("read write: " + readWrite)
+      println("no write: " + noWrite)
+      println("stable: " + stable)
+      println("controls: " + controls)
+      println("controlled: " + controlled)
+      println("controlled by: " + controlledBy)
+    }
+
+    val gammaDom: Set[Id] = {ids collect {
+      case v if !controls.contains(v) && stable.contains(v) && !arrays.keySet.contains(v) =>
+        Seq(v)
+      case a if arrays.keySet.contains(a) && stable.contains(a) =>
+        arrays(a).array
+    }}.flatten
+    //val gammaDom: Set[Id] = for (i <- ids if !controls.contains(i) && stable.contains(i) && !arrays.keySet.contains(i)) yield i
+
     // init gamma
     val gamma: Map[Id, Security] = gamma_0 match {
       // security high by default if user hasn't provided
       case None => {
         // dom gamma = stable variables without control variables
-        for (i <- ids if !controls.contains(i) && stable.contains(i)) yield {
+        for (i <- gammaDom) yield {
           i -> High
         }
         }.toMap
@@ -499,9 +550,8 @@ object State {
     }
 
     // check gamma domain
-    val gammaDom: Set[Id] = for (i <- ids if !controls.contains(i) && stable.contains(i)) yield i
     if (gamma.keySet != gammaDom)
-      throw error.InvalidProgram("provided gamma has invalid domain, correct domain is " + gammaDom.mkString(","))
+      throw error.InvalidProgram("provided gamma has invalid domain (" + gamma.keySet.mkString(", ") + "), correct domain is " + gammaDom.mkString(", "))
 
     // for replacing Ids in predicates with Vars
     val idToVar: Subst = {
@@ -536,15 +586,6 @@ object State {
       }
     }.toMap
     if (debug) {
-      println("globals: " + globals)
-      println("locals: " + locals)
-      println("no read write: " + noReadWrite)
-      println("read write: " + readWrite)
-      println("no write: " + noWrite)
-      println("stable: " + stable)
-      println("controls: " + controls)
-      println("controlled: " + controlled)
-      println("controlled by: " + controlledBy)
       println("L: " + L)
     }
     if (toLog) {
@@ -573,7 +614,7 @@ object State {
       written = Set(),
       nonblocking = false,
       nonblockingDepth = 0,
-      arrays = Map(),
+      arrays = arrays,
       toLog = toLog,
       debug = debug
     )

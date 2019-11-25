@@ -4,6 +4,7 @@ trait Expression extends beaver.Symbol {
 
   def variables: Set[Id]
   def subst(su: Subst): Expression
+  def arrays: Set[Access]
 
   // existentially quantify (substitute with fresh variables) all variables that aren't in restricted
   def restrict(restricted: Set[Id]): Expression = {
@@ -26,6 +27,7 @@ trait Expression extends beaver.Symbol {
 case class Lit(arg: Any) extends Expression {
   override def toString = arg.toString
   override def variables: Set[Id] = Set()
+  override def arrays = Set()
   override def subst(su: Subst): Lit = this
 }
 
@@ -36,12 +38,24 @@ case class Id(name: String) extends Expression {
   override def variables: Set[Id] = Set(this)
   override def subst(su: Subst): Expression = su.getOrElse(this, this)
   def toVar = Var(name, None)
+  override def arrays = Set()
 }
 
+// array access parsed from input
 case class Access(name: Id, index: Expression) extends Expression {
-  def variables: Set[Id] = Set(name) ++ index.variables
+  def this (name: String, index: Expression) = this(Id(name), index)
+  def variables: Set[Id] = name.variables ++ index.variables
   def subst(su: Subst) = Access(name, index.subst(su))
   override def toString = name + "[" + index + "]"
+  override def arrays = Set(this)
+}
+
+// array access with Var for use in logical predicates
+case class VarAccess(name: Var, index: Expression) extends Expression {
+  def variables: Set[Id] = name.variables ++ index.variables
+  def subst(su: Subst) = VarAccess(name, index.subst(su))
+  override def toString = name + "[" + index + "]"
+  override def arrays = Set()
 }
 
 // logical variable for use in predicates
@@ -65,6 +79,8 @@ case class Var(name: String, index: Option[Int] = None) extends Expression {
 
   override def toString = name __ index
   //override def toString = "VAR_" + name __ index
+
+  override def arrays = Set()
 }
 
 object Var {
@@ -90,6 +106,7 @@ object IdArray {
 case class Switch(index: Int) extends Expression {
   def variables: Set[Id] = Set()
   def subst(su: Subst): Expression = this
+  override def arrays = Set()
 }
 
 object Switch {
@@ -104,6 +121,7 @@ case class PreOp(op: String, arg: Expression) extends Expression {
   override def toString = "(" + op + " " + arg + ")"
   override def variables: Set[Id] = arg.variables
   def subst(su: Subst) =  PreOp(op, arg.subst(su))
+  override def arrays = arg.arrays
 
 }
 
@@ -111,12 +129,14 @@ case class PostOp(op: String, arg: Expression) extends Expression {
   override def toString = "(" + arg + " " + op + ")"
   override def variables: Set[Id] = arg.variables
   def subst(su: Subst) = PostOp(op, arg.subst(su))
+  override def arrays = arg.arrays
 }
 
 case class BinOp(op: String, arg1: Expression, arg2: Expression) extends Expression {
   override def toString = "(" + arg1 + " " + op + " " + arg2 + ")"
   override def variables: Set[Id] = arg1.variables ++ arg2.variables
   def subst(su: Subst) = BinOp(op, arg1.subst(su), arg2.subst(su))
+  override def arrays = arg1.arrays ++ arg2.arrays
 }
 
 object Const {
@@ -128,4 +148,5 @@ case class Const(name: String) extends Expression {
   override def toString = name.toString
   override def variables: Set[Id] = Set()
   override def subst(su: Subst): Const = this
+  override def arrays = Set()
 }
