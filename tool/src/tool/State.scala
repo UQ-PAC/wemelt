@@ -112,26 +112,39 @@ case class State(
   }
 
   def updateRead(id: Id): State = {
+    if (debug)
+      println("updating read (" + read + ") with " + id)
     copy(read = read + id)
   }
 
   def updateWritten(id: Id): State = {
+    if (debug)
+      println("updating written (" + written + ") with " + id)
     copy(written = written + id)
   }
 
   def updateWritten(array: IdArray): State = {
     val ids: Set[Id] = {for (i <- array.array.indices)
       yield array.array(i)}.toSet
+    if (debug)
+      println("updating written (" + written + ") with " + ids)
     copy(written = written ++ ids)
   }
 
   def updateRead(array: IdArray): State = {
     val ids: Set[Id] = {for (i <- array.array.indices)
       yield array.array(i)}.toSet
+    if (debug)
+      println("updating read (" + read + ") with " + ids)
     copy(read = read ++ ids)
   }
 
   def knownW: Set[Id] = {
+    if (debug) {
+      println("calculating knownW")
+      println("wr: " + written)
+      println("rd: " + read)
+    }
     val w = for (v <- written) yield {
       W_w(v)
     }
@@ -142,6 +155,11 @@ case class State(
   }
 
   def knownR: Set[Id] = {
+    if (debug) {
+      println("calculating knownR")
+      println("wr: " + written)
+      println("rd: " + read)
+    }
     val r = for (v <- read) yield {
       R_r(v)
     }
@@ -154,6 +172,10 @@ case class State(
   def updateD(laterW: Set[Id], laterR: Set[Id]): Map[Id, (Set[Id], Set[Id], Set[Id], Set[Id])] = {
     val knownw = knownW
     val knownr = knownR
+    if (debug) {
+      println("knownW: " + knownw)
+      println("knownR: " + knownr)
+    }
     for (i <- variables) yield {
       val w_w = if (laterW.contains(i)) {
         W_w(i) ++ knownw
@@ -195,7 +217,7 @@ case class State(
     }
     val DPrime: Map[Id, (Set[Id], Set[Id], Set[Id], Set[Id])] = updateD(laterW, laterR)
 
-    copy(D = DPrime)
+    copy(D = DPrime, read = Set(), written = Set())
   }
 
   def updateDArrayAssign(x: Id, e: Expression) : State = {
@@ -210,7 +232,7 @@ case class State(
     }
     val DPrime: Map[Id, (Set[Id], Set[Id], Set[Id], Set[Id])] = updateD(laterW, laterR)
 
-    copy(D = DPrime)
+    copy(D = DPrime, read = Set(), written = Set())
   }
 
   def updateDGuard(b: Expression) : State = {
@@ -220,7 +242,7 @@ case class State(
 
     val DPrime: Map[Id, (Set[Id], Set[Id], Set[Id], Set[Id])] = updateD(laterW, laterR)
 
-    copy(D = DPrime)
+    copy(D = DPrime, read = Set(), written = Set())
   }
 
   def updateDFence(): State = {
@@ -229,7 +251,7 @@ case class State(
         yield v -> (variables, variables, variables, variables)
     }.toMap
 
-    copy(D = DPrime)
+    copy(D = DPrime, read = Set(), written = Set())
   }
 
   def lowP(id: Id, p: List[Expression]): Boolean = {
@@ -339,8 +361,20 @@ case class State(
   }
 
   def updateGammaArray(a: IdArray, indices: Seq[Int], t: Security): State = {
-    val gammaPrime = gamma ++ {for (i <- indices if gamma.contains(a.array(i)))
-      yield a.array(i) -> t}
+    val toUpdate = if (indices.size == 1) {
+      for (i <- indices if gamma.contains(a.array(i))) yield {
+        a.array(i) -> t
+      }
+    } else {
+      for (i <- indices if gamma.contains(a.array(i))) yield {
+        if (gamma(a.array(i)) == High) {
+          a.array(i) -> High
+        } else {
+          a.array(i) -> t
+        }
+      }
+    }
+    val gammaPrime = gamma ++ toUpdate
     copy (gamma = gammaPrime)
   }
 
@@ -397,6 +431,8 @@ case class State(
     val PPrime = mergeP(state1.P, state2.P)
     // restrict P' to stable variables
     val PPrimeRestricted = State.restrictP(PPrime, stable)
+    if (debug)
+      println("restricting P to stable variables: " + PPrimeRestricted.PStr)
 
     copy(gamma = gammaPrime, D = DPrime, P = PPrimeRestricted)
   }

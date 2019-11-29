@@ -1,12 +1,13 @@
 -test
 -organise expression class - boolean expression subclass & clean up operations
--bitwise in SMT - ensure conversion works properly - test thoroughly
+-test bitwise in SMT
 -comment everything
 -profiling
 -try to compile on mac, other linux computers
 -change register mode stuff?
--arrays???
+-test array reads
 -z3 simplifier
+-update readme
 
 tests for
 -multiple layers of if/while

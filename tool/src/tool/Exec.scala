@@ -71,11 +71,11 @@ object Exec {
         throw error.NonblockingError(statement.line, lhs, rhs, "global variable " + lhs + " was written to within a nonblocking while loop")
       }
       state1.log
-      Cont.next(state1.resetReadWrite())
+      Cont.next(state1)
 
     case ArrayAssignment(lhs, index, rhs) =>
       if (state0.toLog)
-        println("line " + statement.line + ": " + lhs + " = " + rhs + ":")
+        println("line " + statement.line + ": " + lhs + "[" + index + "] = " + rhs + ":")
       // check if lhs is a control variable
       val state1 = arrayAssignRule(lhs, index, rhs, state0, statement.line)
       // check nonblocking rule if necessary
@@ -83,7 +83,7 @@ object Exec {
         throw error.NonblockingError(statement.line, lhs, rhs, "global variable " + lhs + " was written to within a nonblocking while loop")
       }
       state1.log
-      Cont.next(state1.resetReadWrite())
+      Cont.next(state1)
 
     case Fence =>
       // reset D
@@ -219,6 +219,8 @@ object Exec {
     var st0 = state
     var DPrime: Map[Id, (Set[Id], Set[Id], Set[Id], Set[Id])] = Map()
     var dfixedloops = 0
+    if (st0.debug)
+      println("DFixed0: " + st0.D.DStr)
     while (!DFixed) {
       dfixedloops = dfixedloops + 1
       // update rd for the guard
@@ -228,18 +230,24 @@ object Exec {
       // D intersect D after loop body
       val st4 = st3.copy(D = st3.mergeD(st0))
 
+
+      if (st0.debug) {
+        println("DFixed0: " + st0.D.DStr)
+        println("DFixed" + dfixedloops + ": " + st4.D.DStr)
+      }
       // compare st4.D to st0.D
       val it = st0.variables.toIterator
-      while (it.hasNext && !DFixed) {
+      DFixed = true
+      while (it.hasNext && DFixed) {
         val v = it.next
         DFixed = (st0.W_r(v) == st4.W_r(v)) && (st0.W_w(v) == st4.W_w(v)) && (st0.R_r(v) == st4.R_r(v)) && (st0.R_w(v) == st4.R_w(v))
       }
-
       // if D has changed, repeat
       if (DFixed) {
         DPrime = st4.D
       } else {
         st0 = st4
+        DFixed = false
       }
     }
     if (st0.debug)
@@ -613,8 +621,13 @@ object Exec {
       throw error.InvalidProgram("out of bounds array access") // fix
 
     // possible indices that the index expression could evaluate to
-    val possibleIndices = for (i <- array.array.indices if SMT.proveSat(BinOp("==", _index, Lit(i)), PRestrict, st3.debug))
-      yield i
+    val possibleIndices: Seq[Int] = index match {
+      case Lit(value) =>
+        Seq(value)
+      case _ =>
+        for (i <- array.array.indices if SMT.proveSat(BinOp("==", _index, Lit(i)), PRestrict, st3.debug))
+          yield i
+    }
 
     if (st0.debug)
       println("possible indices: " + possibleIndices.mkString(" "))

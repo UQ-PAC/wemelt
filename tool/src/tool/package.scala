@@ -69,18 +69,20 @@ package object tool {
 
   }
 
+  val newline ="""
+      |""".stripMargin
   implicit class DToString(D: Map[Id, (Set[Id], Set[Id], Set[Id], Set[Id])]) {
     def DStr: String = {
-      val w_w: String = (D map (kv => kv._1 + " -> " + kv._2._1.mkString("(", " ", ")"))).mkString(", ")
-      val w_r: String = (D map (kv => kv._1 + " -> " + kv._2._2.mkString("(", " ", ")"))).mkString(", ")
-      val r_w: String = (D map (kv => kv._1 + " -> " + kv._2._3.mkString("(", " ", ")"))).mkString(", ")
-      val r_r: String = (D map (kv => kv._1 + " -> " + kv._2._4.mkString("(", " ", ")"))).mkString(", ")
-      "W_w: " + w_w + "\n   W_r: " + w_r + "\n   R_w: " + r_w + "\n   R_r: " + r_r
+      val w_w: String = (D map (kv => kv._1 + " -> " + kv._2._1.mkString("(", " ", ")"))).mkString("," + newline + "        ")
+      val w_r: String = (D map (kv => kv._1 + " -> " + kv._2._2.mkString("(", " ", ")"))).mkString("," + newline + "        ")
+      val r_w: String = (D map (kv => kv._1 + " -> " + kv._2._3.mkString("(", " ", ")"))).mkString("," + newline + "        ")
+      val r_r: String = (D map (kv => kv._1 + " -> " + kv._2._4.mkString("(", " ", ")"))).mkString("," + newline + "        ")
+      "W_w: " + w_w + newline + "   W_r: " + w_r + newline + "   R_w: " + r_w + newline + "   R_r: " + r_r
     }
   }
 
   implicit class PToString(P: List[Expression]) {
-    def PStr: String = P.mkString(" && ")
+    def PStr: String = P.mkString(" &&" + newline + "   ")
   }
 
   implicit class GammaToString(gamma: Map[Id, Security]) {

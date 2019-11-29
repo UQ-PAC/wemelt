@@ -10,7 +10,7 @@ object SMT {
 
   def prove(cond: Expression, given: List[Expression], debug: Boolean) = {
     if (debug)
-      println("smt checking !" + cond + " given " + given.PStr)
+      println("smt checking !(" + cond + ") given " + given.PStr)
     solver.push()
     val res = try {
       for (p <- given) {

@@ -24,7 +24,7 @@ trait Expression extends beaver.Symbol {
 
 }
 
-case class Lit(arg: Any) extends Expression {
+case class Lit(arg: Int) extends Expression {
   override def toString = arg.toString
   override def variables: Set[Id] = Set()
   override def arrays = Set()
