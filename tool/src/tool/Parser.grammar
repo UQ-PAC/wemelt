@@ -28,6 +28,7 @@
 %terminals ASG;
 %terminals COMMA, SEMICOLON;
 
+%terminals CAS;
 %terminals FENCE;
 %terminals INVARIANT, GAMMA, P_0, GAMMA_0, STABLE;
 %terminals LPRED, MODE;
@@ -56,6 +57,8 @@
 %typeof REG_ID  = "String";
 
 %typeof NUM     = "Integer";
+
+%typeof id_reg_id = "Id";
 
 %typeof expr    = "Expression";
 
@@ -93,6 +96,10 @@ local2
 locals  = local *;
 locals2 = local2 *;
 
+id_reg_id = ID.n {: return new Id(n); :}
+          | REG_ID.n {: return new Id(n); :}
+          ;
+
 definition
     =     VAR REG_ID.n COLON lpred.l                 {: return new VarDef(n, l); :}
           | VAR REG_ID.n                        {: return new VarDef(n); :}
@@ -111,10 +118,9 @@ defs = definition *;
 local1
     = LBRACE locals2.ss RBRACE          {: return new Block(ss); :}
     //| expr.a   SEMICOLON                {: return new Atomic(a); :}
-    | ID.n ASG    expr.b SEMICOLON              {: return new Assignment(n, b); :}
-    | REG_ID.n ASG    expr.b   SEMICOLON           {: return new Assignment(n, b); :}
-    | ID.n LBRACK expr.i RBRACK ASG    expr.b SEMICOLON        {: return new ArrayAssignment(n, i, b); :}
-    | REG_ID.n LBRACK expr.i RBRACK ASG    expr.b   SEMICOLON      {: return new ArrayAssignment(n, i, b); :}
+    | id_reg_id.n ASG    expr.b SEMICOLON              {: return new Assignment(n, b); :}
+    | id_reg_id.n ASG CAS LPAREN id_reg_id.x COMMA expr.y COMMA expr.z RPAREN SEMICOLON {: return new CompareAndSwap(n, x, y, z); :}
+    | id_reg_id.n LBRACK expr.i RBRACK ASG    expr.b SEMICOLON        {: return new ArrayAssignment(n, i, b); :}
     //| RETURN   SEMICOLON                {: return Return.none(); :}
     //| RETURN expr.a SEMICOLON           {: return new Return(a); :}
     //| BREAK    SEMICOLON                {: return Break.self();  :}
@@ -131,11 +137,9 @@ local1
 
 expr
     = PREFIX | POSTFIX /* unused */
-    | ID.n                              {: return new Id(n);  :}
-    | REG_ID.n                          {: return new Id(n);  :}
+    | id_reg_id.n                              {: return n;  :}
+    | id_reg_id.n LBRACK expr.i RBRACK       {: return new Access(n, i); :}
     | NUM.n                             {: return new Lit(n); :}
-    | ID.n LBRACK expr.i RBRACK       {: return new Access(n, i); :}
-    | REG_ID.n LBRACK expr.i RBRACK       {: return new Access(n, i); :}
     | PLUS  expr.a @ PREFIX             {: return new PreOp("+", a);    :}
     | MINUS expr.a @ PREFIX             {: return new PreOp("-", a);    :}
     | BANG  expr.a @ PREFIX             {: return new PreOp("!", a);    :}
@@ -184,10 +188,9 @@ gamma_mappings
     = gamma_mapping | gamma_mappings COMMA gamma_mapping;
 
 gamma_mapping
-    = ID.n MAPSTO security.s {: return new GammaMapping(n, s); :}
-    | REG_ID.n MAPSTO security.s {: return new GammaMapping(n, s); :}
-    | ID.n LBRACK NUM.i RBRACK MAPSTO security.s {: return new GammaMapping(n + "[" + i + "]", s); :}
-    | REG_ID.n LBRACK NUM.i RBRACK MAPSTO security.s {: return new GammaMapping(n + "[" + i + "]", s); :}
+    = id_reg_id.n MAPSTO security.s {: return new GammaMapping(n, s); :}
+    | id_reg_id.n LBRACK NUM.i RBRACK MAPSTO security.s {: return new GammaMapping(n, i, s); :}
+    | id_reg_id.n LBRACK STAR RBRACK MAPSTO security.s {: return new GammaMapping(n, s); :}
     ;
 
 security

@@ -150,6 +150,8 @@ object SMT {
     case BinOp(">>>", arg1, arg2) => ctx.mkBVASHR(bitwise(arg1), bitwise(arg2))
     case BinOp("<<", arg1, arg2) => ctx.mkBVSHL(bitwise(arg1), bitwise(arg2))
 
+    case Question(test, arg1, arg2) => ctx.mkITE(formula(test), translate(arg1), translate(arg2))
+
     case VarAccess(name, index) => ctx.mkSelect(ctx.mkArrayConst(name.toString, ctx.getIntSort, ctx.getIntSort), translate(index))
 
 

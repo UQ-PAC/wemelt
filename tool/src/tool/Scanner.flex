@@ -88,6 +88,8 @@ WS = {NL} | [ \t\f]
 ","         { return newToken(Terminals.COMMA);    }
 ";"         { return newToken(Terminals.SEMICOLON);}
 
+"CAS"       { return newToken(Terminals.CAS);     }
+
 //"break"     { return newToken(Terminals.BREAK);    }
 //"return"    { return newToken(Terminals.RETURN);   }
 //"continue"  { return newToken(Terminals.CONTINUE); }

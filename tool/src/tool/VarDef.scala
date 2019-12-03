@@ -31,7 +31,17 @@ case object Low extends Security {
 }
 
 case class GammaMapping(variable: Id, security: Security) extends beaver.Symbol {
+  def this(variable: Id, index: Int, security: Security) = this(Id(variable.name + "[" + index + "]"), security)
   def this(variable: String, security: Security) = this(Id(variable), security)
+
+  def toPair(arrays: Map[Id, IdArray] ): Seq[(Id, Security)] = this match {
+    // array wildcard case
+    case g if arrays.keySet.contains(g.variable) =>
+      for (i <- arrays(g.variable).array)
+        yield i -> g.security
+    case g =>
+      Seq(g.variable -> g.security)
+  }
 }
 
 sealed trait Definition extends beaver.Symbol
@@ -63,4 +73,15 @@ object ArrayDef {
       yield lpred
   }
 }
+
+case class IdArray(name: Id, array: IndexedSeq[Id])
+
+object IdArray {
+  def apply(name: Id, size: Int): IdArray = {
+    val array = for (i <- 0 until size)
+      yield Id(name.toString.arrayIndex(i))
+    this(name, array)
+  }
+}
+
 

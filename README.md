@@ -45,8 +45,11 @@ _Mode: NoW
 
 _var r_secret:
 _L: FALSE
+
+_var r12:
+_L: TRUE
 ```
-Variables must be defined at the start of the file, before any statements. Variables can have the mode `NoW` (No Write), `NoRW` (No Read/Write) or `RW` (Read/Write). Variables with `r_` at the start of their names are Local, and automatically have the mode `NoRW`. All other variables are Global. If the L predicate is not defined for a variable, it will be `TRUE` by default. 
+Variables must be defined at the start of the file, before any statements. Variables can have the mode `NoW` (No Write), `NoRW` (No Read/Write) or `RW` (Read/Write). Variables with `r_`  at the start of their names or of the form `r#` where `#` is a sequence of digits are Local, and automatically have the mode `NoRW`. All other variables are Global. If the L predicate is not defined for a variable, it will be `TRUE` by default. 
 
 ### P_0 and Gamma_0 definitions
 ```

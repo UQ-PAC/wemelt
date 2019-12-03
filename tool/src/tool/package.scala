@@ -20,11 +20,20 @@ package object tool {
     case class AssignCError(line: Int, lhs: Id, rhs: Expression, message: String)  extends Exception {
       override def toString = "line " + line + ": ASSIGNC rule not valid for " + lhs + " = " + rhs + " as " + message
     }
+    case class CASError(line: Int, lhs: Id, x: Id, r1: Expression, r2: Expression, message: String)  extends Exception {
+      override def toString = "line " + line + ": CAS rule not valid for " + lhs + " = " + "CAS(" + x + ", " + r1 + ", " + r2 + ") as " + message
+    }
+    case class CASCError(line: Int, lhs: Id, x: Id, r1: Expression, r2: Expression, message: String)  extends Exception {
+      override def toString = "line " + line + ": CASC rule not valid for " + lhs + " = " + "CAS(" + x + ", " + r1 + ", " + r2 + ") as " + message
+    }
     case class IfError(line: Int, test: Expression, message: String) extends Exception {
       override def toString = "line " + line + ": IF rule not valid for if(" + test + ") {...} as " + message
     }
-    case class NonblockingError(line: Int, lhs: Id, rhs: Expression, message: String) extends Exception {
-      override def toString = "line " + line + ": NONBLOCKING rule not valid for " + lhs + " = " + rhs + " as " + message
+    case class NonblockingError(line: Int, statement: Statement, message: String) extends Exception {
+      override def toString = "line " + line + ": NONBLOCKING rule not valid for " + statement + " as " + message
+    }
+    case class ArrayError(a: Id, index: Expression, message: String) extends Exception {
+      override def toString = "ARRAY error with " + a + "[" + index + "] as " + message
     }
 
   }
@@ -71,6 +80,7 @@ package object tool {
 
   val newline ="""
       |""".stripMargin
+
   implicit class DToString(D: Map[Id, (Set[Id], Set[Id], Set[Id], Set[Id])]) {
     def DStr: String = {
       val w_w: String = (D map (kv => kv._1 + " -> " + kv._2._1.mkString("(", " ", ")"))).mkString("," + newline + "        ")
@@ -88,5 +98,4 @@ package object tool {
   implicit class GammaToString(gamma: Map[Id, Security]) {
     def gammaStr = gamma.mkString(", ")
   }
-
 }

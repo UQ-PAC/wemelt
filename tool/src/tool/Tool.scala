@@ -50,7 +50,7 @@ object Tool {
             case e: Z3Error =>
               println("Z3 Failed: " + e)
               printTime(start)
-            case e @ (_: WhileError | _: IfError | _: AssignCError | _: AssignError | _: NonblockingError) =>
+            case e @ (_: WhileError | _: IfError | _: AssignCError | _: AssignError | _: NonblockingError | _: CASCError | _: CASError | _: ArrayError) =>
               println(e)
               printTime(start)
           }

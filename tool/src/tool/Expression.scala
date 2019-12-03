@@ -54,7 +54,7 @@ case class Access(name: Id, index: Expression) extends Expression {
 case class VarAccess(name: Var, index: Expression) extends Expression {
   def variables: Set[Id] = name.variables ++ index.variables
   def subst(su: Subst) = VarAccess(name, index.subst(su))
-  override def toString = name + "[" + index + "]"
+  override def toString = "(VAR)" + name + "[" + index + "]"
   override def arrays = Set()
 }
 
@@ -91,17 +91,6 @@ object Var {
   }
 }
 
-case class IdArray(name: Id, array: IndexedSeq[Id])
-
-object IdArray {
-  def apply(name: Id, size: Int): IdArray = {
-    val array = for (i <- 0 until size)
-      yield Id(name.toString.arrayIndex(i))
-    this(name, array)
-  }
-}
-
-
 // switching logical variable for CNF format
 case class Switch(index: Int) extends Expression {
   def variables: Set[Id] = Set()
@@ -137,6 +126,13 @@ case class BinOp(op: String, arg1: Expression, arg2: Expression) extends Express
   override def variables: Set[Id] = arg1.variables ++ arg2.variables
   def subst(su: Subst) = BinOp(op, arg1.subst(su), arg2.subst(su))
   override def arrays = arg1.arrays ++ arg2.arrays
+}
+
+case class Question(test: Expression, left: Expression, right: Expression) extends Expression {
+  override def toString = "(" + test + " ? " + left + " : " + right + ")"
+  override def variables: Set[Id] = test.variables ++ left.variables ++ right.variables
+  def subst(su: Subst) = Question(test.subst(su), left.subst(su), right.subst(su))
+  override def arrays = test.arrays ++ left.arrays ++ right.arrays
 }
 
 object Const {

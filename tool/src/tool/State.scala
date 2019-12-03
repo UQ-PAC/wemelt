@@ -43,7 +43,6 @@ case class State(
 
   // update P with strongest post-condition after assignment
   def assign(id: Id, arg: Expression): State = {
-
     val v = id.toVar
     // create mapping from variable to fresh variable
     val toSubst: Subst = Map(v -> Var.fresh(id.name))
@@ -70,7 +69,6 @@ case class State(
 
   // update P with strongest post-condition after array assignment
   def arrayAssign(a: Id, index: Expression, arg: Expression): State = {
-
     val v = a.toVar
     // create mapping from variable to fresh variable
     val toSubst: Subst = Map(v -> Var.fresh(a.name))
@@ -203,8 +201,9 @@ case class State(
 
   def updateDAssign(x: Id, e: Expression) : State = {
     val varE = e.variables -- arrays.keySet // var(e)
+    val canForward = varE.intersect(globals).isEmpty
     val laterW: Set[Id] = Set(x) ++ varE
-    val laterR: Set[Id] = if (varE.intersect(globals).nonEmpty) {
+    val laterR: Set[Id] = if (!canForward) {
       Set(x) ++ varE.intersect(globals)
     } else {
       Set()
@@ -217,13 +216,58 @@ case class State(
     }
     val DPrime: Map[Id, (Set[Id], Set[Id], Set[Id], Set[Id])] = updateD(laterW, laterR)
 
-    copy(D = DPrime, read = Set(), written = Set())
+    // updated forwarding
+    val DPrimePrime = if (canForward) {
+      val w_r = {for (v <- read)
+        yield W_r(v)
+      }.flatten -- written
+      val r_r = {for (v <- read)
+        yield R_r(v)
+        }.flatten -- read
+      DPrime + (x -> (DPrime(x)._1, w_r, DPrime(x)._3, r_r))
+    } else {
+      DPrime
+    }
+
+    copy(D = DPrimePrime, read = Set(), written = Set())
   }
 
   def updateDArrayAssign(x: Id, e: Expression) : State = {
     val varE = e.variables -- arrays.keySet // var(e)
     val laterW: Set[Id] = varE
     val laterR: Set[Id] = varE.intersect(globals)
+    if (debug) {
+      println("laterW: " + laterW)
+      println("laterR: " + laterR)
+      println("rd: " + read)
+      println("wr: " + written)
+    }
+    val DPrime: Map[Id, (Set[Id], Set[Id], Set[Id], Set[Id])] = updateD(laterW, laterR)
+
+    // updated forwarding
+    val DPrimePrime = if (varE.intersect(globals).isEmpty) {
+      val toUpdate = for (i <- arrays(x).array) yield {
+        val w_r = {for (v <- read)
+          yield W_r(v)
+          }.flatten -- written
+        val r_r = {for (v <- read)
+          yield R_r(v)
+          }.flatten -- read
+        i -> (DPrime(i)._1, w_r, DPrime(i)._3, r_r)
+      }
+      DPrime ++ toUpdate
+    } else {
+      DPrime
+    }
+
+    copy(D = DPrimePrime, read = Set(), written = Set())
+  }
+
+  def updateDCAS(r3: Id, x: Id, r1: Expression, r2: Expression) : State = {
+    val varR1 = r1.variables -- arrays.keySet
+    val varR2 = r2.variables -- arrays.keySet
+    val laterW: Set[Id] = Set(x, r3) ++ varR1 ++ varR2
+    val laterR: Set[Id] = Set(r3, x) ++ ((varR1 ++ varR2) & globals)
     if (debug) {
       println("laterW: " + laterW)
       println("laterR: " + laterR)
@@ -274,8 +318,8 @@ case class State(
 
     // index >= 0 && index < array size
     if (!SMT.prove(BinOp("&&", BinOp(">=", index, Lit(0)), BinOp("<", index, Lit(array.array.size))), p, debug))
-      throw error.InvalidProgram("out of bounds array access") // fix
-    if (stable.contains(array.array(0))) { // lazy and should fix
+      throw error.ArrayError(a, index, "array access not provably in bounds")
+    if (stable.contains(array.array(0))) { // based on assumption that all array indices share a mode
       val it = array.array.indices.toIterator
       var sec: Security = Low
       while (it.hasNext && sec == Low) {
@@ -378,6 +422,20 @@ case class State(
     copy (gamma = gammaPrime)
   }
 
+  def updateGammaCAS(x: Id, t: Security): State = {
+    if (gamma.contains(x)) {
+      val toUpdate = if (gamma(x) == High) {
+        x -> High
+      } else {
+        x -> t
+      }
+      val gammaPrime = gamma + toUpdate
+      copy(gamma = gammaPrime)
+    } else {
+      this
+    }
+  }
+
   // update gamma with new value t mapped to x, regardless if x was in domain of gamma previously
   def updateGammaDomain(x: Id, t: Security): State = {
     val gammaPrime = gamma + (x -> t)
@@ -389,8 +447,9 @@ case class State(
     copy(gamma = gammaPrime)
   }
 
+  // local variables should never be restricted
   def restrictP(restricted: Set[Id]): List[Expression] = {
-    State.restrictP(P, restricted)
+    State.restrictP(P, restricted ++ locals)
   }
 
   def updatePIfLeft(b: Expression): State = {
@@ -569,20 +628,19 @@ object State {
       case a if arrays.keySet.contains(a) && stable.contains(a) =>
         arrays(a).array
     }}.flatten
-    //val gammaDom: Set[Id] = for (i <- ids if !controls.contains(i) && stable.contains(i) && !arrays.keySet.contains(i)) yield i
 
     // init gamma
     val gamma: Map[Id, Security] = gamma_0 match {
       // security high by default if user hasn't provided
       case None => {
-        // dom gamma = stable variables without control variables
         for (i <- gammaDom) yield {
           i -> High
         }
         }.toMap
       // user provided
-      case Some(gs) =>
-        (gs map {g => g.variable -> g.security}).toMap
+      case Some(gs) => {
+        gs flatMap {g => g.toPair(arrays)}
+        }.toMap
     }
 
     // check gamma domain
@@ -603,9 +661,9 @@ object State {
       case Some(p) =>
         // check no unstable variables in user-defined P_0
         val PVars = (p flatMap {x => x.variables}).toSet
-        if (debug)
+        if (debug) {
           println("variables in P_0: " + PVars.mkString(" "))
-        println(PVars)
+        }
         val unstableP = for (i <- PVars if !stable.contains(i))
           yield i
         if (unstableP.nonEmpty) {
