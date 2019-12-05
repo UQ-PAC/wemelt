@@ -39,7 +39,7 @@ _var r_res:
 _L: TRUE
 
 _P_0: L == 2
-_Gamma_0: r_res -> LOW, r_h -> LOW, sec[*] -> LOW, r_index -> LOW, L -> LOW, steal_result -> LOW, r_t -> LOW, r_task -> LOW
+_Gamma_0: r_res -> LOW, r_h -> LOW, r_index -> LOW, L -> LOW, steal_result -> LOW, r_t -> LOW, r_task -> LOW
 
 r_h = head;
 fence;

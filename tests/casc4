@@ -1,0 +1,22 @@
+_var c:
+_L: TRUE
+_Mode: NoRW
+
+_var x:
+_L: c == 0
+_Mode: RW
+
+_var low:
+_L: TRUE
+_Mode: RW
+
+_var cas_result:
+_L: TRUE
+_Mode: NoRW
+
+_P_0: c == 0
+
+c = 0;
+fence;
+low = x;
+cas_result = CAS(c, 0, 1); // should fail with rising variable x - CASC rule

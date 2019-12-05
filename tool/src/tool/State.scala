@@ -25,6 +25,7 @@ case class State(
   read: Set[Id],
   written: Set[Id],
 
+  arrayIndices: Set[Id],
   arrays: Map[Id, IdArray],
 
   nonblocking: Boolean, // whether the nonblocking rule is currently being applied
@@ -32,6 +33,11 @@ case class State(
 
   toLog: Boolean,
   debug: Boolean) {
+
+  def W_w(v: Id): Set[Id] = D(v)._1
+  def W_r(v: Id): Set[Id] = D(v)._2
+  def R_w(v: Id): Set[Id] = D(v)._3
+  def R_r(v: Id): Set[Id] = D(v)._4
 
   def log = {
     if (toLog) {
@@ -61,6 +67,34 @@ case class State(
 
     if (debug) {
       println("assigning " + arg + " to " + id + ":")
+      println("P: " + P.PStr)
+      println("P': " + PPrimeRestrict.PStr)
+    }
+    copy(P = PPrimeRestrict)
+  }
+
+  def assignCAS(lhs: Id, x: Id, r1: Expression, r2: Expression): State = {
+    val _lhs = lhs.toVar
+    val _x = x.toVar
+
+    // create mapping from variables to fresh variables
+    val toSubst: Subst = Map(_lhs -> Var.fresh(_lhs.name), _x -> Var.fresh(_x.name))
+
+    // substitute variables in P for fresh variables
+    val PReplace = P map (p => p.subst(toSubst))
+
+    // substitute variables in expressions for fresh variables
+    val _r1 = r1.subst(toSubst)
+    val _r2 = r2.subst(toSubst)
+
+    // add assignments to P
+    val PPrime = BinOp("==", _lhs, Question(BinOp("==", _x, _r1), Lit(1), Lit(0))) :: BinOp("==", _x, Question(BinOp("==", _x, _r1), _r2, _x)) :: PReplace
+
+    // restrict PPrime to stable variables
+    val PPrimeRestrict = State.restrictP(PPrime, stable)
+
+    if (debug) {
+      println("updating P for " + lhs + " = CAS(" + x + ", " + r1 + ", " + r2 + ")")
       println("P: " + P.PStr)
       println("P': " + PPrimeRestrict.PStr)
     }
@@ -100,10 +134,9 @@ case class State(
     copy(P = PPrimeRestrict)
   }
 
-  def W_w(v: Id): Set[Id] = D(v)._1
-  def W_r(v: Id): Set[Id] = D(v)._2
-  def R_w(v: Id): Set[Id] = D(v)._3
-  def R_r(v: Id): Set[Id] = D(v)._4
+  def addToP(expr: Expression): State = {
+    copy(P = expr :: P)
+  }
 
   def resetReadWrite(): State = {
     copy(read = Set(), written = Set())
@@ -200,7 +233,7 @@ case class State(
   }.toMap
 
   def updateDAssign(x: Id, e: Expression) : State = {
-    val varE = e.variables -- arrays.keySet // var(e)
+    val varE = e.variables // var(e)
     val canForward = varE.intersect(globals).isEmpty
     val laterW: Set[Id] = Set(x) ++ varE
     val laterR: Set[Id] = if (!canForward) {
@@ -233,7 +266,7 @@ case class State(
   }
 
   def updateDArrayAssign(x: Id, e: Expression) : State = {
-    val varE = e.variables -- arrays.keySet // var(e)
+    val varE = e.variables // var(e)
     val laterW: Set[Id] = varE
     val laterR: Set[Id] = varE.intersect(globals)
     if (debug) {
@@ -264,8 +297,8 @@ case class State(
   }
 
   def updateDCAS(r3: Id, x: Id, r1: Expression, r2: Expression) : State = {
-    val varR1 = r1.variables -- arrays.keySet
-    val varR2 = r2.variables -- arrays.keySet
+    val varR1 = r1.variables
+    val varR2 = r2.variables
     val laterW: Set[Id] = Set(x, r3) ++ varR1 ++ varR2
     val laterR: Set[Id] = Set(r3, x) ++ ((varR1 ++ varR2) & globals)
     if (debug) {
@@ -280,7 +313,7 @@ case class State(
   }
 
   def updateDGuard(b: Expression) : State = {
-    val varB = b.variables -- arrays.keySet // var(b)
+    val varB = b.variables // var(b)
     val laterW: Set[Id] = globals ++ varB
     val laterR: Set[Id] = globals & varB
 
@@ -314,27 +347,56 @@ case class State(
 
   // security for array access
   def security(a: Id, index: Expression, p: List[Expression]): Security = {
+    if (debug)
+      println("checking security for " + a + "[" + index + "]")
     val array = arrays(a)
 
-    // index >= 0 && index < array size
-    if (!SMT.prove(BinOp("&&", BinOp(">=", index, Lit(0)), BinOp("<", index, Lit(array.array.size))), p, debug))
-      throw error.ArrayError(a, index, "array access not provably in bounds")
-    if (stable.contains(array.array(0))) { // based on assumption that all array indices share a mode
-      val it = array.array.indices.toIterator
-      var sec: Security = Low
-      while (it.hasNext && sec == Low) {
-        val i = it.next
-        if (SMT.proveSat(BinOp("==", index, Lit(i)), p, debug)) {
-          sec = gamma(array.array(i))
+    index match {
+      // index is an int
+      case Lit(n) =>
+        val arrayId = array.array(n)
+        if (gamma.contains(arrayId)) {
+          gamma(arrayId)
+        } else if (SMT.prove(PreOp("!", L(arrayId)), p, debug)) {
+          Low
+        } else {
+          High
         }
-      }
-      sec
-    } else {
-      if (SMT.prove(arrayAccessCheck(array, index), p, debug)) {
-        Low
-      } else {
-        High
-      }
+      // index must be evaluated for possible indices
+      case _ =>
+        // check bounds
+        // index >= 0 && index < array size
+        if (!SMT.prove(BinOp("&&", BinOp(">=", index, Lit(0)), BinOp("<", index, Lit(array.array.size))), p, debug)) {
+          if (debug) {
+            println("array access not provably inbounds so High security: " + a + "[" + index + "]")
+          }
+          return High
+        }
+
+        // probably this could be more efficient/neater somehow
+        if (stable.contains(array.array(0))) { // based on assumption that all array indices share a mode
+          val it = array.array.indices.toIterator
+          var sec: Security = Low
+          while (it.hasNext && sec == Low) {
+            val i = it.next
+            if (gamma.contains(array.array(i))) {
+              if (SMT.proveSat(BinOp("==", index, Lit(i)), p, debug)) {
+                sec = gamma(array.array(i))
+              } else if (SMT.prove(BinOp("&&", BinOp("==", index, Lit(i)), L(array.array(i))), p, debug)) {
+                sec = Low
+              } else {
+                sec = High
+              }
+            }
+          }
+          sec
+        } else {
+          if (SMT.prove(arrayAccessCheck(array, index), p, debug)) {
+            Low
+          } else {
+            High
+          }
+        }
     }
   }
 
@@ -377,7 +439,7 @@ case class State(
     if (debug)
       println("checking security for " + e)
     var sec: Security = Low
-    val it = (e.variables -- arrays.keySet).toIterator
+    val it = e.variables.toIterator
     // if x security is high, return, otherwise keep checking
     while (it.hasNext && sec == Low) {
       val x: Id = it.next()
@@ -561,9 +623,13 @@ object State {
     var controlledBy: Map[Id, Set[Id]] = Map()
 
     val arrays: Map[Id, IdArray] = (definitions collect {case a: ArrayDef => a.name -> IdArray(a.name, a.size)}).toMap
+    val arrayIndices: Set[Id] = definitions collect {case a: ArrayDef => a.name}
     val variables: Set[VarDef] = definitions flatMap {
       case a: ArrayDef => a.toVarDefs
       case v: VarDef => Seq(v)
+    }
+    if (debug) {
+      println(variables)
     }
 
     val ids: Set[Id] = for (v <- variables)
@@ -584,7 +650,19 @@ object State {
           globals += v.name
           readWrite += v.name
       }
-      val controlling: Set[Id] = v.pred.variables
+
+      val controllingArrays: Set[Id] = {
+        for (i <- v.pred.arrays) yield {
+          i.index match {
+            case Lit(n) =>
+              Set(arrays(i.name).array(n))
+            case _ =>
+              arrays(i.name).array.toSet
+          }
+        }
+        }.flatten
+      val controlling: Set[Id] = v.pred.variables ++ controllingArrays
+
       if (controlling.nonEmpty) {
         controlled += v.name
       }
@@ -611,6 +689,9 @@ object State {
     val stable = noReadWrite ++ noWrite
 
     if (debug) {
+      println("variables: " + ids)
+      println("array indices: " + arrayIndices)
+      println("arrays: " + arrays.keySet)
       println("globals: " + globals)
       println("locals: " + locals)
       println("no read write: " + noReadWrite)
@@ -622,12 +703,7 @@ object State {
       println("controlled by: " + controlledBy)
     }
 
-    val gammaDom: Set[Id] = {ids collect {
-      case v if !controls.contains(v) && stable.contains(v) && !arrays.keySet.contains(v) =>
-        Seq(v)
-      case a if arrays.keySet.contains(a) && stable.contains(a) =>
-        arrays(a).array
-    }}.flatten
+    val gammaDom: Set[Id] = ids collect {case v if !controls.contains(v) && stable.contains(v) => v}
 
     // init gamma
     val gamma: Map[Id, Security] = gamma_0 match {
@@ -649,8 +725,11 @@ object State {
 
     // for replacing Ids in predicates with Vars
     val idToVar: Subst = {
-      for (i <- ids)
-        yield i -> i.toVar
+      for (v <- ids)
+        yield v -> v.toVar
+      }.toMap ++ {
+      for (v <- arrays.keySet)
+        yield v -> v.toVar
       }.toMap
 
     // initialise P - true by default
@@ -660,7 +739,15 @@ object State {
 
       case Some(p) =>
         // check no unstable variables in user-defined P_0
-        val PVars = (p flatMap {x => x.variables}).toSet
+        // P_0 only contains stable variables - tested
+        val PArrayAccess: Set[Id] = {p flatMap {x: Expression => x.arrays flatMap {y: Access => y.index match {
+          case Lit(n) =>
+            Set(arrays(y.name).array(n))
+          case _ =>
+            arrays(y.name).array.toSet
+        }}}}.toSet
+
+        val PVars: Set[Id] = (p flatMap {x => x.variables}).toSet ++ PArrayAccess
         if (debug) {
           println("variables in P_0: " + PVars.mkString(" "))
         }
@@ -669,6 +756,7 @@ object State {
         if (unstableP.nonEmpty) {
           throw error.InvalidProgram("unstable variables in P_0: " + unstableP.mkString(", "))
         }
+
         p map {i => i.subst(idToVar)}
     }
 
@@ -708,6 +796,7 @@ object State {
       written = Set(),
       nonblocking = false,
       nonblockingDepth = 0,
+      arrayIndices = arrayIndices,
       arrays = arrays,
       toLog = toLog,
       debug = debug

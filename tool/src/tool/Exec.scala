@@ -89,7 +89,7 @@ object Exec {
       if (state0.toLog)
         println("line " + statement.line + ": " + statement)
       val state1 = if (state0.controls.contains(x)) {
-        compareAndSwapRule(r3, x, r1, r2, state0, statement.line)
+        compareAndSwapCRule(r3, x, r1, r2, state0, statement.line)
       } else {
         compareAndSwapRule(r3, x, r1, r2, state0, statement.line)
       }
@@ -132,7 +132,10 @@ object Exec {
       val idToVar: Subst = {
         for (v <- state0.variables)
           yield v -> v.toVar
-        }.toMap
+        }.toMap ++ {
+        for (v <- state0.arrays.keySet)
+          yield v -> v.toVar
+      }.toMap
 
       val PPrime = invariants map {i => i.subst(idToVar)}
 
@@ -153,6 +156,9 @@ object Exec {
       // replace Ids in invariant with vars
       val idToVar: Subst = {
         for (v <- state0.variables)
+          yield v -> v.toVar
+        }.toMap ++ {
+        for (v <- state0.arrays.keySet)
           yield v -> v.toVar
         }.toMap
 
@@ -183,6 +189,9 @@ object Exec {
       val idToVar: Subst = {
         for (v <- state0.variables)
           yield v -> v.toVar
+        }.toMap ++ {
+        for (v <- state0.arrays.keySet)
+          yield v -> v.toVar
         }.toMap
 
       val PPrime = invariants map {i => i.subst(idToVar)}
@@ -208,7 +217,10 @@ object Exec {
         println("line " + statement.line + ": While(" + test + ") {")
       // replace Ids in invariant with vars
       val idToVar: Subst = {
-        for (v <- state1.variables)
+        for (v <- state0.variables)
+          yield v -> v.toVar
+        }.toMap ++ {
+        for (v <- state0.arrays.keySet)
           yield v -> v.toVar
         }.toMap
 
@@ -330,6 +342,14 @@ object Exec {
     case DoWhile(test, invariants, gamma, _, body) =>
       val st1 = DFixedPoint(body, st0)
       st1.copy(D = DFixedPoint(test, body, st0))
+
+    case CompareAndSwap(r3, x, r1, r2) =>
+      val st1 = DFixedPoint(r1, st0)
+      val st2 = DFixedPoint(r2, st1)
+      val st3 = st2.updateRead(x)
+      val st4 = st3.updateWritten(x)
+      val st5 = st4.updateWritten(r3)
+      st5.updateDCAS(r3, x, r1, r2)
 
     case _ =>
       throw error.InvalidProgram("unimplemented statement at line " + statement.line + ": " + statement)
@@ -518,7 +538,15 @@ object Exec {
       println("WHILE applying")
 
     // P' only contains stable variables - tested
-    val PPrimeVar: Set[Id] = (PPrime flatMap {x => x.variables}).toSet
+    val PPrimeArrayAccess: Set[Id] = {PPrime flatMap {x: Expression => x.arrays flatMap {y: Access => y.index match {
+      case Lit(n) =>
+        Set(state0.arrays(y.name).array(n))
+      case _ =>
+        state0.arrays(y.name).array.toSet
+    }}}}.toSet
+
+    val PPrimeVar: Set[Id] = (PPrime flatMap {x => x.variables}).toSet ++ PPrimeArrayAccess
+
     val unstablePPrime = for (i <- PPrimeVar if !state0.stable.contains(i))
       yield i
     if (unstablePPrime.nonEmpty) {
@@ -681,84 +709,84 @@ object Exec {
     st5.updateDArrayAssign(a, _rhs)
   }
 
-  def arrayAssignCRule(a: Id, index: Expression, rhs: Expression, st0: State, line: Int): State = {
-    val array = st0.arrays(a)
-    // ARRAY ASSIGNC rule
-    if (st0.toLog)
-      println("ARRAY ASSIGNC applying")
-    val (_rhs, st1) = eval(rhs, st0) // computes rd
-    val (_index, st2) = eval(index, st1)
-    val st3 = st2.updateWritten(st2.arrays(a)) // computes wr
-    // at this point the rd and wr sets are complete for the current line
+    def arrayAssignCRule(a: Id, index: Expression, rhs: Expression, st0: State, line: Int): State = {
+      val array = st0.arrays(a)
+      // ARRAY ASSIGNC rule
+      if (st0.toLog)
+        println("ARRAY ASSIGNC applying")
+      val (_rhs, st1) = eval(rhs, st0) // computes rd
+      val (_index, st2) = eval(index, st1)
+      val st3 = st2.updateWritten(st2.arrays(a)) // computes wr
+      // at this point the rd and wr sets are complete for the current line
 
-    // calculate P_x:=e
-    val PRestrict = st3.restrictP(st3.knownW)
-    if (st0.debug) {
-      println("knownW: " + st3.knownW)
-      println("PRestrict: " + PRestrict.PStr)
-    }
-    // prove array access is inbounds
-    // index >= 0 && index < array size
-    if (!SMT.prove(BinOp("&&", BinOp(">=", _index, Lit(0)), BinOp("<", _index, Lit(array.array.size))), PRestrict, st3.debug))
-      throw error.ArrayError(a, index, "array access not provably in bounds")
+      // calculate P_x:=e
+      val PRestrict = st3.restrictP(st3.knownW)
+      if (st0.debug) {
+        println("knownW: " + st3.knownW)
+        println("PRestrict: " + PRestrict.PStr)
+      }
+      // prove array access is inbounds
+      // index >= 0 && index < array size
+      if (!SMT.prove(BinOp("&&", BinOp(">=", _index, Lit(0)), BinOp("<", _index, Lit(array.array.size))), PRestrict, st3.debug))
+        throw error.ArrayError(a, index, "array access not provably in bounds")
 
-    // possible indices that the index expression could evaluate to
-    val possibleIndices: Seq[Int] = index match {
-      case Lit(value) =>
-        Seq(value)
-      case _ =>
-        for (i <- array.array.indices if SMT.proveSat(BinOp("==", _index, Lit(i)), PRestrict, st3.debug))
-          yield i
-    }
+      // possible indices that the index expression could evaluate to
+      val possibleIndices: Seq[Int] = index match {
+        case Lit(value) =>
+          Seq(value)
+        case _ =>
+          for (i <- array.array.indices if SMT.proveSat(BinOp("==", _index, Lit(i)), PRestrict, st3.debug))
+            yield i
+      }
 
-    if (st0.debug)
-      println("possible indices: " + possibleIndices.mkString(" "))
+      if (st0.debug)
+        println("possible indices: " + possibleIndices.mkString(" "))
 
-    // check _rhs is LOW
-    val t = st3.security(_rhs, PRestrict)
-    if (t == High) {
-      throw error.AssignCError(line, a, rhs, "HIGH expression assigned to control variable")
-    }
+      // check _rhs is LOW
+      val t = st3.security(_rhs, PRestrict)
+      if (t == High) {
+        throw error.AssignCError(line, a, rhs, "HIGH expression assigned to control variable")
+      }
 
-    /*
+      // secure_update
+      val PPrime = st3.arrayAssign(a, index, _rhs) // calculate PPrime
+      val PPrimeRestrict = PPrime.restrictP(st3.knownW)
 
-    // secure_update
-    val PPrime = st2.assign(lhs, _rhs) // calculate PPrime
-    val PPrimeRestrict = PPrime.restrictP(st2.knownW)
+      val controlledBy: Set[Id] = {for (i <- possibleIndices) yield st3.controlledBy(array.array(i))}.flatten.toSet
 
-    val falling = for (i <- st2.controlledBy(lhs) if (!st2.lowP(i, PRestrict)) && !st2.highP(i, PPrimeRestrict))
-      yield i
+      val falling = for (i <- controlledBy if (!st3.lowP(i, PRestrict)) && !st3.highP(i, PPrimeRestrict))
+        yield i
 
-    if (st0.debug) {
-      println("falling: " + falling)
-      println("knownW: " + st2.knownW)
-    }
+      if (st0.debug) {
+        println("falling: " + falling)
+        println("knownW: " + st3.knownW)
+      }
 
-    // falling can only succeed if y is in gamma and maps to low
+      // falling can only succeed if y is in gamma and maps to low
+      val fallingFail = for (y <- falling -- st3.noReadWrite if !st3.knownW.contains(y) || st3.security(y, PRestrict) == High)
+        yield y
 
-    val fallingFail = for (y <- falling -- st2.noReadWrite if !st2.knownW.contains(y) || st2.security(y, PRestrict) == High)
-      yield y
+      if (fallingFail.nonEmpty) {
+        throw error.AssignCError(line, a, rhs, "secure update fails for falling variable/s: " + fallingFail.mkString(" "))
+      }
 
-    if (fallingFail.nonEmpty) {
-      throw error.AssignCError(line, lhs, rhs, "secure update fails for falling variable/s: " + fallingFail.mkString(" "))
-    }
+      val rising = for (i <- controlledBy if (!st3.highP(i, PRestrict)) && !st3.lowP(i, PPrimeRestrict))
+        yield i
 
-    val rising = for (i <- st2.controlledBy(lhs) if (!st2.highP(i, PRestrict)) && !st2.lowP(i, PPrimeRestrict))
-      yield i
+      if (st0.debug) {
+        println("rising: " + rising)
+      }
+      val risingFail = for (y <- rising if !st3.knownR.contains(y))
+        yield y
 
-    if (st0.debug) {
-      println("rising: " + rising)
-    }
-    val risingFail = for (y <- rising if !st2.knownR.contains(y))
-      yield y
+      if (risingFail.nonEmpty) {
+        throw error.AssignCError(line, a, rhs, "secure update fails for rising variable/s: " + risingFail.mkString(" "))
+      }
 
-    if (risingFail.nonEmpty) {
-      throw error.AssignCError(line, lhs, rhs, "secure update fails for rising variable/s: " + risingFail.mkString(" "))
-    }
-     */
+      val st4 = st3.arrayAssign(a, index, _rhs) // update P
+      st4.updateDArrayAssign(a, _rhs)
 
-    val st5 = st4.arrayAssign(a, index, _rhs) // update P
-    st5.updateDArrayAssign(a, _rhs)
+
   }
 
   def assignRule(lhs: Id, rhs: Expression, st0: State, line: Int): State = {
@@ -866,6 +894,10 @@ object Exec {
     val st5 = st4.updateWritten(lhs) // computes wr
     // at this point the rd and wr sets are complete for the current line
 
+    if (st5.controls.contains(lhs)) {
+      throw error.CASError(line, lhs, x, r1, r2, "LHS of CAS assignment is a control variable")
+    }
+
     val PRestrict = st5.restrictP(st5.knownW)
     if (st0.debug) {
       println("knownW: " + st5.knownW)
@@ -879,7 +911,11 @@ object Exec {
     }
 
     val PRestrictAssign = BinOp("==", x.toVar, _r1) :: PRestrict
+    if (st0.debug) {
+      println("PRestrictAssign: " + PRestrictAssign.PStr)
+    }
     val t2 = st5.security(_r2, PRestrictAssign)
+
 
     // if x's mode is not NoRW, ensure that e's security level is not higher than x's security level, given P_x:=e - tested
     if (!st5.noReadWrite.contains(x)) {
@@ -897,9 +933,8 @@ object Exec {
     val st7 = st6.updateGammaCAS(x, t2)
 
     // update P
-    val st8 = st7.assign(lhs, Question(BinOp("==", x.toVar, _r1), Lit(1), Lit(0)))
-    val st9 = st8.assign(x, Question(BinOp("==", x.toVar, _r1), _r2, x.toVar))
-    st9.updateDCAS(lhs, x, _r1, _r2)
+    val st8 = st7.assignCAS(lhs, x, _r1, _r2)
+    st8.updateDCAS(lhs, x, _r1, _r2)
   }
 
   def compareAndSwapCRule(lhs: Id, x: Id, r1: Expression, r2: Expression, st0: State, line: Int): State = {
@@ -913,25 +948,34 @@ object Exec {
     val st5 = st4.updateWritten(lhs) // computes wr
     // at this point the rd and wr sets are complete for the current line
 
+    if (st5.controls.contains(lhs)) {
+      throw error.CASCError(line, lhs, x, r1, r2, "LHS of CAS assignment is a control variable")
+    }
+
     val PRestrict = st5.restrictP(st5.knownW)
     if (st0.debug) {
       println("knownW: " + st5.knownW)
       println("PRestrict: " + PRestrict.PStr)
     }
     if (st5.security(_r1, PRestrict) == High) {
-      throw error.CASCError(line, lhs, x, r1, r2, "HIGH expression in second parameter of CAS")
+      throw error.CASCError(line, lhs, x, r1, r2, "HIGH expression in second parameter of CAS compared to control variable in first parameter")
     }
 
     val PRestrictAssign = BinOp("==", x.toVar, _r1) :: PRestrict
-    if (st5.security(_r2, PRestrictAssign) == High) {
-      throw error.CASCError(line, lhs, x, r1, r2, "HIGH expression in third parameter of CAS")
+    if (st0.debug) {
+      println("PRestrictAssign: " + PRestrictAssign.PStr)
+    }
+
+    // highP check is to check that x == r1 is possible, meaning that the x = r2 assignment is possible
+    if ((st5.security(_r2, PRestrictAssign) == High) && !st5.highP(x, PRestrictAssign)) {
+      throw error.CASCError(line, lhs, x, r1, r2, "HIGH expression in third parameter of CAS possibly assigned to control variable in first parameter")
     }
 
     // secure_update
-    val PPrime = st5.assign(lhs, _r2) // calculate PPrime
-    val PPrimeRestrict = BinOp("==", x.toVar, _r1) :: PPrime.restrictP(st5.knownW)
+    val PPrime = st5.addToP(BinOp("==", x.toVar, _r1)).assign(x, _r2) // calculate PPrime
+    val PPrimeRestrict = PPrime.restrictP(st5.knownW)
 
-    val falling = for (i <- st5.controlledBy(lhs) if (!st5.lowP(i, PRestrictAssign)) && !st5.highP(i, PPrimeRestrict))
+    val falling = for (i <- st5.controlledBy(x) if (!st5.lowP(i, PRestrictAssign)) && !st5.highP(i, PPrimeRestrict))
       yield i
 
     if (st0.debug) {
@@ -948,7 +992,7 @@ object Exec {
       throw error.CASCError(line, lhs, x, r1, r2, "secure update fails for falling variable/s: " + fallingFail.mkString(" "))
     }
 
-    val rising = for (i <- st5.controlledBy(lhs) if (!st5.highP(i, PRestrictAssign)) && !st5.lowP(i, PPrimeRestrict))
+    val rising = for (i <- st5.controlledBy(x) if (!st5.highP(i, PRestrictAssign)) && !st5.lowP(i, PPrimeRestrict))
       yield i
 
     if (st0.debug) {
@@ -963,9 +1007,8 @@ object Exec {
 
     val st6 = st5.updateGamma(lhs, Low)
 
-    val st7 = st6.assign(lhs, Question(BinOp("==", x.toVar, _r1), Lit(1), Lit(0)))
-    val st8 = st7.assign(x, Question(BinOp("==", x.toVar, _r1), _r2, x.toVar))
-    st8.updateDCAS(lhs, x, _r1, _r2)
+    val st7 = st6.assignCAS(lhs, x, _r1, _r2)
+    st7.updateDCAS(lhs, x, _r1, _r2)
   }
 
 

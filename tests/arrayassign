@@ -1,0 +1,23 @@
+_var z:
+_L: TRUE
+_Mode: NoW
+
+_array x[2]:
+_L: z % 2 == 0
+_Mode: NoW
+
+_var r_secret:
+_L: FALSE
+
+_var index:
+_L: TRUE
+_Mode: NoW
+
+_P_0: z % 2 == 0
+_Gamma_0: x[*] -> LOW, r_secret -> HIGH, index -> LOW
+
+z = z + 1;
+x[index % 2] = r_secret; // should fail - ASSIGN rule - HIGH expression assigned to LOW variable
+x[index % 2] = 0;
+fence;
+z = z + 1;

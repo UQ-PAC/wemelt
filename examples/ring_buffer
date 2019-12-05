@@ -49,13 +49,11 @@ _Gamma: x[*] -> HIGH, high -> HIGH, low -> LOW, r_size -> LOW, r_index -> LOW
   if (z % 2 == 0) {
     x[r_index] = low;
     r_index = (r_index + 1) % r_size;
-    //fence; // needed due to broken forwarding with laterR
     x[r_index] = low;
     r_index = (r_index + 1) % r_size;
   } else {
     x[r_index] = high;
     r_index = (r_index + 1) % r_size;
-    //fence; // needed due to broken forwarding with laterR
     x[r_index] = high;
     r_index = (r_index + 1) % r_size;
   }

@@ -2,18 +2,11 @@
 -test bitwise in SMT
 -comment everything
 -try to compile on mac, other linux computers, windows with linux subsystem 
--test array reads
 -z3 simplifier
 -update readme with arrays, CAS
 -atomic block - specify which variable stable, update D?
 -write up array rules
--arrayassignc
--fix array errors
+-array error fixes
 
 tests for
--array reads
--cas
-
-todo with arrays:
-out of bounds access return high instead of failing?
-check nothing unstable in array index expression?
+-array assign control variable

@@ -1,0 +1,24 @@
+_var z:
+_L: TRUE
+_Mode: NoW
+
+_var x:
+_L: z % 2 == 0
+_Mode: NoW
+
+_var r_secret:
+_L: FALSE
+
+_var cas_result:
+_L: TRUE
+_Mode: NoW
+
+_P_0: z % 2 == 0, x == 0
+_Gamma_0: x -> LOW, r_secret -> HIGH, cas_result -> LOW
+
+z = z + 1;
+fence;
+z = CAS(x, 0, r_secret); // should fail - CAS rule - LHS of CAS assignment is a control variable
+x = 0;
+fence;
+z = z + 1;

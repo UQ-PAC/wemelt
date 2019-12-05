@@ -2,9 +2,9 @@ package tool
 
 trait Expression extends beaver.Symbol {
 
-  def variables: Set[Id]
+  def variables: Set[Id] // returns all variables in the expression, does NOT include array variables
   def subst(su: Subst): Expression
-  def arrays: Set[Access]
+  def arrays: Set[Access] // returns all array accesses in the expression
 
   // existentially quantify (substitute with fresh variables) all variables that aren't in restricted
   def restrict(restricted: Set[Id]): Expression = {
@@ -44,18 +44,28 @@ case class Id(name: String) extends Expression {
 // array access parsed from input
 case class Access(name: Id, index: Expression) extends Expression {
   def this (name: String, index: Expression) = this(Id(name), index)
-  def variables: Set[Id] = name.variables ++ index.variables
-  def subst(su: Subst) = Access(name, index.subst(su))
+  def variables: Set[Id] = index.variables
+  def subst(su: Subst): Expression = su.getOrElse(name, name) match {
+    case v: Var =>
+      VarAccess(v, index.subst(su))
+    case _ =>
+      Access(name, index.subst(su))
+  }
   override def toString = name + "[" + index + "]"
   override def arrays = Set(this)
 }
 
 // array access with Var for use in logical predicates
 case class VarAccess(name: Var, index: Expression) extends Expression {
-  def variables: Set[Id] = name.variables ++ index.variables
-  def subst(su: Subst) = VarAccess(name, index.subst(su))
+  def variables: Set[Id] = index.variables
+  def subst(su: Subst) = VarAccess(name.subst(su), index.subst(su))
   override def toString = "(VAR)" + name + "[" + index + "]"
-  override def arrays = Set()
+  override def arrays = this.name match {
+    case Var(_, Some(index)) =>
+      Set()
+    case Var(_, None) =>
+      Set(Access(name.ident, index))
+  }
 }
 
 // logical variable for use in predicates

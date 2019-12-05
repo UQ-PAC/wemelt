@@ -1,0 +1,38 @@
+_var r_t:
+_L: TRUE
+
+_var r_task:
+_L: FALSE
+
+_array tasks[2]:
+_L[0]: sec[0] == 0
+_L[1]: sec[1] == 0
+_Mode: RW
+
+_array sec[2]:
+_L: TRUE
+_Mode: NoW
+
+_var L:
+_L: TRUE
+_Mode: NoW
+
+_var r_index:
+_L: TRUE
+
+_var v:
+_L: v_sec == 0
+_Mode: NoW
+
+_var v_sec:
+_L: TRUE
+_Mode: NoW
+
+_P_0: L == 2
+
+r_t = tail;
+r_index = r_t % L;
+if (
+tasks[r_index] = v;
+fence;
+tail = t + 1;

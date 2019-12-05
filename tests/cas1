@@ -1,0 +1,23 @@
+_var z:
+_L: TRUE
+_Mode: NoW
+
+_var x:
+_L: z % 2 == 0
+_Mode: NoW
+
+_var r_secret:
+_L: FALSE
+
+_var cas_result:
+_L: TRUE
+_Mode: NoW
+
+_P_0: z % 2 == 0
+_Gamma_0: x -> LOW, r_secret -> HIGH, cas_result -> LOW
+
+z = z + 1;
+cas_result = CAS(r_secret, x, 2) ; // should fail - CAS rule - HIGH expression in first parameter of CAS
+x = 0;
+fence;
+z = z + 1;

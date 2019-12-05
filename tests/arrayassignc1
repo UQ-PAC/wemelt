@@ -1,0 +1,20 @@
+_array z[2]:
+_L: TRUE
+_Mode: NoW
+
+_array x[2]:
+_L[0]: z[0] % 2 == 0
+_L[1]: z[1] % 2 == 0
+_Mode: NoW
+
+_var r_secret:
+_L: FALSE
+
+_P_0: z[1] % 2 == 0, z[0] % 2 == 0
+_Gamma_0: x[*] -> LOW, r_secret -> HIGH
+
+z[0] = z[0] + 1;
+z[0] = r_secret; // should fail - ASSIGNC rule - HIGH expression assigned to control variable
+x[0] = 0;
+fence;
+z[0] = z[0] + 1;
