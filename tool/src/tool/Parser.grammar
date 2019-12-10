@@ -29,7 +29,7 @@
 %terminals COMMA, SEMICOLON;
 
 %terminals CAS;
-%terminals FENCE;
+%terminals FENCE, CFENCE;
 %terminals INVARIANT, GAMMA, P_0, GAMMA_0, STABLE;
 %terminals LPRED, MODE;
 %terminals NORW, NOW, RW;
@@ -126,6 +126,7 @@ local1
     //| BREAK    SEMICOLON                {: return Break.self();  :}
     //| CONTINUE SEMICOLON                {: return Continue.self(); :}
     | FENCE SEMICOLON                   {: return Fence.self();  :}
+    | CFENCE SEMICOLON                   {: return ControlFence.self();  :}
     | IF LPAREN expr.a RPAREN local.b   {: return new If(a, b);  :}
     | IF LPAREN expr.a RPAREN local.b ELSE local.c     {: return new If(a, b, c);   :}
     | WHILE LPAREN expr.a RPAREN INVARIANT COLON exprs.i GAMMA COLON gamma_mappings.g local.b      {: return new While(a, i, g, b);   :}

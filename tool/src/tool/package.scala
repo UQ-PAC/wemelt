@@ -32,13 +32,15 @@ package object tool {
     case class NonblockingError(line: Int, statement: Statement, message: String) extends Exception {
       override def toString = "line " + line + ": NONBLOCKING rule not valid for " + statement + " as " + message
     }
-    case class ArrayError(a: Id, index: Expression, message: String) extends Exception {
-      override def toString = "ARRAY error with " + a + "[" + index + "] as " + message
+    case class ArrayError(line: Int, a: Id, index: Expression, rhs: Expression, message: String) extends Exception {
+      override def toString = "line " + line + ": ARRAY ASSIGN rule not valid for " + a + "[" + index + "] = " + rhs + " as " + message
+    }
+    case class ArrayCError(line: Int, a: Id, index: Expression, rhs: Expression, message: String) extends Exception {
+      override def toString = "line " + line + ": ARRAY ASSIGNC rule not valid for " + a + "[" + index + "] = " + rhs + " as " + message
     }
 
   }
-  
-  type Rename = Map[Var, Var]
+
   type Subst = Map[Expression, Var]
 
   object Subst {
@@ -47,18 +49,6 @@ package object tool {
     def apply(xs: (Expression, Var)*): Subst = {
       xs.toMap
     }
-
-    def fresh(xs: Set[Var]): Rename = {
-      xs.map(x => (x, x.fresh)).toMap
-    }
-
-    def refresh(bound: Set[Var], xs: Set[Var]): (Set[Var], Rename) = {
-      assert(xs subsetOf bound)
-      val su = Subst.fresh(xs)
-      val ty = xs map (x => su(x))
-      (bound -- xs ++ ty, su)
-    }
-
   }
 
   val sub = "₀₁₂₃₄₅₆₇₈₉"

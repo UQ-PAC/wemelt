@@ -27,10 +27,16 @@ object SMT {
       solver.pop()
     }
 
-    if (debug)
+    if (debug) {
       println(res)
+      if (res == z3.Status.SATISFIABLE) {
+        val model = solver.getModel
+        println(model)
+      }
+    }
     res == z3.Status.UNSATISFIABLE
   }
+
 
   def proveSat(cond: Expression, given: List[Expression], debug: Boolean) = {
     if (debug)
@@ -51,8 +57,37 @@ object SMT {
       solver.pop()
     }
 
-    if (debug)
+    if (debug) {
       println(res)
+      if (res == z3.Status.SATISFIABLE) {
+        println(solver.getModel)
+      }
+    }
+    res == z3.Status.SATISFIABLE
+  }
+
+  def proveP(given: List[Expression], debug: Boolean) = {
+    if (debug)
+      println("smt checking " + given.PStr)
+    solver.push()
+    val res = try {
+      for (p <- given) {
+        solver.add(formula(p))
+      }
+      solver.check
+    } catch {
+      case e: Throwable =>
+        throw error.Z3Error("Z3 failed", given.PStr, e)
+    } finally {
+      solver.pop()
+    }
+
+    if (debug) {
+      println(res)
+      if (res == z3.Status.SATISFIABLE) {
+        println(solver.getModel)
+      }
+    }
     res == z3.Status.SATISFIABLE
   }
 
@@ -80,8 +115,12 @@ object SMT {
     } finally {
       solver.pop()
     }
-    if (debug)
+    if (debug) {
       println(res)
+      if (res == z3.Status.SATISFIABLE) {
+        println(solver.getModel)
+      }
+    }
     res == z3.Status.UNSATISFIABLE
   }
 

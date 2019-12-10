@@ -1,12 +1,8 @@
--organise expression class - boolean expression subclass & clean up operations
 -test bitwise in SMT
 -comment everything
 -try to compile on mac, other linux computers, windows with linux subsystem 
 -z3 simplifier
--update readme with arrays, CAS
 -atomic block - specify which variable stable, update D?
 -write up array rules
--array error fixes
 
-tests for
--array assign control variable
+-organise expression class - boolean expression subclass & clean up operations

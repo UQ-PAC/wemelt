@@ -53,6 +53,10 @@ case object Fence extends Statement {
   def self = this
 }
 
+case object ControlFence extends Statement {
+  def self = this
+}
+
 case class If(test: Expression, left: Statement, right: Option[Statement]) extends Statement {
   def this(test: Expression, left: Statement) = this(test, left, None)
   def this(test: Expression, left: Statement, right: Statement) = this(test, left, Some(right))

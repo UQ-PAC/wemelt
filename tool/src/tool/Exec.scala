@@ -73,14 +73,18 @@ object Exec {
       state1.log
       Cont.next(state1)
 
-    case ArrayAssignment(lhs, index, rhs) =>
+    case ArrayAssignment(array, index, rhs) =>
       if (state0.toLog)
-        println("line " + statement.line + ": " + lhs + "[" + index + "] = " + rhs + ":")
-      // check if lhs is a control variable
-      val state1 = arrayAssignRule(lhs, index, rhs, state0, statement.line)
+        println("line " + statement.line + ": " + array + "[" + index + "] = " + rhs + ":")
+      // check if array contains any control variables
+      val state1 = if (state0.controls.intersect(state0.arrays(array).array.toSet).nonEmpty) {
+         arrayAssignCRule(array, index, rhs, state0, statement.line)
+      } else {
+        arrayAssignRule(array, index, rhs, state0, statement.line)
+      }
       // check nonblocking rule if necessary
-      if (state1.nonblocking && state1.globals.contains(lhs)) {
-        throw error.NonblockingError(statement.line, statement, "global variable " + lhs + " was written to within a nonblocking while loop")
+      if (state1.nonblocking && state1.globals.contains(array)) {
+        throw error.NonblockingError(statement.line, statement, "global variable " + array + " was written to within a nonblocking while loop")
       }
       state1.log
       Cont.next(state1)
@@ -108,11 +112,24 @@ object Exec {
 
     case Fence =>
       // reset D
-      val state1 = state0.updateDFence()
-      if (state0.toLog)
+      val state1 = state0.updateDFence
+      if (state0.toLog) {
         println("fence:")
-      state1.log
+        state1.log
+      }
+
       Cont.next(state1)
+
+    case ControlFence =>
+      // reset D
+      val state1 = state0.updateWritten(Id("cfence"))
+      val state2 = state1.updateDCFence
+      if (state0.toLog) {
+        println("cfence:")
+        state1.log
+      }
+
+      Cont.next(state2)
 
     case If(test, left, right) =>
       if (state0.toLog)
@@ -263,7 +280,6 @@ object Exec {
       // intersect with original D after loop body
       val st4 = st3.copy(D = st3.mergeD(state))
 
-
       if (st0.debug) {
         println("DFixed" + (dfixedloops - 1) + ": " + st0.D.DStr)
         println("DFixed" + dfixedloops + ": " + st4.D.DStr)
@@ -316,7 +332,12 @@ object Exec {
 
     case Fence =>
       // reset D
-      st0.updateDFence()
+      st0.updateDFence
+
+    case ControlFence =>
+      // reset D
+      val st1 = st0.updateWritten(Id("cfence"))
+      st1.updateDCFence
 
     case If(test, left, None) =>
       // evaluate test which updates D
@@ -515,14 +536,24 @@ object Exec {
 
     // execute both sides of if statement
     val _left = state2.updatePIfLeft(_test)
-    val _left1 = execute(left, _left).st
+
+    // only execute if it is a possible path
+    val _left1 = if (SMT.proveP(_left.P, _left.debug)) {
+      execute(left, _left).st
+    } else {
+      _left
+    }
 
     val _right1: State = right match {
       case Some(r) =>
         if (state0.toLog)
           println("} else {")
         val _right = state2.updatePIfRight(_test)
-        execute(r, _right).st
+        if (SMT.proveP(_right.P, _right.debug)) {
+          execute(r, _right).st
+        } else {
+          _right
+        }
       case None =>
         state2.updatePIfRight(_test)
     }
@@ -670,7 +701,7 @@ object Exec {
     // prove array access is inbounds
     // index >= 0 && index < array size
     if (!SMT.prove(BinOp("&&", BinOp(">=", _index, Lit(0)), BinOp("<", _index, Lit(array.array.size))), PRestrict, st3.debug))
-      throw error.ArrayError(a, index, "array access not provably in bounds")
+      throw error.ArrayError(line, a, index, rhs, "array access not provably in bounds")
 
     // possible indices that the index expression could evaluate to
     val possibleIndices: Seq[Int] = index match {
@@ -700,61 +731,60 @@ object Exec {
         }
       }
       if (t == High && arraySec == Low) {
-        throw error.AssignError(line, a, rhs, "HIGH expression assigned to LOW variable")
+        throw error.ArrayError(line, a, index, rhs, "HIGH expression assigned to LOW variable")
       }
     }
     val st4 = st3.updateGammaArray(array, possibleIndices, t)
 
-    val st5 = st4.arrayAssign(a, index, _rhs) // update P
+    val st5 = st4.arrayAssign(a, index, _rhs, possibleIndices) // update P
     st5.updateDArrayAssign(a, _rhs)
   }
 
-    def arrayAssignCRule(a: Id, index: Expression, rhs: Expression, st0: State, line: Int): State = {
-      val array = st0.arrays(a)
-      // ARRAY ASSIGNC rule
-      if (st0.toLog)
-        println("ARRAY ASSIGNC applying")
-      val (_rhs, st1) = eval(rhs, st0) // computes rd
-      val (_index, st2) = eval(index, st1)
-      val st3 = st2.updateWritten(st2.arrays(a)) // computes wr
-      // at this point the rd and wr sets are complete for the current line
+  def arrayAssignCRule(a: Id, index: Expression, rhs: Expression, st0: State, line: Int): State = {
+    val array = st0.arrays(a)
+    // ARRAY ASSIGNC rule
+    if (st0.toLog)
+      println("ARRAY ASSIGNC applying")
+    val (_rhs, st1) = eval(rhs, st0) // computes rd
+    val (_index, st2) = eval(index, st1)
+    val st3 = st2.updateWritten(st2.arrays(a)) // computes wr
+    // at this point the rd and wr sets are complete for the current line
 
-      // calculate P_x:=e
-      val PRestrict = st3.restrictP(st3.knownW)
-      if (st0.debug) {
-        println("knownW: " + st3.knownW)
-        println("PRestrict: " + PRestrict.PStr)
-      }
-      // prove array access is inbounds
-      // index >= 0 && index < array size
-      if (!SMT.prove(BinOp("&&", BinOp(">=", _index, Lit(0)), BinOp("<", _index, Lit(array.array.size))), PRestrict, st3.debug))
-        throw error.ArrayError(a, index, "array access not provably in bounds")
+    // calculate P_x:=e
+    val PRestrict = st3.restrictP(st3.knownW)
+    if (st0.debug) {
+      println("knownW: " + st3.knownW)
+      println("PRestrict: " + PRestrict.PStr)
+    }
+    // prove array access is inbounds
+    // index >= 0 && index < array size
+    if (!SMT.prove(BinOp("&&", BinOp(">=", _index, Lit(0)), BinOp("<", _index, Lit(array.array.size))), PRestrict, st3.debug))
+      throw error.ArrayCError(line, a, index, rhs, "array access not provably in bounds")
 
-      // possible indices that the index expression could evaluate to
-      val possibleIndices: Seq[Int] = index match {
-        case Lit(value) =>
-          Seq(value)
-        case _ =>
-          for (i <- array.array.indices if SMT.proveSat(BinOp("==", _index, Lit(i)), PRestrict, st3.debug))
-            yield i
-      }
+    // possible indices that the index expression could evaluate to
+    val possibleIndices: Seq[Int] = index match {
+      case Lit(value) =>
+        Seq(value)
+      case _ =>
+        for (i <- array.array.indices if SMT.proveSat(BinOp("==", _index, Lit(i)), PRestrict, st3.debug))
+          yield i
+    }
 
-      if (st0.debug)
-        println("possible indices: " + possibleIndices.mkString(" "))
+    if (st0.debug)
+      println("possible indices: " + possibleIndices.mkString(" "))
 
-      // check _rhs is LOW
-      val t = st3.security(_rhs, PRestrict)
-      if (t == High) {
-        throw error.AssignCError(line, a, rhs, "HIGH expression assigned to control variable")
-      }
+    // check _rhs is LOW
+    val t = st3.security(_rhs, PRestrict)
+    if (t == High) {
+      throw error.ArrayCError(line, a, index, rhs, "HIGH expression assigned to control variable")
+    }
 
-      // secure_update
-      val PPrime = st3.arrayAssign(a, index, _rhs) // calculate PPrime
+    // secure_update
+    for (i <- possibleIndices) {
+      val PPrime = st3.arrayAssign(a, Lit(i), _rhs, Seq(i)) // calculate PPrime
       val PPrimeRestrict = PPrime.restrictP(st3.knownW)
 
-      val controlledBy: Set[Id] = {for (i <- possibleIndices) yield st3.controlledBy(array.array(i))}.flatten.toSet
-
-      val falling = for (i <- controlledBy if (!st3.lowP(i, PRestrict)) && !st3.highP(i, PPrimeRestrict))
+      val falling = for (i <- st3.controlledBy(array.array(i)) if (!st3.lowP(i, PRestrict)) && !st3.highP(i, PPrimeRestrict))
         yield i
 
       if (st0.debug) {
@@ -767,10 +797,10 @@ object Exec {
         yield y
 
       if (fallingFail.nonEmpty) {
-        throw error.AssignCError(line, a, rhs, "secure update fails for falling variable/s: " + fallingFail.mkString(" "))
+        throw error.ArrayCError(line, a, index, rhs, "secure update fails for falling variable/s: " + fallingFail.mkString(" "))
       }
 
-      val rising = for (i <- controlledBy if (!st3.highP(i, PRestrict)) && !st3.lowP(i, PPrimeRestrict))
+      val rising = for (i <- st3.controlledBy(array.array(i)) if (!st3.highP(i, PRestrict)) && !st3.lowP(i, PPrimeRestrict))
         yield i
 
       if (st0.debug) {
@@ -780,13 +810,12 @@ object Exec {
         yield y
 
       if (risingFail.nonEmpty) {
-        throw error.AssignCError(line, a, rhs, "secure update fails for rising variable/s: " + risingFail.mkString(" "))
+        throw error.ArrayCError(line, a, index, rhs, "secure update fails for rising variable/s: " + risingFail.mkString(" "))
       }
+    }
 
-      val st4 = st3.arrayAssign(a, index, _rhs) // update P
-      st4.updateDArrayAssign(a, _rhs)
-
-
+    val st4 = st3.arrayAssign(a, index, _rhs, possibleIndices) // update P
+    st4.updateDArrayAssign(a, _rhs)
   }
 
   def assignRule(lhs: Id, rhs: Expression, st0: State, line: Int): State = {
@@ -838,7 +867,6 @@ object Exec {
       println("PRestrict: " + PRestrict.PStr)
     }
 
-
     // check _rhs is LOW - tested
     val t = st2.security(_rhs, PRestrict)
     if (t == High) {
@@ -887,11 +915,13 @@ object Exec {
     // CAS rule
     if (st0.toLog)
       println("CAS applying")
-    val (_r1, st1) = eval(r1, st0) // computes rd
+    // computes rd
+    val (_r1, st1) = eval(r1, st0)
     val (_r2, st2) = eval(r2, st1)
     val st3 = st2.updateRead(x)
-    val st4 = st3.updateWritten(x) // computes wr
-    val st5 = st4.updateWritten(lhs) // computes wr
+    // computes wr
+    val st4 = st3.updateWritten(x)
+    val st5 = st4.updateWritten(lhs)
     // at this point the rd and wr sets are complete for the current line
 
     if (st5.controls.contains(lhs)) {
@@ -941,11 +971,13 @@ object Exec {
     // CASC rule
     if (st0.toLog)
       println("CASC applying")
-    val (_r1, st1) = eval(r1, st0) // computes rd
+    // computes rd
+    val (_r1, st1) = eval(r1, st0)
     val (_r2, st2) = eval(r2, st1)
     val st3 = st2.updateRead(x)
-    val st4 = st3.updateWritten(x) // computes wr
-    val st5 = st4.updateWritten(lhs) // computes wr
+    // computes wr
+    val st4 = st3.updateWritten(x)
+    val st5 = st4.updateWritten(lhs)
     // at this point the rd and wr sets are complete for the current line
 
     if (st5.controls.contains(lhs)) {

@@ -100,6 +100,7 @@ WS = {NL} | [ \t\f]
 "else"      { return newToken(Terminals.ELSE);     }
 
 "fence"     { return newToken(Terminals.FENCE);    }
+"cfence"     { return newToken(Terminals.CFENCE);    }
 "_L"       { return newToken(Terminals.LPRED);      }
 "_Mode"       { return newToken(Terminals.MODE);     }
 "NoRW"      { return newToken(Terminals.NORW);    }

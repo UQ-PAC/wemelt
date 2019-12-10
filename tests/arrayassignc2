@@ -1,0 +1,21 @@
+_array data[2]:
+_L[0]: r_inmode[0] == 0
+_L[1]: r_inmode[1] == 0
+_Mode: RW
+
+_var high:
+_L: FALSE
+_Mode: RW
+
+_var low:
+_L: TRUE
+_Mode: RW
+
+_array r_inmode[2]:
+_L: TRUE
+
+r_inmode[0] = 1;
+fence;
+data[0] = high;
+fence;
+r_inmode[0] = 0; // should fail - ASSIGNC rule - secure update fails for falling data

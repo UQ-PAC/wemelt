@@ -1,0 +1,19 @@
+_array c[2]:
+_L: TRUE
+_Mode: NoRW
+
+_array x[2]:
+_L[0]: c[0] == 0
+_L[1]: c[1] == 0
+_Mode: RW
+
+_var low:
+_L: TRUE
+_Mode: RW
+
+_P_0: c[0] == 0, c[1] == 0
+
+c[1] = 0;
+fence;
+low = x[1];
+c[1] = 1; // should fail with rising variable x[1]
