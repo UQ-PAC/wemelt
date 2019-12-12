@@ -13,7 +13,7 @@ _P_0: z % 2 == 0
 _Gamma_0: x[*] -> LOW, r_secret -> HIGH
 
 z = z + 1;
-x[z] = r_secret; // should fail - ASSIGN rule - HIGH expression assigned to LOW variable
+x[z] = r_secret; // should fail - ARRAY ASSIGN rule - array index not provably in bounds
 x[z] = 0;
 fence;
 z = z + 1;

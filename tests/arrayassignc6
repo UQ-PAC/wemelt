@@ -1,0 +1,11 @@
+_array z[2]:
+_L: TRUE
+_Mode: NoW
+
+_var r_q:
+_L: FALSE
+
+_Gamma_0: z[*] -> LOW, r_q -> HIGH
+
+z[0] = z[r_q]; // should fail - ARRAY ASSIGNC rule - HIGH array index
+

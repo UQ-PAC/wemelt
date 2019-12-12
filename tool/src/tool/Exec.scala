@@ -122,7 +122,7 @@ object Exec {
 
     case ControlFence =>
       // reset D
-      val state1 = state0.updateWritten(Id("cfence"))
+      val state1 = state0.updateWritten(CFence)
       val state2 = state1.updateDCFence
       if (state0.toLog) {
         println("cfence:")
@@ -336,7 +336,7 @@ object Exec {
 
     case ControlFence =>
       // reset D
-      val st1 = st0.updateWritten(Id("cfence"))
+      val st1 = st0.updateWritten(CFence)
       st1.updateDCFence
 
     case If(test, left, None) =>
@@ -519,13 +519,21 @@ object Exec {
     if (state0.toLog)
       println("IF applying")
 
-    // evaluate test which updates D
+    // evaluate test
     val (_test, state1) = eval(test, state0)
 
     // check test is LOW
     val PRestrict = state1.restrictP(state1.knownW) // calculate P_b
     if (state0.debug)
       println("P_b: " + PRestrict.PStr)
+
+    // check any array indices in test are low
+    for (i <- _test.arrays) {
+      if (state1.security(i.index, PRestrict) == High) {
+        throw error.IfError(line, test, "array index " + i.index + " is HIGH")
+      }
+    }
+
     if (state1.security(_test, PRestrict) == High) {
       throw error.IfError(line, test, "guard expression is HIGH")
     }
@@ -626,9 +634,16 @@ object Exec {
         throw error.ProgramError("line " + line + ": D' is not a subset of D." + newline + "D': " +  state1.D.DStr + newline + "D: " + state0.D.DStr)
     }
 
-    // evaluate test which updates D
+    // evaluate test and update D
     val (_test, state2) = eval(test, state1)
     val state3 = state2.updateDGuard(_test)
+
+    // check any array indices in test are low
+    for (i <- _test.arrays) {
+      if (state3.security(i.index, state3.P) == High) {
+        throw error.WhileError(line, test, "array index " + i.index + " is HIGH")
+      }
+    }
 
     // check test is LOW with regards to P', gamma' - tested
     if (state3.security(_test, state3.P) == High) {
@@ -692,12 +707,26 @@ object Exec {
     val st3 = st2.updateWritten(st2.arrays(a)) // computes wr
     // at this point the rd and wr sets are complete for the current line
 
+    val knownw = st3.knownW
     // calculate P_x:=e
-    val PRestrict = st3.restrictP(st3.knownW)
+    val PRestrict = st3.restrictP(knownw)
     if (st0.debug) {
-      println("knownW: " + st3.knownW)
+      println("knownW: " + knownw)
       println("PRestrict: " + PRestrict.PStr)
     }
+
+    // check lhs array index is low
+    if (st3.security(_index, PRestrict) == High) {
+      throw error.ArrayError(line, a, index, rhs, "array index to be written to is HIGH")
+    }
+
+    // check all array indices on rhs are low
+    for (i <- _rhs.arrays) {
+      if (st3.security(i.index, PRestrict) == High) {
+        throw error.ArrayError(line, a, index, rhs, "array index " + i.index + " is HIGH")
+      }
+    }
+
     // prove array access is inbounds
     // index >= 0 && index < array size
     if (!SMT.prove(BinOp("&&", BinOp(">=", _index, Lit(0)), BinOp("<", _index, Lit(array.array.size))), PRestrict, st3.debug))
@@ -715,7 +744,7 @@ object Exec {
     if (st0.debug)
       println("possible indices: " + possibleIndices.mkString(" "))
 
-    val t = st3.security(rhs, PRestrict)
+    val t = st3.security(_rhs, PRestrict)
 
     // if x's mode is not NoRW, ensure that e's security level is not higher than x's security level, given P_x:=e - tested
     if (!st3.noReadWrite.contains(a)) {
@@ -750,12 +779,26 @@ object Exec {
     val st3 = st2.updateWritten(st2.arrays(a)) // computes wr
     // at this point the rd and wr sets are complete for the current line
 
+    val knownw = st3.knownW
     // calculate P_x:=e
-    val PRestrict = st3.restrictP(st3.knownW)
+    val PRestrict = st3.restrictP(knownw)
     if (st0.debug) {
-      println("knownW: " + st3.knownW)
+      println("knownW: " + knownw)
       println("PRestrict: " + PRestrict.PStr)
     }
+
+    // check array index is low
+    if (st3.security(_index, PRestrict) == High) {
+      throw error.ArrayCError(line, a, index, rhs, "array index to be written to is high")
+    }
+
+    // check all array indices on rhs are low
+    for (i <- _rhs.arrays) {
+      if (st3.security(i.index, PRestrict) == High) {
+        throw error.ArrayCError(line, a, index, rhs, "array index " + i.index + " is high")
+      }
+    }
+
     // prove array access is inbounds
     // index >= 0 && index < array size
     if (!SMT.prove(BinOp("&&", BinOp(">=", _index, Lit(0)), BinOp("<", _index, Lit(array.array.size))), PRestrict, st3.debug))
@@ -782,18 +825,19 @@ object Exec {
     // secure_update
     for (i <- possibleIndices) {
       val PPrime = st3.arrayAssign(a, Lit(i), _rhs, Seq(i)) // calculate PPrime
-      val PPrimeRestrict = PPrime.restrictP(st3.knownW)
+      val knownw = st3.knownW
+      val PPrimeRestrict = PPrime.restrictP(knownw)
 
       val falling = for (i <- st3.controlledBy(array.array(i)) if (!st3.lowP(i, PRestrict)) && !st3.highP(i, PPrimeRestrict))
         yield i
 
       if (st0.debug) {
         println("falling: " + falling)
-        println("knownW: " + st3.knownW)
+        println("knownW: " + knownw)
       }
 
       // falling can only succeed if y is in gamma and maps to low
-      val fallingFail = for (y <- falling -- st3.noReadWrite if !st3.knownW.contains(y) || st3.security(y, PRestrict) == High)
+      val fallingFail = for (y <- falling -- st3.noReadWrite if !knownw.contains(y) || st3.security(y, PRestrict) == High)
         yield y
 
       if (fallingFail.nonEmpty) {
@@ -826,12 +870,21 @@ object Exec {
     val st2 = st1.updateWritten(lhs) // computes wr
     // at this point the rd and wr sets are complete for the current line
 
+    val knownw = st2.knownW
     // calculate P_x:=e
-    val PRestrict = st2.restrictP(st2.knownW)
+    val PRestrict = st2.restrictP(knownw)
     if (st0.debug) {
-      println("knownW: " + st2.knownW)
+      println("knownW: " + knownw)
       println("PRestrict: " + PRestrict.PStr)
     }
+
+    // check any array indices in rhs are low
+    for (i <- _rhs.arrays) {
+      if (st2.security(i.index, PRestrict) == High) {
+        throw error.AssignError(line, lhs, rhs, "array index " + i.index + " is HIGH")
+      }
+    }
+
     val t = st2.security(_rhs, PRestrict)
 
     // if x's mode is not NoRW, ensure that e's security level is not higher than x's security level, given P_x:=e - tested
@@ -860,11 +913,19 @@ object Exec {
     val st2 = st1.updateWritten(lhs)
     // at this point the rd and wr sets are complete for the current line
 
+    val knownw = st2.knownW
     // calculate P_x:=e
-    val PRestrict = st2.restrictP(st2.knownW)
+    val PRestrict = st2.restrictP(knownw)
     if (st0.debug) {
-      println("knownW: " + st2.knownW)
+      println("knownW: " + knownw)
       println("PRestrict: " + PRestrict.PStr)
+    }
+
+    // check any array indices in rhs are low
+    for (i <- _rhs.arrays) {
+      if (st2.security(i.index, PRestrict) == High) {
+        throw error.AssignCError(line, lhs, rhs, "array index " + i.index + " is high")
+      }
     }
 
     // check _rhs is LOW - tested
@@ -875,19 +936,19 @@ object Exec {
 
     // secure_update
     val PPrime = st2.assign(lhs, _rhs) // calculate PPrime
-    val PPrimeRestrict = PPrime.restrictP(st2.knownW)
+    val PPrimeRestrict = PPrime.restrictP(knownw)
 
     val falling = for (i <- st2.controlledBy(lhs) if (!st2.lowP(i, PRestrict)) && !st2.highP(i, PPrimeRestrict))
       yield i
 
     if (st0.debug) {
       println("falling: " + falling)
-      println("knownW: " + st2.knownW)
+      println("knownW: " + knownw)
     }
 
     // falling can only succeed if y is in gamma and maps to low
 
-    val fallingFail = for (y <- falling -- st2.noReadWrite if !st2.knownW.contains(y) || st2.security(y, PRestrict) == High)
+    val fallingFail = for (y <- falling -- st2.noReadWrite if !knownw.contains(y) || st2.security(y, PRestrict) == High)
       yield y
 
     if (fallingFail.nonEmpty) {
@@ -928,11 +989,27 @@ object Exec {
       throw error.CASError(line, lhs, x, r1, r2, "LHS of CAS assignment is a control variable")
     }
 
-    val PRestrict = st5.restrictP(st5.knownW)
+    val knownw = st5.knownW
+    val PRestrict = st5.restrictP(knownw)
     if (st0.debug) {
-      println("knownW: " + st5.knownW)
+      println("knownW: " + knownw)
       println("PRestrict: " + PRestrict.PStr)
     }
+
+    // check any array indices in r1 are low
+    for (i <- _r1.arrays) {
+      if (st5.security(i.index, PRestrict) == High) {
+        throw error.CASError(line, lhs, x, r1, r2, "array index " + i.index + " is HIGH")
+      }
+    }
+
+    // check any array indices in r2 are low
+    for (i <- _r2.arrays) {
+      if (st5.security(i.index, PRestrict) == High) {
+        throw  error.CASError(line, lhs, x, r1, r2, "array index " + i.index + " is HIGH")
+      }
+    }
+
     if (st5.security(x, PRestrict) == High) {
       throw error.CASError(line, lhs, x, r1, r2, "HIGH expression in first parameter of CAS")
     }
@@ -984,11 +1061,27 @@ object Exec {
       throw error.CASCError(line, lhs, x, r1, r2, "LHS of CAS assignment is a control variable")
     }
 
-    val PRestrict = st5.restrictP(st5.knownW)
+    val knownw = st5.knownW
+    val PRestrict = st5.restrictP(knownw)
     if (st0.debug) {
-      println("knownW: " + st5.knownW)
+      println("knownW: " + knownw)
       println("PRestrict: " + PRestrict.PStr)
     }
+
+    // check any array indices in r1 are low
+    for (i <- _r1.arrays) {
+      if (st5.security(i.index, PRestrict) == High) {
+        throw error.CASCError(line, lhs, x, r1, r2, "array index " + i.index + " is HIGH")
+      }
+    }
+
+    // check any array indices in r2 are low
+    for (i <- _r2.arrays) {
+      if (st5.security(i.index, PRestrict) == High) {
+        throw error.CASCError(line, lhs, x, r1, r2, "array index " + i.index + " is HIGH")
+      }
+    }
+
     if (st5.security(_r1, PRestrict) == High) {
       throw error.CASCError(line, lhs, x, r1, r2, "HIGH expression in second parameter of CAS compared to control variable in first parameter")
     }
@@ -1005,19 +1098,19 @@ object Exec {
 
     // secure_update
     val PPrime = st5.addToP(BinOp("==", x.toVar, _r1)).assign(x, _r2) // calculate PPrime
-    val PPrimeRestrict = PPrime.restrictP(st5.knownW)
+    val PPrimeRestrict = PPrime.restrictP(knownw)
 
     val falling = for (i <- st5.controlledBy(x) if (!st5.lowP(i, PRestrictAssign)) && !st5.highP(i, PPrimeRestrict))
       yield i
 
     if (st0.debug) {
       println("falling: " + falling)
-      println("knownW: " + st5.knownW)
+      println("knownW: " + knownw)
     }
 
     // falling can only succeed if y is in gamma and maps to low
 
-    val fallingFail = for (y <- falling -- st5.noReadWrite if !st5.knownW.contains(y) || st5.security(y, PRestrictAssign) == High)
+    val fallingFail = for (y <- falling -- st5.noReadWrite if !knownw.contains(y) || st5.security(y, PRestrictAssign) == High)
       yield y
 
     if (fallingFail.nonEmpty) {

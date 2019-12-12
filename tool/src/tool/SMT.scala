@@ -158,6 +158,8 @@ object SMT {
 
     case Switch(n: Int) => ctx.mkBoolConst("Switch" + n)
 
+    case MultiSwitch(n: Int) => ctx.mkConst("MultiSwitch" + n, ctx.getIntSort)
+
     case x: Id =>
       throw error.InvalidProgram("unresolved program variable", x)
 

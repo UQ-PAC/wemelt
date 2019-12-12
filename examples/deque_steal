@@ -47,6 +47,7 @@ r_t = tail;
 if (r_h < r_t) {
   r_index = r_h % L;
   if (sec[r_index] == 0) {
+    cfence;
     r_task = tasks[r_index];
     r_res = CAS(head, r_h, r_h + 1);
     if (r_res == 0) {

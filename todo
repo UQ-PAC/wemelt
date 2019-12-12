@@ -1,8 +1,10 @@
--test bitwise in SMT
 -comment everything
--try to compile on mac, other linux computers, windows with linux subsystem 
--z3 simplifier
+-z3 simplifier?
 -atomic block - specify which variable stable, update D?
 -write up array rules
 
 -organise expression class - boolean expression subclass & clean up operations
+-more powerful array expressions?
+
+fix stable variable in p test array efficiency
+better merging for array assignments - fix

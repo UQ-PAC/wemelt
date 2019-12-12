@@ -44,6 +44,8 @@ case class Id(name: String) extends Expression {
   override def arrays = Set()
 }
 
+object CFence extends Id("cfence")
+
 // array access parsed from input
 case class Access(name: Id, index: Expression) extends Expression {
   def this (name: String, index: Expression) = this(Id(name), index)
@@ -134,6 +136,22 @@ object Switch {
     Switch(index)
   }
 }
+
+case class MultiSwitch(index: Int) extends Expression {
+  def variables: Set[Id] = Set()
+  def subst(su: Subst): Expression = this
+  def subst(su: Subst, num: Int): Expression = this
+  override def arrays = Set()
+}
+
+object MultiSwitch {
+  var index = 0
+  def fresh = {
+    index += 1
+    MultiSwitch(index)
+  }
+}
+
 
 case class PreOp(op: String, arg: Expression) extends Expression {
   override def toString = "(" + op + " " + arg + ")"

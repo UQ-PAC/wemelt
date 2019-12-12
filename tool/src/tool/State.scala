@@ -86,9 +86,10 @@ case class State(
     // substitute variables in expressions for fresh variables
     val _r1 = r1.subst(toSubst)
     val _r2 = r2.subst(toSubst)
+    val __x = _x.subst(toSubst)
 
     // add assignments to P
-    val PPrime = BinOp("==", _lhs, Question(BinOp("==", _x, _r1), Lit(1), Lit(0))) :: BinOp("==", _x, Question(BinOp("==", _x, _r1), _r2, _x)) :: PReplace
+    val PPrime = BinOp("==", _lhs, Question(BinOp("==", __x, _r1), Lit(1), Lit(0))) :: BinOp("==", _x, Question(BinOp("==", __x, _r1), _r2, __x)) :: PReplace
 
     // restrict PPrime to stable variables
     val PPrimeRestrict = State.restrictP(PPrime, stable)
@@ -107,24 +108,48 @@ case class State(
     // create mapping from variable to fresh variable
     val toSubst: Subst = Map(v -> Var.fresh(a.name))
 
-    val possiblePs: List[List[Expression]] = {for (i <- possible) yield {
-      val PReplace = P map (p => p.subst(toSubst, i))
+    // unambiguous access case
+    val POut = if (possible.size == 1) {
+      val PReplace = P map (p => p.subst(toSubst, possible.head))
       // substitute variable in expression for fresh variable
-      val argReplace = arg.subst(toSubst, i)
+      val argReplace = arg.subst(toSubst, possible.head)
 
       val indexToSubst: Subst = {
         for (j <- index.variables)
           yield j -> j.toVar
         }.toMap ++ toSubst
 
-      val indexSubst = index.subst(indexToSubst, i)
+      val indexSubst = index.subst(indexToSubst, possible.head)
 
       // add new assignment statement to P
-      val PPrime = BinOp("==", VarAccess(v, indexSubst), argReplace) :: BinOp("==", indexSubst, Lit(i)) :: PReplace
+      val PPrime = BinOp("==", VarAccess(v, indexSubst), argReplace) :: PReplace
 
       // restrict PPrime to stable variables
       State.restrictP(PPrime, stable)
-    }}.toList
+    } else {
+      // ambiguous access case - merge states
+      val possiblePs: List[List[Expression]] = {for (i <- possible) yield {
+        val PReplace = P map (p => p.subst(toSubst, i))
+        // substitute variable in expression for fresh variable
+        val argReplace = arg.subst(toSubst, i)
+
+        val indexToSubst: Subst = {
+          for (j <- index.variables)
+            yield j -> j.toVar
+          }.toMap ++ toSubst
+
+        val indexSubst = index.subst(indexToSubst, i)
+
+        // add new assignment statement to P
+        val PPrime = BinOp("==", VarAccess(v, indexSubst), argReplace) :: BinOp("==", indexSubst, Lit(i)) :: PReplace
+
+        // restrict PPrime to stable variables
+        State.restrictP(PPrime, stable)
+      }}.toList
+      mergePs(possiblePs)
+    }
+
+
 
     /*
     // substitute variable in P for fresh variable
@@ -154,13 +179,13 @@ case class State(
      */
 
 
-    val mergedP = mergePs(possiblePs)
+
     if (debug) {
       println("assigning " + arg + " to " + a + "[" + index + "]" + ":")
       println("P: " + P.PStr)
-      println("P': " + mergedP.PStr)
+      println("P': " + POut.PStr)
     }
-    copy(P = mergedP)
+    copy(P = POut)
   }
 
   def addToP(expr: Expression): State = {
@@ -343,7 +368,7 @@ case class State(
 
   def updateDGuard(b: Expression) : State = {
     val varB = b.variables // var(b)
-    val laterW: Set[Id] = globals ++ varB + Id("cfence")
+    val laterW: Set[Id] = globals ++ varB + CFence
     val laterR: Set[Id] = globals & varB
 
     val DPrime: Map[Id, (Set[Id], Set[Id], Set[Id], Set[Id])] = updateD(laterW, laterR)
@@ -385,6 +410,7 @@ case class State(
   def security(a: Id, index: Expression, p: List[Expression]): Security = {
     if (debug)
       println("checking security for " + a + "[" + index + "]")
+
     val array = arrays(a)
 
     index match {
@@ -408,33 +434,32 @@ case class State(
           if (debug) {
             println("array access not provably in bounds so High security: " + a + "[" + index + "]")
           }
-          return High
-        }
+          High
+        } else {
 
-        // probably this could be more efficient/neater somehow
-        if (stable.contains(array.array(0))) { // based on assumption that all array indices share a mode
-          // array accessed is stable so potentially in gamma
-          // need to check entire array is Low to return Low
+          // check indexes where array access is in domain of gamma
           val it = array.array.indices.toIterator
           var sec: Security = Low
-          while (it.hasNext && sec == Low) {
+          while (it.hasNext) {
             val i = it.next
-            // check this index is a possible access from the index expression
-            if (SMT.proveSat(BinOp("==", index, Lit(i)), p, debug)) {
-              if (gamma.contains(array.array(i))) {
-                sec = gamma(array.array(i))
-              } else if (lowP(array.array(i), p)) {
-                sec = Low
-              } else {
+            if (gamma.contains(array.array(i))) {
+              // check SMT to prove access is possible only if gamma is High to avoid unnecessary SMT call
+              if (gamma(array.array(i)) == High && SMT.proveSat(BinOp("==", index, Lit(i)), p, debug)) {
                 sec = High
               }
             }
           }
-          sec
-        } else {
-          // array accessed is unstable - need to prove contents of array is Low for it to be Low
-          if (SMT.prove(arrayAccessCheck(array, index), p, debug)) {
-            Low
+
+          if (sec == Low) {
+            val gammaArray: Seq[Boolean] = array.array map {a => gamma.contains(a)}
+            val notInGamma = gammaArray.indices collect {case i if !gammaArray(i) => i}
+
+            // check if any array indices not in gamma are provably High
+            if (SMT.prove(arrayAccessCheck(array, notInGamma, index), p, debug)) {
+              Low
+            } else {
+              High
+            }
           } else {
             High
           }
@@ -443,8 +468,8 @@ case class State(
   }
 
   // ((index == 0) && (L(A[0]))) || ((index == 1) && (L(A[1]))) || ... to array.size
-  def arrayAccessCheck(array: IdArray, index: Expression): Expression = {
-    val list = {for (i <- array.array.indices)
+  def arrayAccessCheck(array: IdArray, indices: Seq[Int], index: Expression): Expression = {
+    val list = {for (i <- indices)
       yield BinOp("&&", BinOp("==", index, Lit(i)), L(array.array(i)))}.toList
     orPredicates(list)
   }
@@ -487,6 +512,7 @@ case class State(
       val x: Id = it.next()
       sec = security(x, p)
     }
+
     val it2 = e.arrays.toIterator
     while (it2.hasNext && sec == Low) {
       val a: Access = it2.next()
@@ -627,13 +653,44 @@ case class State(
     common ++ p1List ++ p2List
   }
 
+  /*
+  def mergePs(ps: List[List[Expression]]): List[Expression] = {
+    if (ps.size == 2) {
+      mergeP(ps(0), ps(1))
+    } else if (ps.size == 1) {
+      ps.head
+    }  else if (ps.size == 0) {
+      List()
+    } else {
+      // common is intersection of all lists
+      // slightly inefficient but will do for now?
+      var common = ps.head
+      for (p <- ps) {
+        common = common.intersect(p)
+      }
+      val switch = MultiSwitch.fresh
+
+      val it = ps.indices.toIterator
+      val out: List[Expression] = {for (p <- ps) yield {
+        val i = it.next
+        for (e <- p if !common.contains(e)) yield {
+          BinOp("||", BinOp("==", switch, Lit(i)), e)
+        }
+      }}.flatten
+
+      BinOp(">=", Lit(0), switch) :: BinOp("<", Lit(ps.size), switch) :: common ++ out
+    }
+  }
+
+   */
+
+
   def mergePs(ps: List[List[Expression]]): List[Expression] = ps match {
     case Nil =>
       List()
     case p :: rest =>
       mergeP(p, mergePs(rest))
   }
-
 
   def setMode(z: Id, mode: Mode): State = {
     mode match {
@@ -684,7 +741,7 @@ object State {
       println(variables)
     }
 
-    val ids: Set[Id] = {for (v <- variables) yield v.name} ++ Set(Id("cfence"))
+    val ids: Set[Id] = {for (v <- variables) yield v.name} ++ Set(CFence)
 
     for (v <- variables) {
       v.mode match {
