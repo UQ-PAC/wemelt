@@ -2,11 +2,11 @@ _var r_t:
 _L: TRUE
 
 _array tasks[2]:
-_L[0]: sec[0] == 0
-_L[1]: sec[1] == 0
+_L[0]: levels[0] == 0
+_L[1]: levels[1] == 0
 _Mode: NoW
 
-_array sec[2]:
+_array levels[2]:
 _L: TRUE
 _Mode: NoW
 
@@ -18,10 +18,10 @@ _var r_index:
 _L: TRUE
 
 _var v:
-_L: v_sec == 0
+_L: u == 0
 _Mode: NoW
 
-_var v_sec:
+_var u:
 _L: TRUE
 _Mode: NoW
 

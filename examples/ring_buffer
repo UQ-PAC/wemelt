@@ -6,7 +6,7 @@ _var mouse:
 _L: TRUE
 _Mode: RW
 
-_array x[5]:
+_array x[3]:
 _L: z % 2 == 0
 _Mode: NoW
 
@@ -24,12 +24,12 @@ _L: TRUE
 _var r_index:
 _L: TRUE
 
-_P_0: z % 2 == 0, r_index >= 0, r_index < 5, r_size == 5, z == 0
+_P_0: z % 2 == 0, r_index >= 0, r_index < r_size, r_size == 3, z == 0
 _Gamma_0: x[*] -> LOW, high -> HIGH, low -> LOW, r_size -> LOW, r_index -> LOW
 
 
 while(TRUE) 
-_invariant: r_index >= 0, r_index < 5, r_size == 5
+_invariant: r_index >= 0, r_index < r_size, r_size == 3
 _Gamma: x[*] -> HIGH, high -> HIGH, low -> LOW, r_size -> LOW, r_index -> LOW
 {
   if (z % 2 == 0 && mouse == 1) {
@@ -39,8 +39,6 @@ _Gamma: x[*] -> HIGH, high -> HIGH, low -> LOW, r_size -> LOW, r_index -> LOW
       x[0] = 0;
       x[1] = 0;
       x[2] = 0;
-      x[3] = 0;
-      x[4] = 0;
       fence;
       z = z + 1;
     }

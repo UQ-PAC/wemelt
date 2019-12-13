@@ -104,7 +104,7 @@ object SMT {
 
   def proveImplies(strong: List[Expression], weak: List[Expression], debug: Boolean) = {
     if (debug)
-      println("smt checking !(" + strong + " implies " + weak + ")")
+      println("smt checking !(" + strong.PStr + newline + " implies " + weak.PStr + ")")
     solver.push()
     val res = try {
       solver.add(ctx.mkNot(ctx.mkImplies(PToAnd(strong), PToAnd(weak))))
@@ -193,6 +193,9 @@ object SMT {
 
     case Question(test, arg1, arg2) => ctx.mkITE(formula(test), translate(arg1), translate(arg2))
 
+    //case ForAll(bound, body) => ctx.mkForall(bound.toArray map translate, translate(body), 0, scala.Array(), null, null, null)
+
+      // array index
     case VarAccess(name, index) => ctx.mkSelect(ctx.mkArrayConst(name.toString, ctx.getIntSort, ctx.getIntSort), translate(index))
 
 

@@ -186,6 +186,13 @@ case class Question(test: Expression, left: Expression, right: Expression) exten
   override def arrays = test.arrays ++ left.arrays ++ right.arrays
 }
 
+case class ForAll(bound: Set[Var], body: Expression) extends Expression {
+  override def variables = body.variables -- (bound map {_.ident})
+  def subst(su: Subst) = ForAll(bound, body.subst(su))
+  def subst(su: Subst, num: Int) = ForAll(bound, body.subst(su, num))
+  override def arrays = body.arrays
+}
+
 object Const {
   object _true extends Const("True")
   object _false extends Const("False")

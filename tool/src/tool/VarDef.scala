@@ -22,12 +22,25 @@ case object RW extends Mode {
   def instance = this
 }
 
-sealed trait Security extends beaver.Symbol
+sealed trait Security extends beaver.Symbol {
+  def >(security: Security): Boolean
+  def <(security: Security): Boolean
+  def >=(security: Security): Boolean
+  def <=(security: Security): Boolean
+}
 case object High extends Security {
   def instance = this
+  def >(security: Security): Boolean = if (security == Low) { true } else { false }
+  def <(security: Security): Boolean = false
+  def >=(security: Security): Boolean = true
+  def <=(security: Security): Boolean = if (security == Low) { false } else { true }
 }
 case object Low extends Security {
   def instance = this
+  def >(security: Security): Boolean = false
+  def <(security: Security): Boolean = if (security == High) { true } else { false }
+  def >=(security: Security): Boolean = if (security == High) { false } else { true }
+  def <=(security: Security): Boolean = true
 }
 
 case class GammaMapping(variable: Id, security: Security) extends beaver.Symbol {

@@ -13,8 +13,6 @@ object Cont {
   case class ret(result: Expression, st: State) extends Cont */
 }
 
-
-
 object Exec {
   def execute(statements: List[Statement], state: State): Cont = statements match {
     case Nil =>
@@ -577,12 +575,7 @@ object Exec {
       println("WHILE applying")
 
     // P' only contains stable variables - tested
-    val PPrimeArrayAccess: Set[Id] = {PPrime flatMap {x: Expression => x.arrays flatMap {y: Access => y.index match {
-      case Lit(n) =>
-        Set(state0.arrays(y.name).array(n))
-      case _ =>
-        state0.arrays(y.name).array.toSet
-    }}}}.toSet
+    val PPrimeArrayAccess: Set[Id] = {PPrime flatMap {x => x.arrays flatMap {y => state0.arrays(y.name).array}}}.toSet
 
     val PPrimeVar: Set[Id] = (PPrime flatMap {x => x.variables}).toSet ++ PPrimeArrayAccess
 
@@ -603,10 +596,10 @@ object Exec {
     }
 
     // check gamma' is greater or equal than gamma for all x - tested
-    val gammaGreater = for (g <- state0.gamma.keySet if (state0.gamma(g) == High && gammaPrime(g) == Low))
+    val gammaGreater = for (g <- state0.gamma.keySet if state0.gamma(g) > gammaPrime(g))
       yield g
     if (gammaGreater.nonEmpty) {
-      throw error.WhileError(line, test, "gamma' " + gammaPrime.gammaStr + " is not greater than gamma " + state0.gamma.gammaStr + " for: " + gammaGreater.mkString(" "))
+      throw error.WhileError(line, test, "gamma' " + gammaPrime.gammaStr + " is not greater than or equal to gamma " + state0.gamma.gammaStr + " for: " + gammaGreater.mkString(" "))
     }
 
     // D' will always be a subset of D as it equals D intersect DFixed
@@ -680,10 +673,10 @@ object Exec {
     }
 
     // check gamma' is greater or equal than gamma'' for all x - tested
-    val gammaPrimeGreater = for (g <- gammaPrime.keySet if state5.gamma(g) == High && gammaPrime(g) == Low)
+    val gammaPrimeGreater = for (g <- gammaPrime.keySet if state5.gamma(g) > gammaPrime(g))
       yield g
     if (gammaPrimeGreater.nonEmpty) {
-        throw error.WhileError(line, test, "gamma' " + gammaPrime.gammaStr + " is not greater or equal than than gamma'' " +  state5.gamma.gammaStr + " for: " + gammaPrimeGreater.mkString(" "))
+        throw error.WhileError(line, test, "gamma' " + gammaPrime.gammaStr + " is not greater to or equal than than gamma'' " +  state5.gamma.gammaStr + " for: " + gammaPrimeGreater.mkString(" "))
     }
 
     // check P'' is stronger than P' - tested
@@ -720,7 +713,7 @@ object Exec {
       throw error.ArrayError(line, a, index, rhs, "array index to be written to is HIGH")
     }
 
-    // check all array indices on rhs are low
+    // check all array indices in rhs are low
     for (i <- _rhs.arrays) {
       if (st3.security(i.index, PRestrict) == High) {
         throw error.ArrayError(line, a, index, rhs, "array index " + i.index + " is HIGH")
@@ -747,19 +740,14 @@ object Exec {
     val t = st3.security(_rhs, PRestrict)
 
     // if x's mode is not NoRW, ensure that e's security level is not higher than x's security level, given P_x:=e - tested
-    if (!st3.noReadWrite.contains(a)) {
+    if (!st3.noReadWrite.contains(a) && t == High) { // optimisation to reduce smt calls
       // check if any possible array value accessed is provably High
-      var arraySec: Security = Low
-      val it = possibleIndices.toIterator
-      while (arraySec == Low && it.hasNext) {
-        val i = it.next()
-        arraySec = if (st2.highP(array.array(i), PRestrict)) {
-          High
-        } else {
-          Low
-        }
+      val arraySec: Security = if (st2.multiHighP(array, possibleIndices, PRestrict)) {
+        High
+      } else {
+        Low
       }
-      if (t == High && arraySec == Low) {
+      if (t > arraySec) {
         throw error.ArrayError(line, a, index, rhs, "HIGH expression assigned to LOW variable")
       }
     }
@@ -822,10 +810,11 @@ object Exec {
       throw error.ArrayCError(line, a, index, rhs, "HIGH expression assigned to control variable")
     }
 
+
+    val knownR = st3.knownR
     // secure_update
     for (i <- possibleIndices) {
       val PPrime = st3.arrayAssign(a, Lit(i), _rhs, Seq(i)) // calculate PPrime
-      val knownw = st3.knownW
       val PPrimeRestrict = PPrime.restrictP(knownw)
 
       val falling = for (i <- st3.controlledBy(array.array(i)) if (!st3.lowP(i, PRestrict)) && !st3.highP(i, PPrimeRestrict))
@@ -850,7 +839,7 @@ object Exec {
       if (st0.debug) {
         println("rising: " + rising)
       }
-      val risingFail = for (y <- rising if !st3.knownR.contains(y))
+      val risingFail = for (y <- rising if !knownR.contains(y))
         yield y
 
       if (risingFail.nonEmpty) {
@@ -888,14 +877,14 @@ object Exec {
     val t = st2.security(_rhs, PRestrict)
 
     // if x's mode is not NoRW, ensure that e's security level is not higher than x's security level, given P_x:=e - tested
-    if (!st2.noReadWrite.contains(lhs)) {
+    if (!st2.noReadWrite.contains(lhs) && t == High) { // optimisation to not check x security unless necessary
       // evalP
       val xSecurity = if (st2.highP(lhs, PRestrict)) {
         High
       } else {
         Low
       }
-      if (t == High && xSecurity == Low) {
+      if (t > xSecurity) {
         throw error.AssignError(line, lhs, rhs, "HIGH expression assigned to LOW variable")
       }
     }
@@ -1025,14 +1014,14 @@ object Exec {
 
 
     // if x's mode is not NoRW, ensure that e's security level is not higher than x's security level, given P_x:=e - tested
-    if (!st5.noReadWrite.contains(x)) {
+    if (!st5.noReadWrite.contains(x) && t2 == High) { // optimisation to not check t2 security unless necessary
       // evalP
       val xSecurity = if (st5.highP(x, PRestrictAssign)) {
         High
       } else {
         Low
       }
-      if (t2 == High && xSecurity == Low) {
+      if (t2 > xSecurity) {
         throw error.CASError(line, lhs, x, r1, r2, "HIGH expression in third parameter of CAS potentially assigned to LOW expression in first parameter")
       }
     }
@@ -1092,7 +1081,7 @@ object Exec {
     }
 
     // highP check is to check that x == r1 is possible, meaning that the x = r2 assignment is possible
-    if ((st5.security(_r2, PRestrictAssign) == High) && !st5.highP(x, PRestrictAssign)) {
+    if (!st5.highP(x, PRestrictAssign) && (st5.security(_r2, PRestrictAssign) == High)) {
       throw error.CASCError(line, lhs, x, r1, r2, "HIGH expression in third parameter of CAS possibly assigned to control variable in first parameter")
     }
 
@@ -1123,7 +1112,8 @@ object Exec {
     if (st0.debug) {
       println("rising: " + rising)
     }
-    val risingFail = for (y <- rising if !st5.knownR.contains(y))
+    val knownR = st5.knownR
+    val risingFail = for (y <- rising if !knownR.contains(y))
       yield y
 
     if (risingFail.nonEmpty) {

@@ -3,8 +3,8 @@
 -atomic block - specify which variable stable, update D?
 -write up array rules
 
--organise expression class - boolean expression subclass & clean up operations
+-organise expression class - boolean expression subclass & clean up operations?
 -more powerful array expressions?
 
-fix stable variable in p test array efficiency
-better merging for array assignments - fix
+fixed point - care about invalid paths??
+optimisations

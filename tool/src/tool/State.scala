@@ -89,7 +89,8 @@ case class State(
     val __x = _x.subst(toSubst)
 
     // add assignments to P
-    val PPrime = BinOp("==", _lhs, Question(BinOp("==", __x, _r1), Lit(1), Lit(0))) :: BinOp("==", _x, Question(BinOp("==", __x, _r1), _r2, __x)) :: PReplace
+    val PPrime = BinOp("==", _lhs, Question(BinOp("==", __x, _r1), Lit(1), Lit(0))) ::
+      BinOp("==", _x, Question(BinOp("==", __x, _r1), _r2, __x)) :: PReplace
 
     // restrict PPrime to stable variables
     val PPrimeRestrict = State.restrictP(PPrime, stable)
@@ -108,8 +109,8 @@ case class State(
     // create mapping from variable to fresh variable
     val toSubst: Subst = Map(v -> Var.fresh(a.name))
 
-    // unambiguous access case
     val POut = if (possible.size == 1) {
+      // unambiguous access case
       val PReplace = P map (p => p.subst(toSubst, possible.head))
       // substitute variable in expression for fresh variable
       val argReplace = arg.subst(toSubst, possible.head)
@@ -151,10 +152,11 @@ case class State(
 
 
 
-    /*
+    /* old arrayassign that
     // substitute variable in P for fresh variable
     val PReplace = index match {
-        // if this array access is unambiguous, don't quantify array access for assignments to different unambiguous indices of this array
+        // if this array access is unambiguous, don't quantify array access for assignments to different unambiguous
+         indices of this array
       case Lit(n) =>
         P map (p => p.subst(toSubst, n))
       case _ =>
@@ -175,7 +177,7 @@ case class State(
     val PPrime = BinOp("==", VarAccess(v, indexSubst), argReplace) :: PReplace
 
     // restrict PPrime to stable variables
-    val PPrimeRestrict = State.restrictP(PPrime, stable)
+    val POut = State.restrictP(PPrime, stable)
      */
 
 
@@ -396,14 +398,31 @@ case class State(
     if (debug)
       println("checking lowP for " + id)
     // prove if L(x) holds given P
-    SMT.prove(L(id), p, debug)
+    val res = SMT.prove(L(id), p, debug)
+    if (debug) {
+      println("lowP is " + res + " for " + id)
+    }
+    res
   }
 
   def highP(id: Id, p: List[Expression]): Boolean = {
     if (debug)
       println("checking highP for " + id)
     // prove if L(x) doesn't hold given P
-    SMT.prove(PreOp("!", L(id)), p, debug)
+    val res = SMT.prove(PreOp("!", L(id)), p, debug)
+    if (debug) {
+      println("highP is " + res + " for " + id)
+    }
+    res
+  }
+
+  // !L(A[0]) || !L(A[1]) || ... to array.size
+  def multiHighP(array: IdArray, indices: Seq[Int], p: List[Expression]): Boolean = {
+    val list = {for (i <- indices)
+      yield PreOp("!", L(array.array(i)))}.toList
+    val Ls = orPredicates(list)
+    val res = SMT.prove(Ls, p, debug)
+    res
   }
 
   // security for array access
@@ -437,7 +456,7 @@ case class State(
           High
         } else {
 
-          // check indexes where array access is in domain of gamma
+          // check indices where array access is in domain of gamma
           val it = array.array.indices.toIterator
           var sec: Security = Low
           while (it.hasNext) {
@@ -450,11 +469,10 @@ case class State(
             }
           }
 
+          // check if any array indices not in gamma are provably High
           if (sec == Low) {
             val gammaArray: Seq[Boolean] = array.array map {a => gamma.contains(a)}
             val notInGamma = gammaArray.indices collect {case i if !gammaArray(i) => i}
-
-            // check if any array indices not in gamma are provably High
             if (SMT.prove(arrayAccessCheck(array, notInGamma, index), p, debug)) {
               Low
             } else {
@@ -506,8 +524,23 @@ case class State(
     if (debug)
       println("checking security for " + e)
     var sec: Security = Low
-    val it = e.variables.toIterator
-    // if x security is high, return, otherwise keep checking
+    val varE = e.variables
+
+    /*
+    var secMap: Map[Id, Security] = Map()
+
+    for (x <- varE) {
+      val xSec = security(x, p)
+      if (xSec == High) {
+        sec = High
+      }
+      secMap += (x -> xSec)
+    }
+
+     */
+
+    // if x security is high, return, otherwise keep checkin
+    val it = varE.toIterator
     while (it.hasNext && sec == Low) {
       val x: Id = it.next()
       sec = security(x, p)
@@ -518,7 +551,23 @@ case class State(
       val a: Access = it2.next()
       sec = security(a.name, a.index, p)
     }
+/*
+    if (sec == High) {
+      val idToVar: Subst = {
+        for (v <- variables)
+          yield v -> v.toVar
+        }.toMap ++ {
+        for (v <- arrays.keySet)
+          yield v -> v.toVar
+        }.toMap
 
+      val eSubst = e.subst(idToVar)
+      val high: Set[Var] = (secMap collect {case x if x._2 == High => x._1.toVar}).toSet
+      if (SMT.prove(BinOp("==", eSubst, ForAll(high, eSubst)), p, debug)) {
+        sec = Low
+      }
+    }
+*/
     if (debug)
       println(e + " security is " + sec)
     sec
@@ -653,7 +702,6 @@ case class State(
     common ++ p1List ++ p2List
   }
 
-  /*
   def mergePs(ps: List[List[Expression]]): List[Expression] = {
     if (ps.size == 2) {
       mergeP(ps(0), ps(1))
@@ -674,23 +722,23 @@ case class State(
       val out: List[Expression] = {for (p <- ps) yield {
         val i = it.next
         for (e <- p if !common.contains(e)) yield {
-          BinOp("||", BinOp("==", switch, Lit(i)), e)
+          BinOp("||", PreOp("!", BinOp("==", switch, Lit(i))), e)
         }
       }}.flatten
 
-      BinOp(">=", Lit(0), switch) :: BinOp("<", Lit(ps.size), switch) :: common ++ out
+      BinOp(">=", switch, Lit(0)) :: BinOp("<", switch, Lit(ps.size)) :: common ++ out
     }
   }
 
-   */
-
-
+/* old mergePs implementation that decreases readability of P for merging multiple states (for array assignments)
+   but is slightly smaller in size
   def mergePs(ps: List[List[Expression]]): List[Expression] = ps match {
     case Nil =>
       List()
     case p :: rest =>
       mergeP(p, mergePs(rest))
   }
+*/
 
   def setMode(z: Id, mode: Mode): State = {
     mode match {
@@ -721,7 +769,8 @@ case class State(
 }
 
 object State {
-  def init(definitions: Set[Definition], P_0: Option[List[Expression]], gamma_0: Option[List[GammaMapping]], toLog: Boolean, debug: Boolean): State = {
+  def init(definitions: Set[Definition], P_0: Option[List[Expression]], gamma_0: Option[List[GammaMapping]],
+           toLog: Boolean, debug: Boolean): State = {
     var globals: Set[Id] = Set()
     var locals: Set[Id] = Set()
     var noReadWrite: Set[Id] = Set()
@@ -785,7 +834,8 @@ object State {
 
     val controlAndControlled = controls & controlled
     if (controlAndControlled.nonEmpty) {
-      throw error.InvalidProgram("the following variables are both control and controlled variables: " + controlAndControlled.mkString(", "))
+      throw error.InvalidProgram("the following variables are both control and controlled variables: "
+        + controlAndControlled.mkString(", "))
     }
 
     // init D - every variable maps to Var
@@ -829,7 +879,8 @@ object State {
 
     // check gamma domain
     if (gamma.keySet != gammaDom)
-      throw error.InvalidProgram("provided gamma has invalid domain (" + gamma.keySet.mkString(", ") + "), correct domain is " + gammaDom.mkString(", "))
+      throw error.InvalidProgram("provided gamma has invalid domain (" + gamma.keySet.mkString(", ")
+        + "), correct domain is " + gammaDom.mkString(", "))
 
     // for replacing Ids in predicates with Vars
     val idToVar: Subst = {
@@ -848,13 +899,8 @@ object State {
       case Some(p) =>
         // check no unstable variables in user-defined P_0
 
-        // get all possible array index variables from P_0
-        val PArrayAccess: Set[Id] = {p flatMap {x: Expression => x.arrays flatMap {y: Access => y.index match {
-          case Lit(n) =>
-            Set(arrays(y.name).array(n))
-          case _ =>
-            arrays(y.name).array.toSet
-        }}}}.toSet
+        // get all array index variables from P_0 - doesn't need to be precise as arrays share a mode
+        val PArrayAccess: Set[Id] = {p flatMap {x => x.arrays flatMap {y => arrays(y.name).array}}}.toSet
 
         val PVars: Set[Id] = (p flatMap {x => x.variables}).toSet ++ PArrayAccess
         if (debug) {
@@ -916,7 +962,8 @@ object State {
     P map (p => p.restrict(restricted))
   }
 
-  def mergeD(D1: Map[Id, (Set[Id], Set[Id], Set[Id], Set[Id])], D2: Map[Id, (Set[Id], Set[Id], Set[Id], Set[Id])]): Map[Id, (Set[Id], Set[Id], Set[Id], Set[Id])] = {
+  def mergeD(D1: Map[Id, (Set[Id], Set[Id], Set[Id], Set[Id])],
+             D2: Map[Id, (Set[Id], Set[Id], Set[Id], Set[Id])]): Map[Id, (Set[Id], Set[Id], Set[Id], Set[Id])] = {
     for (v <- D1.keySet) yield {
       v -> ((D1(v)._1 intersect D2(v)._1,
         D1(v)._2 intersect D2(v)._2,
