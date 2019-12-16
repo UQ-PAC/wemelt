@@ -34,14 +34,8 @@ _Gamma_0: r_t -> LOW, L -> LOW, r_index -> LOW, v -> HIGH, tasks[*] -> LOW
 
 r_t = tail;
 r_index = r_t % L;
-if (v_sec == 0) {
-  sec[r_index] = 0;
-  fence;
-  tasks[r_index] = v;
-} else {
-  sec[r_index] = 1;
-  fence;
-  tasks[r_index] = v;
-}
+sec[r_index] = v_sec;
+fence;
+tasks[r_index] = v;
 fence;
 tail = r_t + 1;

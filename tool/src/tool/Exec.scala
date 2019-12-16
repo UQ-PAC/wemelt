@@ -194,9 +194,15 @@ object Exec {
       Cont.next(state2)
 
     // nonblocking rule
-    case While(test, invariants, gamma, Some(z), body) =>
-
-      val (oldZMode, state1) = startNonBlocking(z, state0)
+    case While(test, invariants, gamma, Some(stable), body) =>
+      // replace array wildcard with whole array
+      val _stable = stable flatMap {
+        case i if state0.arrays.keySet.contains(i) =>
+          state0.arrays(i).array
+        case i =>
+          Set(i)
+      }
+      val (oldMode, state1) = startNonBlocking(_stable, state0)
 
       if (state1.toLog)
         println("line " + statement.line + ": While(" + test + ") {")
@@ -216,7 +222,7 @@ object Exec {
 
       val state2 = whileRule(test, PPrime, gammaPrime, body, state1, statement.line)
       state2.log
-      val state3 = endNonBlocking(z, oldZMode, state2)
+      val state3 = endNonBlocking(_stable, oldMode, state2)
       state3.log
       if (state3.toLog)
         println("}")
@@ -224,9 +230,15 @@ object Exec {
       Cont.next(state3)
 
     // nonblocking rule
-    case DoWhile(test, invariants, gamma, Some(z), body) =>
-
-      val (oldZMode, state1) = startNonBlocking(z, state0)
+    case DoWhile(test, invariants, gamma, Some(stable), body) =>
+      // replace array wildcard with whole array
+      val _stable = stable flatMap {
+        case i if state0.arrays.keySet.contains(i) =>
+          state0.arrays(i).array
+        case i =>
+          Set(i)
+      }
+      val (oldModes, state1) = startNonBlocking(_stable, state0)
 
       if (state1.toLog)
         println("line " + statement.line + ": While(" + test + ") {")
@@ -249,12 +261,13 @@ object Exec {
 
       val state3 = whileRule(test, PPrime, gammaPrime, body, state2, statement.line)
       state3.log
-      val state4 = endNonBlocking(z, oldZMode, state3)
+      val state4 = endNonBlocking(_stable, oldModes, state3)
       state4.log
       if (state4.toLog)
         println("}")
 
       Cont.next(state4)
+
 
     case _ =>
       throw error.InvalidProgram("unimplemented statement " + statement + " at line " + statement.line)
@@ -532,7 +545,7 @@ object Exec {
       }
     }
 
-    if (state1.security(_test, PRestrict) == High) {
+    if (state1.security(_test, PRestrict, true) == High) {
       throw error.IfError(line, test, "guard expression is HIGH")
     }
 
@@ -542,12 +555,15 @@ object Exec {
 
     // execute both sides of if statement
     val _left = state2.updatePIfLeft(_test)
-
-    // only execute if it is a possible path
-    val _left1 = if (SMT.proveP(_left.P, _left.debug)) {
-      execute(left, _left).st
+    val _left1 = if (state2.noInfeasible) {
+      // don't check infeasible paths
+      if (SMT.proveP(_left.P, _left.debug)) {
+        execute(left, _left).st
+      } else {
+        _left
+      }
     } else {
-      _left
+      execute(left, _left).st
     }
 
     val _right1: State = right match {
@@ -555,10 +571,15 @@ object Exec {
         if (state0.toLog)
           println("} else {")
         val _right = state2.updatePIfRight(_test)
-        if (SMT.proveP(_right.P, _right.debug)) {
-          execute(r, _right).st
+        if (state2.noInfeasible) {
+          // don't check infeasible paths
+          if (SMT.proveP(_right.P, _right.debug)) {
+            execute(r, _right).st
+          } else {
+            _right
+          }
         } else {
-          _right
+          execute(r, _right).st
         }
       case None =>
         state2.updatePIfRight(_test)
@@ -639,7 +660,7 @@ object Exec {
     }
 
     // check test is LOW with regards to P', gamma' - tested
-    if (state3.security(_test, state3.P) == High) {
+    if (state3.security(_test, state3.P, true) == High) {
       throw error.WhileError(line, test, "guard expression is HIGH")
     }
 
@@ -1128,39 +1149,84 @@ object Exec {
 
 
   // start application of the nonblocking rule
-  def startNonBlocking(z: Id, state0: State): (Mode, State) = {
-    // add z to gamma
-    val state1 = state0.updateRead(z)
+  def startNonBlocking(stable: Set[Id], state0: State): (Map[Id, Mode], State) = {
+    // add stable set to gamma
+    val state1 = state0.updateRead(stable)
     val PRestrict = state1.restrictP(state1.knownW)
-    val t = state1.security(z, PRestrict)
-    val state2 = state1.updateGammaDomain(z, t)
+
+    var zSec: Map[Id, Security] = Map()
+    for (z <- stable) {
+      zSec += (z -> state1.security(z, PRestrict))
+    }
+    val state2 = state1.updateGammasDomain(zSec)
     val state3 = state2.resetReadWrite()
+    if (state3.debug) {
+      println("previous gamma: " + state1.gamma.gammaStr)
+      println("updated gamma: " + state3.gamma.gammaStr)
+    }
+
 
     // make z noW
-    val oldMode: Mode = if (state3.noWrite.contains(z)) {
-      NoW
-    } else if (state3.noReadWrite.contains(z)) {
-      NoRW
-    } else if (state3.readWrite.contains(z)) {
-      RW
-    } else {
-      throw error.ProgramError(z + " does not have a mode - internal error")
+    val oldModes: Map[Id, Mode] = {stable map {
+      case z if state3.noWrite.contains(z) =>
+        z -> NoW
+      case z if state3.noReadWrite.contains(z) =>
+        z -> NoRW
+      case z if state3.readWrite.contains(z) =>
+        z -> RW
+      case z =>
+        z -> Reg
+    }}.toMap
+    for (z <- stable) {
+      if (oldModes(z) == Reg) {
+        throw error.ProgramError(z + " does not have a mode - internal error")
+      }
     }
-    val state4 = state3.setMode(z, NoW)
+
+    val state4 = state3.setModes(stable, NoW)
+    if (state4.debug) {
+      println("previous modes: ")
+      println("no read write: " + state3.noReadWrite)
+      println("read write: " + state3.readWrite)
+      println("no write: " + state3.noWrite)
+      println("stable: " + state3.stable)
+      println("current modes: ")
+      println("no read write: " + state4.noReadWrite)
+      println("read write: " + state4.readWrite)
+      println("no write: " + state4.noWrite)
+      println("stable: " + state4.stable)
+    }
 
     // increment nonblocking depth so that the nonblocking rule will be checked while executing loop contents
     val state5 = state4.copy(nonblocking = true, nonblockingDepth = state4.nonblockingDepth + 1)
 
-    (oldMode, state5)
+    (oldModes, state5)
   }
 
-  // end application of the nonblocking rule for z, restoring its mode to oldMode
-  def endNonBlocking(z: Id, oldMode: Mode, state0: State): State = {
-    // restore original z mode
-    val state1 = state0.setMode(z, oldMode)
+  // end application of the nonblocking rule for variables, restoring their mode to oldMode
+  def endNonBlocking(stable: Set[Id], oldModes: Map[Id, Mode], state0: State): State = {
+    // restore original modes
+    val state1 = state0.setModes(oldModes)
+
+    if (state1.debug) {
+      println("previous modes: ")
+      println("no read write: " + state0.noReadWrite)
+      println("read write: " + state0.readWrite)
+      println("no write: " + state0.noWrite)
+      println("stable: " + state0.stable)
+      println("current modes: ")
+      println("no read write: " + state1.noReadWrite)
+      println("read write: " + state1.readWrite)
+      println("no write: " + state1.noWrite)
+      println("stable: " + state1.stable)
+    }
 
     // remove z from gamma
-    val state2 = state1.removeGamma(z)
+    val state2 = state1.removeGamma(stable)
+    if (state2.debug) {
+      println("previous gamma: " + state1.gamma.gammaStr)
+      println("updated gamma: " + state2.gamma.gammaStr)
+    }
 
     // decrement nonblocking depth so that the nonblocking rule will not be applied anymore if all nonblocking loops
     // are finished
@@ -1171,6 +1237,7 @@ object Exec {
     }
     state3
   }
+
 
   // evaluate multiple expressions
   def evals(exprs: List[Expression], pre: State): (List[Expression], State) = exprs match {

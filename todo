@@ -6,5 +6,4 @@
 -organise expression class - boolean expression subclass & clean up operations?
 -more powerful array expressions?
 
-fixed point - care about invalid paths??
-optimisations
+make handling dependent variable stuff work with arrays?

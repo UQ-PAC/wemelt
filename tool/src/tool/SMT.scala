@@ -21,6 +21,9 @@ object SMT {
 
       solver.check
     } catch {
+      case e: java.lang.UnsatisfiedLinkError if e.getMessage.equals("com.microsoft.z3.Native.INTERNALgetErrorMsgEx(JI)Ljava/lang/String;")=>
+        // weird unintuitive error z3 can have when input type is incorrect in a way it doesn't check
+        throw error.Z3Error("Z3 failed", cond, given.PStr, "incorrect z3 expression type, probably involving ForAll/Exists")
       case e: Throwable =>
         throw error.Z3Error("Z3 failed", cond, given.PStr, e)
     } finally {
@@ -51,6 +54,9 @@ object SMT {
 
       solver.check
     } catch {
+      case e: java.lang.UnsatisfiedLinkError if e.getMessage.equals("com.microsoft.z3.Native.INTERNALgetErrorMsgEx(JI)Ljava/lang/String;")=>
+        // weird unintuitive error z3 can have when input type is incorrect in a way it doesn't check
+        throw error.Z3Error("Z3 failed", cond, given.PStr, "incorrect z3 expression type, probably involving ForAll/Exists")
       case e: Throwable =>
         throw error.Z3Error("Z3 failed", cond, given.PStr, e)
     } finally {
@@ -76,6 +82,9 @@ object SMT {
       }
       solver.check
     } catch {
+      case e: java.lang.UnsatisfiedLinkError if e.getMessage.equals("com.microsoft.z3.Native.INTERNALgetErrorMsgEx(JI)Ljava/lang/String;")=>
+        // weird unintuitive error z3 can have when input type is incorrect in a way it doesn't check
+        throw error.Z3Error("Z3 failed", given.PStr, "incorrect z3 expression type, probably involving ForAll/Exists")
       case e: Throwable =>
         throw error.Z3Error("Z3 failed", given.PStr, e)
     } finally {
@@ -193,7 +202,11 @@ object SMT {
 
     case Question(test, arg1, arg2) => ctx.mkITE(formula(test), translate(arg1), translate(arg2))
 
-    //case ForAll(bound, body) => ctx.mkForall(bound.toArray map translate, translate(body), 0, scala.Array(), null, null, null)
+    case ForAll(bound, body) =>
+      ctx.mkForall(bound.toArray map translate, translate(body), 0, scala.Array(), null, null, null)
+
+    case Exists(bound, body) =>
+      ctx.mkExists(bound.toArray map translate, translate(body), 0, scala.Array(), null, null, null)
 
       // array index
     case VarAccess(name, index) => ctx.mkSelect(ctx.mkArrayConst(name.toString, ctx.getIntSort, ctx.getIntSort), translate(index))

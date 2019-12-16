@@ -16,20 +16,21 @@ _var y:
 _L: TRUE
 _Mode: RW
 
-_Gamma_0: r1 -> LOW, r2 -> HIGH
+_P_0: r1 % 2 == 0
+_Gamma_0: r1 -> LOW, r2 -> LOW
 
 while(TRUE)
-_invariant: TRUE
-_Gamma: r1 -> LOW, r2 -> HIGH
+_invariant: r1 % 2 == 0
+_Gamma: r1 -> LOW, r2 -> LOW
 {
   do
-  _invariant: TRUE
-  _Gamma: r1 -> LOW, r2 -> HIGH, z -> LOW
+  _invariant: r1 % 2 == 0
+  _Gamma: r1 -> LOW, r2 -> LOW, z -> LOW
   _Stable: z
   {
     do
-    _invariant: TRUE
-    _Gamma: r1 -> LOW, r2 -> HIGH, z -> LOW
+    _invariant: r1 == z
+    _Gamma: r1 -> LOW, r2 -> LOW, z -> LOW
     {
       r1 = z;
     } while ((r1 % 2) != 0)

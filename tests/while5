@@ -12,7 +12,7 @@ _L: FALSE
 _P_0: z % 2 == 0
 _Gamma_0: x -> LOW, r_secret -> HIGH
 
-while(r_secret) // should fail - WHILE rule - guard is HIGH
+while(r_secret == 0) // should fail - WHILE rule - guard is HIGH
 _invariant: z % 2 == 0
 _Gamma: x -> LOW, r_secret -> HIGH
 {

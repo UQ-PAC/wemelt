@@ -8,6 +8,7 @@ object Tool {
   def main(args: Array[String]): Unit = {
     var toLog: Boolean = false // whether to print P/Gamma/D state information for each rule application
     var debug: Boolean = false // whether to print further debug information
+    var noInfeasible: Boolean = false // whether to not check infeasible paths
 
     if (args.isEmpty) {
       println("usage: ./armlogictool.sh file1 file2...")
@@ -18,6 +19,8 @@ object Tool {
         case "-d" =>
           debug = true
           toLog = true
+        case "-p" =>
+          noInfeasible = true
         case _ =>
           val start = System.currentTimeMillis()
           try {
@@ -33,7 +36,7 @@ object Tool {
               println(P_0)
               println(gamma_0)
             }
-            val state0: State = State.init(variables, P_0, gamma_0, toLog, debug)
+            val state0: State = State.init(variables, P_0, gamma_0, toLog, debug, noInfeasible)
             Var.index = 0
             Switch.index = 0
             Exec.execute(statements, state0)

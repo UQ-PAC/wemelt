@@ -59,6 +59,7 @@
 %typeof NUM     = "Integer";
 
 %typeof id_reg_id = "Id";
+%typeof stable = "Id";
 
 %typeof expr    = "Expression";
 
@@ -100,6 +101,13 @@ id_reg_id = ID.n {: return new Id(n); :}
           | REG_ID.n {: return new Id(n); :}
           ;
 
+stable = id_reg_id.i {: return i; :}
+         | id_reg_id.i LBRACK STAR RBRACK {: return i; :}
+         | id_reg_id.i LBRACK NUM.n RBRACK {: return new Id(i.name() + "[" + n + "]"); :}
+         ;
+
+stables = stable | stables COMMA stable;
+
 definition
     =     VAR REG_ID.n COLON lpred.l                 {: return new VarDef(n, l); :}
           | VAR REG_ID.n                        {: return new VarDef(n); :}
@@ -130,9 +138,9 @@ local1
     | IF LPAREN expr.a RPAREN local.b   {: return new If(a, b);  :}
     | IF LPAREN expr.a RPAREN local.b ELSE local.c     {: return new If(a, b, c);   :}
     | WHILE LPAREN expr.a RPAREN INVARIANT COLON exprs.i GAMMA COLON gamma_mappings.g local.b      {: return new While(a, i, g, b);   :}
-    | WHILE LPAREN expr.a RPAREN INVARIANT COLON exprs.i GAMMA COLON gamma_mappings.g STABLE COLON ID.n local.b      {: return new While(a, i, g, n, b);   :}
+    | WHILE LPAREN expr.a RPAREN INVARIANT COLON exprs.i GAMMA COLON gamma_mappings.g STABLE COLON stables.n local.b      {: return new While(a, i, g, n, b);   :}
     | DO INVARIANT COLON exprs.i GAMMA COLON gamma_mappings.g local.b WHILE LPAREN expr.a RPAREN    {: return new DoWhile(a, i, g, b);   :}
-    | DO INVARIANT COLON exprs.i GAMMA COLON gamma_mappings.g STABLE COLON ID.n local.b WHILE LPAREN expr.a RPAREN     {: return new DoWhile(a, i, g, n, b);   :}
+    | DO INVARIANT COLON exprs.i GAMMA COLON gamma_mappings.g STABLE COLON stables.n local.b WHILE LPAREN expr.a RPAREN     {: return new DoWhile(a, i, g, n, b);   :}
     | error SEMICOLON {: return Malformed.self(); :}
     ;
 

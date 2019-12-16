@@ -29,19 +29,19 @@ _var tail:
 _L: TRUE
 _Mode: RW
 
-_P_0: L == 2, sec[0] == 0, sec[1] == 0, v_sec == 1
+_var z:
+_L: TRUE
+_Mode: RW
+
+_P_0: L == 2, levels[0] == 0, levels[1] == 0, u == 1
 _Gamma_0: r_t -> LOW, L -> LOW, r_index -> LOW, v -> HIGH, tasks[*] -> LOW
 
 r_t = tail;
-r_index = r_t % L;
-if (v_sec == 0) {
-  sec[r_index] = 0;
-  fence;
-  tasks[r_index] = v;
-} else {
-  sec[r_index] = 1;
-  fence;
-  tasks[r_index] = v;
-}
+z = z + 1;
 fence;
-tail = r_t + 1;
+r_index = r_t % L;
+levels[r_index] = u;
+tasks[r_index] = v;
+fence;
+z = z + 1;
+tail = r_t + 1; 

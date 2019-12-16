@@ -137,4 +137,4 @@ If statements and the atomic compare-and-swap (CAS) operation are also supported
 * updated forwarding
 * don't restrict locals
 * cfence
-* no infeasible paths
+* no infeasible paths (must be enabled with -p due to potentially causing issues with D invariant calculation for while rule)

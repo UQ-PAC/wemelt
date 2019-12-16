@@ -32,7 +32,8 @@ case class State(
   nonblockingDepth: Int, // how many layers of the nonblocking rule are currently being applied
 
   toLog: Boolean,
-  debug: Boolean) {
+  debug: Boolean,
+  noInfeasible: Boolean) {
 
   def W_w(v: Id): Set[Id] = D(v)._1
   def W_r(v: Id): Set[Id] = D(v)._2
@@ -204,10 +205,22 @@ case class State(
     copy(read = read + id)
   }
 
+  def updateRead(id: Set[Id]): State = {
+    if (debug)
+      println("updating read (" + read + ") with " + id)
+    copy(read = read ++ id)
+  }
+
   def updateWritten(id: Id): State = {
     if (debug)
       println("updating written (" + written + ") with " + id)
     copy(written = written + id)
+  }
+
+  def updateWritten(id: Set[Id]): State = {
+    if (debug)
+      println("updating written (" + written + ") with " + id)
+    copy(written = written ++ id)
   }
 
   def updateWritten(array: IdArray): State = {
@@ -398,7 +411,13 @@ case class State(
     if (debug)
       println("checking lowP for " + id)
     // prove if L(x) holds given P
-    val res = SMT.prove(L(id), p, debug)
+    val res = if (L(id) == Const._true) {
+      true
+    } else if (L(id) == Const._false) {
+      false
+    } else {
+      SMT.prove(L(id), p, debug)
+    }
     if (debug) {
       println("lowP is " + res + " for " + id)
     }
@@ -409,7 +428,13 @@ case class State(
     if (debug)
       println("checking highP for " + id)
     // prove if L(x) doesn't hold given P
-    val res = SMT.prove(PreOp("!", L(id)), p, debug)
+    val res = if (L(id) == Const._true) {
+      false
+    } else if (L(id) == Const._false) {
+      true
+    } else {
+      SMT.prove(PreOp("!", L(id)), p, debug)
+    }
     if (debug) {
       println("highP is " + res + " for " + id)
     }
@@ -428,7 +453,7 @@ case class State(
   // security for array access
   def security(a: Id, index: Expression, p: List[Expression]): Security = {
     if (debug)
-      println("checking security for " + a + "[" + index + "]")
+      println("checking array security for " + a + "[" + index + "]")
 
     val array = arrays(a)
 
@@ -463,6 +488,9 @@ case class State(
             val i = it.next
             if (gamma.contains(array.array(i))) {
               // check SMT to prove access is possible only if gamma is High to avoid unnecessary SMT call
+              if (debug) {
+                println("checking array access possibility for value in gamma " + array.array(i))
+              }
               if (gamma(array.array(i)) == High && SMT.proveSat(BinOp("==", index, Lit(i)), p, debug)) {
                 sec = High
               }
@@ -473,10 +501,17 @@ case class State(
           if (sec == Low) {
             val gammaArray: Seq[Boolean] = array.array map {a => gamma.contains(a)}
             val notInGamma = gammaArray.indices collect {case i if !gammaArray(i) => i}
-            if (SMT.prove(arrayAccessCheck(array, notInGamma, index), p, debug)) {
-              Low
+            if (notInGamma.nonEmpty) {
+              if (debug) {
+                println("checking array access possibility for values not in gamma " + notInGamma)
+              }
+              if (SMT.prove(arrayAccessCheck(array, notInGamma, index), p, debug)) {
+                Low
+              } else {
+                High
+              }
             } else {
-              High
+              Low
             }
           } else {
             High
@@ -520,13 +555,13 @@ case class State(
   }
 
   // e is expression to get security of, p is P value given so can substitute in P_a etc.
-  def security(e: Expression, p: List[Expression]): Security = {
+  def security(e: Expression, p: List[Expression], guard: Boolean = false): Security = {
     if (debug)
       println("checking security for " + e)
     var sec: Security = Low
     val varE = e.variables
 
-    /*
+
     var secMap: Map[Id, Security] = Map()
 
     for (x <- varE) {
@@ -537,22 +572,15 @@ case class State(
       secMap += (x -> xSec)
     }
 
-     */
-
-    // if x security is high, return, otherwise keep checkin
-    val it = varE.toIterator
-    while (it.hasNext && sec == Low) {
-      val x: Id = it.next()
-      sec = security(x, p)
-    }
-
-    val it2 = e.arrays.toIterator
+    val arraysE = e.arrays
+    val it2 = arraysE.toIterator
     while (it2.hasNext && sec == Low) {
       val a: Access = it2.next()
       sec = security(a.name, a.index, p)
     }
-/*
-    if (sec == High) {
+
+    // dealing with arrays with this check not implemented yet
+    if (sec == High && arraysE.isEmpty) {
       val idToVar: Subst = {
         for (v <- variables)
           yield v -> v.toVar
@@ -563,11 +591,15 @@ case class State(
 
       val eSubst = e.subst(idToVar)
       val high: Set[Var] = (secMap collect {case x if x._2 == High => x._1.toVar}).toSet
-      if (SMT.prove(BinOp("==", eSubst, ForAll(high, eSubst)), p, debug)) {
+      val test = if (guard) {
+        Switch(0) // to make boolean variable
+      } else {
+        Var("_var") // not a valid variable name from parser so won't clash
+      }
+      if (SMT.prove(Exists(Set(test), ForAll(high, BinOp("==", eSubst, test))), p, debug)) {
         sec = Low
       }
     }
-*/
     if (debug)
       println(e + " security is " + sec)
     sec
@@ -620,6 +652,16 @@ case class State(
   // update gamma with new value t mapped to x, regardless if x was in domain of gamma previously
   def updateGammaDomain(x: Id, t: Security): State = {
     val gammaPrime = gamma + (x -> t)
+    copy(gamma = gammaPrime)
+  }
+
+  def updateGammasDomain(sec: Map[Id, Security]): State = {
+    val gammaPrime = gamma ++ sec
+    copy(gamma = gammaPrime)
+  }
+
+  def removeGamma(xs: Set[Id]): State = {
+    val gammaPrime = gamma -- xs
     copy(gamma = gammaPrime)
   }
 
@@ -745,19 +787,19 @@ case class State(
       case NoW =>
         val noWritePrime = noWrite + z
         val readWritePrime = readWrite - z
-        val noReadWritePrime = readWrite - z
+        val noReadWritePrime = noReadWrite - z
         val stablePrime = stable + z
         copy(noWrite = noWritePrime, noReadWrite = noReadWritePrime, readWrite = readWritePrime, stable = stablePrime)
       case RW =>
         val noWritePrime = noWrite - z
         val readWritePrime = readWrite + z
-        val noReadWritePrime = readWrite - z
+        val noReadWritePrime = noReadWrite - z
         val stablePrime = stable - z
         copy(noWrite = noWritePrime, noReadWrite = noReadWritePrime, readWrite = readWritePrime, stable = stablePrime)
       case NoRW =>
         val noWritePrime = noWrite - z
         val readWritePrime = readWrite - z
-        val noReadWritePrime = readWrite + z
+        val noReadWritePrime = noReadWrite + z
         val stablePrime = stable + z
         copy(noWrite = noWritePrime, noReadWrite = noReadWritePrime, readWrite = readWritePrime, stable = stablePrime)
       case _ =>
@@ -765,12 +807,47 @@ case class State(
     }
   }
 
+  def setModes(ids: Set[Id], mode: Mode): State = {
+    mode match {
+      case NoW =>
+        val noWritePrime = noWrite ++ ids
+        val readWritePrime = readWrite -- ids
+        val noReadWritePrime = noReadWrite -- ids
+        val stablePrime = stable ++ ids
+        copy(noWrite = noWritePrime, noReadWrite = noReadWritePrime, readWrite = readWritePrime, stable = stablePrime)
+      case RW =>
+        val noWritePrime = noWrite -- ids
+        val readWritePrime = readWrite ++ ids
+        val noReadWritePrime = noReadWrite -- ids
+        val stablePrime = stable -- ids
+        copy(noWrite = noWritePrime, noReadWrite = noReadWritePrime, readWrite = readWritePrime, stable = stablePrime)
+      case NoRW =>
+        val noWritePrime = noWrite -- ids
+        val readWritePrime = readWrite -- ids
+        val noReadWritePrime = noReadWrite ++ ids
+        val stablePrime = stable ++ ids
+        copy(noWrite = noWritePrime, noReadWrite = noReadWritePrime, readWrite = readWritePrime, stable = stablePrime)
+      case _ =>
+        this
+    }
+  }
+
+  def setModes(modes: Map[Id, Mode]): State = {
+    val toNoWrite = modes collect {case (i, m) if m == NoW => i}
+    val toReadWrite = modes collect {case (i, m) if m == RW => i}
+    val toNoReadWrite = modes collect {case (i, m) if m == NoRW => i}
+    val noWritePrime = noWrite ++ toNoWrite -- toReadWrite -- toNoReadWrite
+    val readWritePrime = readWrite -- toNoWrite ++ toReadWrite -- toNoReadWrite
+    val noReadWritePrime = noReadWrite -- toNoWrite -- toReadWrite ++ toNoReadWrite
+    val stablePrime = stable ++ toNoWrite -- toReadWrite ++ toNoReadWrite
+    copy(noWrite = noWritePrime, noReadWrite = noReadWritePrime, readWrite = readWritePrime, stable = stablePrime)
+  }
 
 }
 
 object State {
   def init(definitions: Set[Definition], P_0: Option[List[Expression]], gamma_0: Option[List[GammaMapping]],
-           toLog: Boolean, debug: Boolean): State = {
+           toLog: Boolean, debug: Boolean, noInfeasible: Boolean): State = {
     var globals: Set[Id] = Set()
     var locals: Set[Id] = Set()
     var noReadWrite: Set[Id] = Set()
@@ -953,7 +1030,8 @@ object State {
       arrayIndices = arrayIndices,
       arrays = arrays,
       toLog = toLog,
-      debug = debug
+      debug = debug,
+      noInfeasible = noInfeasible
     )
   }
 

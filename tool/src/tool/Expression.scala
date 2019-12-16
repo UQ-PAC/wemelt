@@ -25,6 +25,11 @@ trait Expression extends beaver.Symbol {
 
 }
 
+trait BoolExpression extends Expression {
+  def subst(su: Subst): BoolExpression
+  def subst(su: Subst, num: Int): BoolExpression
+}
+
 case class Lit(arg: Int) extends Expression {
   override def toString = arg.toString
   override def variables: Set[Id] = Set()
@@ -122,15 +127,15 @@ object Var {
 }
 
 // switching logical variable for CNF format
-case class Switch(index: Int) extends Expression {
+case class Switch(index: Int) extends BoolExpression {
   def variables: Set[Id] = Set()
-  def subst(su: Subst): Expression = this
-  def subst(su: Subst, num: Int): Expression = this
+  def subst(su: Subst): BoolExpression = this
+  def subst(su: Subst, num: Int): BoolExpression = this
   override def arrays = Set()
 }
 
 object Switch {
-  var index = 0
+  var index = 1
   def fresh = {
     index += 1
     Switch(index)
@@ -152,6 +157,39 @@ object MultiSwitch {
   }
 }
 
+case class not(arg: BoolExpression) extends BoolExpression {
+  override def toString = "(! " + arg + ")"
+  override def variables: Set[Id] = arg.variables
+  def subst(su: Subst) = not(arg.subst(su))
+  def subst(su: Subst, num: Int) =  not(arg.subst(su, num))
+  override def arrays = arg.arrays
+}
+
+case class and(arg1: BoolExpression, arg2: BoolExpression) extends BoolExpression {
+  override def toString = "(" + arg1 + " && " + arg2 + ")"
+  override def variables: Set[Id] = arg1.variables ++ arg2.variables
+  def subst(su: Subst) = and(arg1.subst(su), arg2.subst(su))
+  def subst(su: Subst, num: Int) = and(arg1.subst(su, num), arg2.subst(su, num))
+  override def arrays = arg1.arrays ++ arg2.arrays
+}
+
+case class or(arg1: BoolExpression, arg2: BoolExpression) extends BoolExpression {
+  override def toString = "(" + arg1 + " && " + arg2 + ")"
+  override def variables: Set[Id] = arg1.variables ++ arg2.variables
+  def subst(su: Subst) = or(arg1.subst(su), arg2.subst(su))
+  def subst(su: Subst, num: Int) = or(arg1.subst(su, num), arg2.subst(su, num))
+  override def arrays = arg1.arrays ++ arg2.arrays
+}
+
+/*
+case class eq(arg1: Expression, arg2: Expression) extends BoolExpression {
+  override def toString = "(" + arg1 + " && " + arg2 + ")"
+  override def variables: Set[Id] = arg1.variables ++ arg2.variables
+  def subst(su: Subst) = eq(arg1.subst(su), arg2.subst(su))
+  def subst(su: Subst, num: Int) = eq(arg1.subst(su, num), arg2.subst(su, num))
+  override def arrays = arg1.arrays ++ arg2.arrays
+}
+ */
 
 case class PreOp(op: String, arg: Expression) extends Expression {
   override def toString = "(" + op + " " + arg + ")"
@@ -159,7 +197,6 @@ case class PreOp(op: String, arg: Expression) extends Expression {
   def subst(su: Subst) =  PreOp(op, arg.subst(su))
   def subst(su: Subst, num: Int) =  PreOp(op, arg.subst(su, num))
   override def arrays = arg.arrays
-
 }
 
 case class PostOp(op: String, arg: Expression) extends Expression {
@@ -186,10 +223,17 @@ case class Question(test: Expression, left: Expression, right: Expression) exten
   override def arrays = test.arrays ++ left.arrays ++ right.arrays
 }
 
-case class ForAll(bound: Set[Var], body: Expression) extends Expression {
-  override def variables = body.variables -- (bound map {_.ident})
+case class ForAll(bound: Set[_ <: Expression], body: Expression) extends BoolExpression {
+  override def variables = body.variables -- (bound collect {case x: Var => x.ident})
   def subst(su: Subst) = ForAll(bound, body.subst(su))
   def subst(su: Subst, num: Int) = ForAll(bound, body.subst(su, num))
+  override def arrays = body.arrays
+}
+
+case class Exists(bound: Set[_ <: Expression], body: Expression) extends BoolExpression {
+  override def variables = body.variables -- (bound collect {case x: Var => x.ident})
+  def subst(su: Subst) = Exists(bound, body.subst(su))
+  def subst(su: Subst, num: Int) = Exists(bound, body.subst(su, num))
   override def arrays = body.arrays
 }
 
