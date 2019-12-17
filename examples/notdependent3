@@ -6,10 +6,10 @@ _var x:
 _L: z % 2 == 0
 _Mode: NoW
 
-_var r_secret:
+_array r_secret[2]:
 _L: FALSE
 
 _P_0: z == 0
 _Gamma_0: x -> LOW, r_secret -> HIGH
 
-x = r_secret * z; // shouldn't fail as not dependent on r_secret as z == 0
+x = r_secret[z] - r_secret[0]; // shouldn't fail as not dependent on r_secret

@@ -74,7 +74,11 @@ case class Access(name: Id, index: Expression) extends Expression {
 // array access with Var for use in logical predicates
 case class VarAccess(name: Var, index: Expression) extends Expression {
   def variables: Set[Id] = index.variables
-  def subst(su: Subst) = VarAccess(name.subst(su), index.subst(su))
+  def subst(su: Subst) = if (su.keySet.contains(this)) {
+    su.getOrElse(this, this)
+  } else {
+    VarAccess(name.subst(su), index.subst(su))
+  }
 
   // don't substitute in the case that the index expression is an integer but not the one specified
   override def subst(su: Subst, num: Int) = index match {
@@ -83,7 +87,7 @@ case class VarAccess(name: Var, index: Expression) extends Expression {
     case _ =>
       VarAccess(name.subst(su), index.subst(su))
   }
-  override def toString = name + "[" + index + "]"
+  //override def toString = name + "[" + index + "]"
   override def arrays = this.name match {
     case Var(_, Some(index)) =>
       Set()
@@ -157,6 +161,7 @@ object MultiSwitch {
   }
 }
 
+/*
 case class not(arg: BoolExpression) extends BoolExpression {
   override def toString = "(! " + arg + ")"
   override def variables: Set[Id] = arg.variables
@@ -181,7 +186,6 @@ case class or(arg1: BoolExpression, arg2: BoolExpression) extends BoolExpression
   override def arrays = arg1.arrays ++ arg2.arrays
 }
 
-/*
 case class eq(arg1: Expression, arg2: Expression) extends BoolExpression {
   override def toString = "(" + arg1 + " && " + arg2 + ")"
   override def variables: Set[Id] = arg1.variables ++ arg2.variables

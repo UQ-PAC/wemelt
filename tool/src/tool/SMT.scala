@@ -22,7 +22,7 @@ object SMT {
       solver.check
     } catch {
       case e: java.lang.UnsatisfiedLinkError if e.getMessage.equals("com.microsoft.z3.Native.INTERNALgetErrorMsgEx(JI)Ljava/lang/String;")=>
-        // weird unintuitive error z3 can have when input type is incorrect in a way it doesn't check
+        // weird unintuitive error z3 can have when an input type is incorrect in a way it doesn't check
         throw error.Z3Error("Z3 failed", cond, given.PStr, "incorrect z3 expression type, probably involving ForAll/Exists")
       case e: Throwable =>
         throw error.Z3Error("Z3 failed", cond, given.PStr, e)
@@ -40,7 +40,6 @@ object SMT {
     res == z3.Status.UNSATISFIABLE
   }
 
-
   def proveSat(cond: Expression, given: List[Expression], debug: Boolean) = {
     if (debug)
       println("smt checking " + cond + " given " + given.PStr)
@@ -55,7 +54,7 @@ object SMT {
       solver.check
     } catch {
       case e: java.lang.UnsatisfiedLinkError if e.getMessage.equals("com.microsoft.z3.Native.INTERNALgetErrorMsgEx(JI)Ljava/lang/String;")=>
-        // weird unintuitive error z3 can have when input type is incorrect in a way it doesn't check
+        // weird unintuitive error z3 can have when an input type is incorrect in a way it doesn't check
         throw error.Z3Error("Z3 failed", cond, given.PStr, "incorrect z3 expression type, probably involving ForAll/Exists")
       case e: Throwable =>
         throw error.Z3Error("Z3 failed", cond, given.PStr, e)
@@ -83,7 +82,7 @@ object SMT {
       solver.check
     } catch {
       case e: java.lang.UnsatisfiedLinkError if e.getMessage.equals("com.microsoft.z3.Native.INTERNALgetErrorMsgEx(JI)Ljava/lang/String;")=>
-        // weird unintuitive error z3 can have when input type is incorrect in a way it doesn't check
+        // weird unintuitive error z3 can have when an input type is incorrect in a way it doesn't check
         throw error.Z3Error("Z3 failed", given.PStr, "incorrect z3 expression type, probably involving ForAll/Exists")
       case e: Throwable =>
         throw error.Z3Error("Z3 failed", given.PStr, e)
@@ -99,17 +98,6 @@ object SMT {
     }
     res == z3.Status.SATISFIABLE
   }
-
-  // recursively convert expression list into AND structure
-  def PToAnd(exprs: List[Expression]): z3.BoolExpr = exprs match {
-      case Nil =>
-        ctx.mkTrue
-
-      case expr :: rest =>
-        val xs = PToAnd(rest)
-        val x =  ctx.mkAnd(formula(expr), xs)
-        x
-    }
 
   def proveImplies(strong: List[Expression], weak: List[Expression], debug: Boolean) = {
     if (debug)
@@ -131,6 +119,45 @@ object SMT {
       }
     }
     res == z3.Status.UNSATISFIABLE
+  }
+
+  def proveExpression(cond: Expression, debug: Boolean) = {
+    if (debug)
+      println("smt checking (" + cond + ")")
+    solver.push()
+    val res = try {
+      // check that (NOT cond) is unsatisfiable
+      solver.add(formula(cond))
+      solver.check
+    } catch {
+      case e: java.lang.UnsatisfiedLinkError if e.getMessage.equals("com.microsoft.z3.Native.INTERNALgetErrorMsgEx(JI)Ljava/lang/String;")=>
+        // weird unintuitive error z3 can have when an input type is incorrect in a way it doesn't check
+        throw error.Z3Error("Z3 failed", cond, "incorrect z3 expression type, probably involving ForAll/Exists")
+      case e: Throwable =>
+        throw error.Z3Error("Z3 failed", cond, e)
+    } finally {
+      solver.pop()
+    }
+
+    if (debug) {
+      println(res)
+      if (res == z3.Status.SATISFIABLE) {
+        val model = solver.getModel
+        println(model)
+      }
+    }
+    res == z3.Status.SATISFIABLE
+  }
+
+  // recursively convert expression list into AND structure
+  def PToAnd(exprs: List[Expression]): z3.BoolExpr = exprs match {
+    case Nil =>
+      ctx.mkTrue
+
+    case expr :: rest =>
+      val xs = PToAnd(rest)
+      val x = ctx.mkAnd(formula(expr), xs)
+      x
   }
 
   def formula(prop: Expression): z3.BoolExpr = translate(prop) match {
@@ -210,7 +237,6 @@ object SMT {
 
       // array index
     case VarAccess(name, index) => ctx.mkSelect(ctx.mkArrayConst(name.toString, ctx.getIntSort, ctx.getIntSort), translate(index))
-
 
     case _ =>
       throw error.InvalidProgram("cannot translate to SMT", prop)

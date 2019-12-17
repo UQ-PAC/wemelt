@@ -151,38 +151,6 @@ case class State(
       mergePs(possiblePs)
     }
 
-
-
-    /* old arrayassign that
-    // substitute variable in P for fresh variable
-    val PReplace = index match {
-        // if this array access is unambiguous, don't quantify array access for assignments to different unambiguous
-         indices of this array
-      case Lit(n) =>
-        P map (p => p.subst(toSubst, n))
-      case _ =>
-        P map (p => p.subst(toSubst))
-    }
-
-    // substitute variable in expression for fresh variable
-    val argReplace = arg.subst(toSubst, i)
-
-    val indexToSubst: Subst = {
-      for (i <- index.variables)
-        yield i -> i.toVar
-      }.toMap ++ toSubst
-
-    val indexSubst = index.subst(indexToSubst, i)
-
-    // add new assignment statement to P
-    val PPrime = BinOp("==", VarAccess(v, indexSubst), argReplace) :: PReplace
-
-    // restrict PPrime to stable variables
-    val POut = State.restrictP(PPrime, stable)
-     */
-
-
-
     if (debug) {
       println("assigning " + arg + " to " + a + "[" + index + "]" + ":")
       println("P: " + P.PStr)
@@ -522,7 +490,7 @@ case class State(
 
   // ((index == 0) && (L(A[0]))) || ((index == 1) && (L(A[1]))) || ... to array.size
   def arrayAccessCheck(array: IdArray, indices: Seq[Int], index: Expression): Expression = {
-    val list = {for (i <- indices)
+    val list: List[Expression] = {for (i <- indices)
       yield BinOp("&&", BinOp("==", index, Lit(i)), L(array.array(i)))}.toList
     orPredicates(list)
   }
@@ -537,6 +505,16 @@ case class State(
       x
   }
 
+  def andPredicates(exprs: List[Expression]): Expression = exprs match {
+    case Nil =>
+      Const._true
+
+    case expr :: rest =>
+      val xs = andPredicates(rest)
+      val x =  BinOp("&&", expr, xs)
+      x
+  }
+
   // x is variable to get security of, p is P value given so can substitute in P_a etc.
   def security(x: Id, p: List[Expression]): Security = {
     if (debug)
@@ -544,10 +522,8 @@ case class State(
     var sec: Security = High
     if (gamma.contains(x)) {
       sec = gamma(x)
-    } else {
-      if (lowP(x, p)) {
-        sec = Low
-      } // true/LOW if L(x) holds given P, false/HIGH otherwise
+    } else if (lowP(x, p)) {
+      sec = Low // LOW if L(x) holds given P, HIGH otherwise
     }
     if (debug)
       println(x + " security is " + sec)
@@ -560,10 +536,7 @@ case class State(
       println("checking security for " + e)
     var sec: Security = Low
     val varE = e.variables
-
-
     var secMap: Map[Id, Security] = Map()
-
     for (x <- varE) {
       val xSec = security(x, p)
       if (xSec == High) {
@@ -573,30 +546,56 @@ case class State(
     }
 
     val arraysE = e.arrays
-    val it2 = arraysE.toIterator
-    while (it2.hasNext && sec == Low) {
-      val a: Access = it2.next()
-      sec = security(a.name, a.index, p)
+    var arraySecMap: Map[Access, Security] = Map()
+    for (a <- arraysE) {
+      val aSec = security(a.name, a.index, p)
+      if (aSec == High) {
+        sec = High
+      }
+      arraySecMap += (a -> aSec)
     }
 
-    // dealing with arrays with this check not implemented yet
-    if (sec == High && arraysE.isEmpty) {
+    // checking for possibility expression contains a high variable/array access but its evaluation is not dependent
+    // on the high data, e.g. high - high, high * 0
+    if (sec == High) {
+      val highAccess: Set[Access] = (arraySecMap collect {case a if a._2 == High => a._1}).toSet
+
       val idToVar: Subst = {
         for (v <- variables)
           yield v -> v.toVar
         }.toMap ++ {
         for (v <- arrays.keySet)
           yield v -> v.toVar
-        }.toMap
+        }
 
-      val eSubst = e.subst(idToVar)
-      val high: Set[Var] = (secMap collect {case x if x._2 == High => x._1.toVar}).toSet
-      val test = if (guard) {
+      // replace high array accesses with new variables
+
+      var arrayReplace: Map[Access, Var] = Map()
+      for (a <- highAccess) {
+        arrayReplace += (a -> Var.fresh(a.name.name))
+        for (i <- arrayReplace.keySet if i != a) {
+          // check if array indices can be proved to be equivalent, if so replace with same variable
+          if (i.name == a.name && SMT.prove(BinOp("==", i.index, a.index), p, debug)) {
+            arrayReplace += (a -> arrayReplace(i))
+          }
+        }
+      }
+      val toSubst: Subst = arrayReplace map {case (k, v) => k.subst(idToVar) -> v}
+
+      val eSubst = e.subst(toSubst).subst(idToVar)
+
+      // set of variables to bind - high variables and replacement variables for high array accesses
+      val high: Set[Var] = (secMap collect {case x if x._2 == High => x._1.toVar}).toSet ++
+        (highAccess map {x => toSubst(x.subst(idToVar))})
+
+      // guards are boolean expressions so must create boolean variable for them
+      val v = if (guard) {
         Switch(0) // to make boolean variable
       } else {
         Var("_var") // not a valid variable name from parser so won't clash
       }
-      if (SMT.prove(Exists(Set(test), ForAll(high, BinOp("==", eSubst, test))), p, debug)) {
+
+      if (SMT.prove(Exists(Set(v), ForAll(high, BinOp("==", eSubst, v))), p, debug)) {
         sec = Low
       }
     }

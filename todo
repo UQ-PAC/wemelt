@@ -1,9 +1,7 @@
--comment everything
--z3 simplifier?
--atomic block - specify which variable stable, update D?
--write up array rules
-
+-pruning P by removing predicates mostly dependent on otherwise unused variables?
 -organise expression class - boolean expression subclass & clean up operations?
 -more powerful array expressions?
 
-make handling dependent variable stuff work with arrays?
+options for different features
+
+optimisations?

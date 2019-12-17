@@ -846,8 +846,11 @@ object Exec {
         println("knownW: " + knownw)
       }
 
+
+      //val fallingFail = for (y <- falling -- st3.noReadWrite if !knownw.contains(y) || st3.security(y, PRestrict) == High)
+
       // falling can only succeed if y is in gamma and maps to low
-      val fallingFail = for (y <- falling -- st3.noReadWrite if !knownw.contains(y) || st3.security(y, PRestrict) == High)
+      val fallingFail = for (y <- falling -- st3.noReadWrite if !st3.gamma.contains(y) || st3.gamma(y) != Low)
         yield y
 
       if (fallingFail.nonEmpty) {
@@ -956,9 +959,10 @@ object Exec {
       println("knownW: " + knownw)
     }
 
-    // falling can only succeed if y is in gamma and maps to low
+    //val fallingFail = for (y <- falling -- st2.noReadWrite if !knownw.contains(y) || st2.security(y, PRestrict) == High)
 
-    val fallingFail = for (y <- falling -- st2.noReadWrite if !knownw.contains(y) || st2.security(y, PRestrict) == High)
+    // falling can only succeed if y is in gamma and maps to low
+    val fallingFail = for (y <- falling -- st2.noReadWrite if !st2.gamma.contains(y) || st2.gamma(y) != Low)
       yield y
 
     if (fallingFail.nonEmpty) {
@@ -986,11 +990,11 @@ object Exec {
     // CAS rule
     if (st0.toLog)
       println("CAS applying")
-    // computes rd
+    // compute rd
     val (_r1, st1) = eval(r1, st0)
     val (_r2, st2) = eval(r2, st1)
     val st3 = st2.updateRead(x)
-    // computes wr
+    // compute wr
     val st4 = st3.updateWritten(x)
     val st5 = st4.updateWritten(lhs)
     // at this point the rd and wr sets are complete for the current line
@@ -1118,9 +1122,10 @@ object Exec {
       println("knownW: " + knownw)
     }
 
-    // falling can only succeed if y is in gamma and maps to low
+    //val fallingFail = for (y <- falling -- st5.noReadWrite if !knownw.contains(y) || st5.security(y, PRestrictAssign) == High)
 
-    val fallingFail = for (y <- falling -- st5.noReadWrite if !knownw.contains(y) || st5.security(y, PRestrictAssign) == High)
+    // falling can only succeed if y is in gamma and maps to low
+    val fallingFail = for (y <- falling -- st5.noReadWrite if !st5.gamma.contains(y) || st5.gamma(y) != Low)
       yield y
 
     if (fallingFail.nonEmpty) {
