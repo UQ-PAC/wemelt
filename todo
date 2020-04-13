@@ -1,7 +1,11 @@
--pruning P by removing predicates mostly dependent on otherwise unused variables?
--organise expression class - boolean expression subclass & clean up operations?
--more powerful array expressions?
-
-options for different features
-
-optimisations?
+bare minimum necessary for AssignL rule
+-user supplied L_R, L_G, R, G
+-updated gamma - predicates instead of values, changed evaluation
+-updated security evaluation
+-P + R
+-{P, Gamma + R }
+-low_or_eq
+for AssignG rule
+-updated falling check
+-guar P
+-t <:_P L_G(x)

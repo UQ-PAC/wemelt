@@ -58,19 +58,16 @@ object Exec {
     case Assignment(lhs, rhs) =>
       if (state0.toLog)
         println("line " + statement.line + ": " + lhs + " = " + rhs + ":")
-      // check if lhs is a control variable
-      val state1 = if (state0.controls.contains(lhs)) {
-        assignCRule(lhs, rhs, state0, statement.line)
+      // check if lhs is a local variable
+      val state1 = if (state0.locals.contains(lhs)) {
+        assignLRule(lhs, rhs, state0, statement.line)
       } else {
-        assignRule(lhs, rhs, state0, statement.line)
-      }
-      // check nonblocking rule if necessary
-      if (state1.nonblocking && state1.globals.contains(lhs)) {
-        throw error.NonblockingError(statement.line, statement, "global variable " + lhs + " was written to within a nonblocking while loop")
+        assignGRule(lhs, rhs, state0, statement.line)
       }
       state1.log
       Cont.next(state1)
 
+      /*
     case ArrayAssignment(array, index, rhs) =>
       if (state0.toLog)
         println("line " + statement.line + ": " + array + "[" + index + "] = " + rhs + ":")
@@ -106,7 +103,7 @@ object Exec {
       }
       state1.log
       Cont.next(state1)
-
+*/
 
     case Fence =>
       // reset D
@@ -192,82 +189,6 @@ object Exec {
       if (state0.toLog)
         println("}")
       Cont.next(state2)
-
-    // nonblocking rule
-    case While(test, invariants, gamma, Some(stable), body) =>
-      // replace array wildcard with whole array
-      val _stable = stable flatMap {
-        case i if state0.arrays.keySet.contains(i) =>
-          state0.arrays(i).array
-        case i =>
-          Set(i)
-      }
-      val (oldMode, state1) = startNonBlocking(_stable, state0)
-
-      if (state1.toLog)
-        println("line " + statement.line + ": While(" + test + ") {")
-      // replace Ids in invariant with vars
-      val idToVar: Subst = {
-        for (v <- state0.variables)
-          yield v -> v.toVar
-        }.toMap ++ {
-        for (v <- state0.arrays.keySet)
-          yield v -> v.toVar
-        }.toMap
-
-      val PPrime = invariants map {i => i.subst(idToVar)}
-
-      // convert gammaPrime to map
-      val gammaPrime: Map[Id, Security] = (gamma flatMap {g => g.toPair(state0.arrays)}).toMap
-
-      val state2 = whileRule(test, PPrime, gammaPrime, body, state1, statement.line)
-      state2.log
-      val state3 = endNonBlocking(_stable, oldMode, state2)
-      state3.log
-      if (state3.toLog)
-        println("}")
-
-      Cont.next(state3)
-
-    // nonblocking rule
-    case DoWhile(test, invariants, gamma, Some(stable), body) =>
-      // replace array wildcard with whole array
-      val _stable = stable flatMap {
-        case i if state0.arrays.keySet.contains(i) =>
-          state0.arrays(i).array
-        case i =>
-          Set(i)
-      }
-      val (oldModes, state1) = startNonBlocking(_stable, state0)
-
-      if (state1.toLog)
-        println("line " + statement.line + ": While(" + test + ") {")
-      // replace Ids in invariant with vars
-      val idToVar: Subst = {
-        for (v <- state0.variables)
-          yield v -> v.toVar
-        }.toMap ++ {
-        for (v <- state0.arrays.keySet)
-          yield v -> v.toVar
-        }.toMap
-
-      val PPrime = invariants map {i => i.subst(idToVar)}
-
-      // convert gammaPrime to map
-      val gammaPrime: Map[Id, Security] = (gamma flatMap {g => g.toPair(state0.arrays)}).toMap
-
-      // execute loop body once at start
-      val state2 = execute(body, state1).st
-
-      val state3 = whileRule(test, PPrime, gammaPrime, body, state2, statement.line)
-      state3.log
-      val state4 = endNonBlocking(_stable, oldModes, state3)
-      state4.log
-      if (state4.toLog)
-        println("}")
-
-      Cont.next(state4)
-
 
     case _ =>
       throw error.InvalidProgram("unimplemented statement " + statement + " at line " + statement.line)
@@ -874,6 +795,15 @@ object Exec {
     val st4 = st3.arrayAssign(a, index, _rhs, possibleIndices) // update P
     st4.updateDArrayAssign(a, _rhs)
   }
+
+  def assignLRule(lhs: Id, rhs: Expression, st0: State, line: Int): State = {
+    // ASSIGNL rule
+    if (st0.toLog)
+      println("ASSIGNL applying")
+
+    val t = st2.security(_rhs, st0.P)
+  }
+
 
   def assignRule(lhs: Id, rhs: Expression, st0: State, line: Int): State = {
     // ASSIGN rule
