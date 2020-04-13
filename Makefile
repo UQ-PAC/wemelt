@@ -2,35 +2,35 @@
 
 MILL = ./mill
 
-TOOL_JAVA = tool/src/tool/Parser.java \
-            tool/src/tool/Scanner.java
+WEMELT_JAVA = wemelt/src/wemelt/Parser.java \
+            wemelt/src/wemelt/Scanner.java
 
-TOOL_JAR = out/tool/jar/dest/out.jar
-TOOL_LAUNCHER = ./out/tool/launcher/dest/run
-TOOL_SH  = ./armlogictool.sh
+WEMELT_JAR = out/wemelt/jar/dest/out.jar
+WEMELT_LAUNCHER = ./out/wemelt/launcher/dest/run
+WEMELT_SH  = ./wemelt.sh
 
-all: parser $(TOOL_JAR) $(TOOL_SH)  macos_sip_fix
+all: parser $(WEMELT_JAR) $(WEMELT_SH)  macos_sip_fix
 
-parser: $(TOOL_JAVA)
+parser: $(WEMELT_JAVA)
 
 clean:
 	$(MILL) clean
-	rm -f $(TOOL_JAVA)
-	rm -f $(TOOL_SH)
+	rm -f $(WEMELT_JAVA)
+	rm -f $(WEMELT_SH)
 
 check-dependencies:
 	$(MILL) mill.scalalib.Dependency/updates
 
-$(TOOL_LAUNCHER):
+$(WEMELT_LAUNCHER):
 	@echo $@
-	$(MILL) tool.launcher
+	$(MILL) wemelt.launcher
 
-$(TOOL_JAR):
+$(WEMELT_JAR):
 	@echo $@
-	$(MILL) tool.jar
+	$(MILL) wemelt.jar
 
-$(TOOL_SH): $(TOOL_LAUNCHER)
-	@echo "[echo]  $@"; echo "#!/usr/bin/env bash" > $@; echo "export LD_LIBRARY_PATH=$(PWD)/tool/lib" >> $@; echo "source $(TOOL_LAUNCHER)" >> $@
+$(WEMELT_SH): $(WEMELT_LAUNCHER)
+	@echo "[echo]  $@"; echo "#!/usr/bin/env bash" > $@; echo "export LD_LIBRARY_PATH=$(PWD)/wemelt/lib" >> $@; echo "source $(WEMELT_LAUNCHER)" >> $@
 	@echo "[chmod] $@"; chmod +x $@
 
 %.java: %.grammar
@@ -39,13 +39,13 @@ $(TOOL_SH): $(TOOL_LAUNCHER)
 %.java: %.flex
 	jflex -nobak $^
 
-o: $(TOOL_OBJ)
-	@echo $(TOOL_OBJ)
+o: $(WEMELT_OBJ)
+	@echo $(WEMELT_OBJ)
 
-macos_sip_fix: tool/lib/libz3java.dylib tool/lib/libz3.dylib
+macos_sip_fix: wemelt/lib/libz3java.dylib wemelt/lib/libz3.dylib
 	@if [ $$(uname -s) = "Darwin" ];  then \
 	    make -s libz3java.dylib libz3.dylib; \
 	 fi
 
-lib%.dylib: tool/lib/lib%.dylib
+lib%.dylib: wemelt/lib/lib%.dylib
 	ln -s $<

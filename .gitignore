@@ -2,5 +2,4 @@ out/
 *.iml
 .idea/
 build/
-armlogictool.sh
-
+wemelt.sh

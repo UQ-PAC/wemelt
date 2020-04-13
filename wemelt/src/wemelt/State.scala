@@ -1,4 +1,4 @@
-package tool
+package wemelt
 
 case class State(
   gamma: Map[Id, Security],

@@ -9,17 +9,17 @@
 
 ## Building
 
-The tool should build by typing `make` in the top-level directory.
+WeMeLT should build by typing `make` in the top-level directory.
 
 ```
 make
 ```
 
-This should produce a shell script `armlogictool.sh` for running it.
+This should produce a shell script `wemelt.sh` for running it.
 
 ## Running
 
-Run `armlogictool.sh`, supplying a list of files to analyse as command line
+Run `wemelt.sh`, supplying a list of files to analyse as command line
 arguments.
 
 `-v` can be used ato print the P, D, and Gamma values after each statement
@@ -27,9 +27,9 @@ arguments.
 `-d` can be used to print additional debug information 
 
 ```
-./armlogictool.sh file1 file2 ..
-./armlogictool.sh -v file1 file2 ..
-./armlogictool.sh -d file1 file2 ..
+./wemelt.sh file1 file2 ..
+./wemelt.sh -v file1 file2 ..
+./wemelt.sh -d file1 file2 ..
 ```
 
 ## Input file format

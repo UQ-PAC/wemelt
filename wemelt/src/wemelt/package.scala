@@ -1,4 +1,4 @@
-package object tool {
+package object wemelt {
   object error {
 
     abstract class Error extends Exception {

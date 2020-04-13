@@ -1,9 +1,9 @@
-package tool
+package wemelt
 
 import java.io.FileReader
-import tool.error._
+import wemelt.error._
 
-object Tool {
+object WeMeLT {
 
   def main(args: Array[String]): Unit = {
     var toLog: Boolean = false // whether to print P/Gamma/D state information for each rule application
@@ -11,7 +11,7 @@ object Tool {
     var noInfeasible: Boolean = false // whether to not check infeasible paths
 
     if (args.isEmpty) {
-      println("usage: ./armlogictool.sh file1 file2...")
+      println("usage: ./wemelt.sh file1 file2...")
     } else {
       for (file <- args) file match {
         case "-v" =>

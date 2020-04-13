@@ -1,3 +1,3 @@
 make clean
 make
-./armlogictool.sh tests/* examples/*
+./wemelt.sh tests/* examples/*

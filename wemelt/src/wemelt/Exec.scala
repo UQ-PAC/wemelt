@@ -1,4 +1,4 @@
-package tool
+package wemelt
 
 // remnant of handling break/continue/returns - might be useful in future
 sealed trait Cont {

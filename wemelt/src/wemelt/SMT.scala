@@ -1,4 +1,4 @@
-package tool
+package wemelt
 
 import com.microsoft.z3
 

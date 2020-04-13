@@ -1,7 +1,7 @@
-package tool;
+package wemelt;
 
 import beaver.Symbol;
-import tool.Parser.Terminals;
+import wemelt.Parser.Terminals;
 
 %%
 

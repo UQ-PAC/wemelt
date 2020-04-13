@@ -1,3 +1,2 @@
-jflex -nobak tool/src/tool/Scanner.flex
-java -jar beaver.jar -t tool/src/tool/Parser.grammar
-
+jflex -nobak wemelt/src/wemelt/Scanner.flex
+java -jar beaver.jar -t wemelt/src/wemelt/Parser.grammar

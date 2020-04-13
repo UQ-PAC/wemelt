@@ -1,4 +1,4 @@
-package tool
+package wemelt
 
 object Block {
   def empty = Block(Nil)
