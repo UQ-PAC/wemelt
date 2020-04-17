@@ -1,16 +1,11 @@
 package wemelt
 
-// remnant of handling break/continue/returns - might be useful in future
 sealed trait Cont {
   def st: State
 }
 
 object Cont {
   case class next(st: State) extends Cont
-  /*
-  case class break(st: State) extends Cont
-  case class cont(st: State) extends Cont
-  case class ret(result: Expression, st: State) extends Cont */
 }
 
 object Exec {
@@ -26,39 +21,15 @@ object Exec {
     case Malformed =>
       throw error.InvalidProgram("parser")
 
-      /*
-    case Atomic(expr) =>
-
-      val (_, state1) = rval(expr, state0)
-
-      Cont.next(state1.resetReadWrite())
-       */
-
-
     case block: Block =>
       // blocks currently leak local definitions but this isn't important for this application
       execute(block.statements, state0)
 
-      /*
-    case Continue =>
-      Cont.cont(state0)
-
-    case Break =>
-      Cont.break(state0)
-
-    case Return(None) =>
-      Cont.ret(Lit("void"), state0)
-
-    case Return(Some(expr)) =>
-      val (_expr, st1) = rval(expr, state0)
-      Cont.ret(_expr, st1)
-
-       */
-
     case Assignment(lhs, rhs) =>
+
       if (state0.toLog)
         println("line " + statement.line + ": " + lhs + " = " + rhs + ":")
-      // check if lhs is a local variable
+      //check if lhs is a local variable
       val state1 = if (state0.locals.contains(lhs)) {
         assignLRule(lhs, rhs, state0, statement.line)
       } else {
@@ -66,6 +37,7 @@ object Exec {
       }
       state1.log
       Cont.next(state1)
+
 
       /*
     case ArrayAssignment(array, index, rhs) =>
@@ -137,22 +109,23 @@ object Exec {
         println("}")
       Cont.next(state1)
 
-    case While(test, invariants, gamma, None, body) =>
+    case While(test, invariants, gamma, body) =>
       if (state0.toLog)
         println("line " + statement.line + ": While(" + test + ") {")
       // replace Ids in invariant with vars
       val idToVar: Subst = {
         for (v <- state0.variables)
           yield v -> v.toVar
-        }.toMap ++ {
+        }.toMap /* ++ {
         for (v <- state0.arrays.keySet)
           yield v -> v.toVar
-      }.toMap
+      }.toMap */
 
       val PPrime = invariants map {i => i.subst(idToVar)}
 
       // convert gammaPrime to map
-      val gammaPrime: Map[Id, Security] = (gamma flatMap {g => g.toPair(state0.arrays)}).toMap
+      val gammaPrime: Map[Id, Security] = (gamma map {g => g.variable -> g.security}).toMap
+      //val gammaPrime: Map[Id, Security] = (gamma flatMap {g => g.toPair(state0.arrays)}).toMap
 
       val state1 = whileRule(test, PPrime, gammaPrime, body, state0, statement.line)
       if (state0.toLog)
@@ -162,22 +135,23 @@ object Exec {
         println("}")
       Cont.next(state1)
 
-    case DoWhile(test, invariants, gamma, None, body) =>
+    case DoWhile(test, invariants, gamma, body) =>
       if (state0.toLog)
         println("line " + statement.line + ": While(" + test + ") {")
       // replace Ids in invariant with vars
       val idToVar: Subst = {
         for (v <- state0.variables)
           yield v -> v.toVar
-        }.toMap ++ {
+        }.toMap /* ++ {
         for (v <- state0.arrays.keySet)
           yield v -> v.toVar
-        }.toMap
+        }.toMap */
 
       val PPrime = invariants map {i => i.subst(idToVar)}
 
       // convert gammaPrime to map
-      val gammaPrime: Map[Id, Security] = (gamma flatMap {g => g.toPair(state0.arrays)}).toMap
+      val gammaPrime: Map[Id, Security] = (gamma map {g => g.variable -> g.security}).toMap
+      //val gammaPrime: Map[Id, Security] = (gamma flatMap {g => g.toPair(state0.arrays)}).toMap
 
       // execute loop body once at start
       val state1 = execute(body, state0).st
@@ -256,11 +230,13 @@ object Exec {
       val st2 = st1.updateWritten(lhs)
       st2.updateDAssign(lhs, rhs)
 
+      /*
     case ArrayAssignment(name, index, rhs) =>
       val st1 = DFixedPoint(rhs, st0)
       val st2 = DFixedPoint(index, st1)
       val st3 = st2.updateWritten(st2.arrays(name))
       st3.updateDArrayAssign(name, rhs)
+       */
 
     case Fence =>
       // reset D
@@ -289,13 +265,14 @@ object Exec {
       val _right = DFixedPoint(right, st2)
       st2.copy(D =_left.mergeD(_right))
 
-    case While(test, invariants, gamma, _, body) =>
+    case While(test, invariants, gamma, body) =>
       st0.copy(D = DFixedPoint(test, body, st0))
 
-    case DoWhile(test, invariants, gamma, _, body) =>
+    case DoWhile(test, invariants, gamma, body) =>
       val st1 = DFixedPoint(body, st0)
       st1.copy(D = DFixedPoint(test, body, st0))
 
+      /*
     case CompareAndSwap(r3, x, r1, r2) =>
       val st1 = DFixedPoint(r1, st0)
       val st2 = DFixedPoint(r2, st1)
@@ -303,6 +280,7 @@ object Exec {
       val st4 = st3.updateWritten(x)
       val st5 = st4.updateWritten(r3)
       st5.updateDCAS(r3, x, r1, r2)
+       */
 
     case _ =>
       throw error.InvalidProgram("unimplemented statement at line " + statement.line + ": " + statement)
@@ -318,9 +296,11 @@ object Exec {
     case res: Const =>
       st0
 
+      /*
     case Access(name, index) =>
       val st1 = DFixedPoint(index, st0)
       st1.updateRead(st1.arrays(name))
+       */
 
     case BinOp(_, arg1, arg2) =>
       val st1 = DFixedPoint(arg1, st0)
@@ -345,10 +325,12 @@ object Exec {
     case res: Const =>
       (res, st0)
 
+      /*
     case Access(name, index) =>
       val (_index, st1) = eval(index, st0)
       val st2 = st1.updateRead(st1.arrays(name))
       (VarAccess(name.toVar, _index), st2)
+       */
 
     case BinOp("==", arg1, arg2) =>
       val (List(_arg1, _arg2), st1) = evals(List(arg1, arg2), st0)
@@ -517,15 +499,17 @@ object Exec {
       println("WHILE applying")
 
     // P' only contains stable variables - tested
-    val PPrimeArrayAccess: Set[Id] = {PPrime flatMap {x => x.arrays flatMap {y => state0.arrays(y.name).array}}}.toSet
+    //val PPrimeArrayAccess: Set[Id] = {PPrime flatMap {x => x.arrays flatMap {y => state0.arrays(y.name).array}}}.toSet
 
-    val PPrimeVar: Set[Id] = (PPrime flatMap {x => x.variables}).toSet ++ PPrimeArrayAccess
+    val PPrimeVar: Set[Id] = (PPrime flatMap {x => x.variables}).toSet //++ PPrimeArrayAccess
 
+    /*
     val unstablePPrime = for (i <- PPrimeVar if !state0.stable.contains(i))
       yield i
     if (unstablePPrime.nonEmpty) {
       throw error.WhileError(line, test, unstablePPrime.mkString(", ") + " in invariant is/are not stable")
     }
+     */
 
     // check P' is weaker than previous P - tested
     if (!SMT.proveImplies(state0.P, PPrime, state0.debug)) {
@@ -632,6 +616,7 @@ object Exec {
   }
 
 
+  /*
   def arrayAssignRule(a: Id, index: Expression, rhs: Expression, st0: State, line: Int): State = {
     val array = st0.arrays(a)
     // ARRAY ASSIGN rule
@@ -795,59 +780,42 @@ object Exec {
     val st4 = st3.arrayAssign(a, index, _rhs, possibleIndices) // update P
     st4.updateDArrayAssign(a, _rhs)
   }
+   */
 
   def assignLRule(lhs: Id, rhs: Expression, st0: State, line: Int): State = {
     // ASSIGNL rule
     if (st0.toLog)
       println("ASSIGNL applying")
 
-    val t = st2.security(_rhs, st0.P)
+    val (_rhs, st1) = eval(rhs, st0)
+    val t = st1.security(_rhs, st1.P)
+    val st2 = st1.updateGamma(lhs, t)
+
+    st2.assign(lhs, _rhs)
   }
 
-
-  def assignRule(lhs: Id, rhs: Expression, st0: State, line: Int): State = {
-    // ASSIGN rule
+  def assignGRule(lhs: Id, rhs: Expression, st0: State, line: Int): State = {
+    // ASSIGNG rule
     if (st0.toLog)
-      println("ASSIGN applying")
-    val (_rhs, st1) = eval(rhs, st0) // computes rd
-    val st2 = st1.updateWritten(lhs) // computes wr
-    // at this point the rd and wr sets are complete for the current line
+      println("ASSIGNG applying")
 
-    val knownw = st2.knownW
-    // calculate P_x:=e
-    val PRestrict = st2.restrictP(knownw)
-    if (st0.debug) {
-      println("knownW: " + knownw)
-      println("PRestrict: " + PRestrict.PStr)
+    val (_rhs, st1) = eval(rhs, st0)
+    val t = st1.security(_rhs, st1.P)
+
+    // check guar P(x := e)
+    val guarGlobals = st1.globals - lhs
+    val guarUnchanged: List[Expression] = {for (g <- guarGlobals)
+      yield BinOp("==", g.toVar, g.toVar.prime)}.toList
+    val guarP: List[Expression] = (BinOp("==", lhs.toVar.prime, _rhs) :: guarUnchanged) :: st1.P
+    if (!SMT.proveImplies(guarP, st1.G, st1.debug)) {
+      throw error.AssignGError(line, lhs, rhs, "assignment doesn't conform to guarantee" + st1.G)
     }
 
-    // check any array indices in rhs are low
-    for (i <- _rhs.arrays) {
-      if (st2.security(i.index, PRestrict) == High) {
-        throw error.AssignError(line, lhs, rhs, "array index " + i.index + " is HIGH")
-      }
-    }
-
-    val t = st2.security(_rhs, PRestrict)
-
-    // if x's mode is not NoRW, ensure that e's security level is not higher than x's security level, given P_x:=e - tested
-    if (!st2.noReadWrite.contains(lhs) && t == High) { // optimisation to not check x security unless necessary
-      // evalP
-      val xSecurity = if (st2.highP(lhs, PRestrict)) {
-        High
-      } else {
-        Low
-      }
-      if (t > xSecurity) {
-        throw error.AssignError(line, lhs, rhs, "HIGH expression assigned to LOW variable")
-      }
-    }
-    val st3 = st2.updateGamma(lhs, t)
-
-    val st4 = st3.assign(lhs, _rhs) // update P
-    st4.updateDAssign(lhs, _rhs)
+    val st2 = st1.updateGamma(lhs, t)
+    st2.assign(lhs, _rhs)
   }
 
+  /*
   def assignCRule(lhs: Id, rhs: Expression, st0: State, line: Int): State = {
     // ASSIGNC rule
     if (st0.toLog)
@@ -915,7 +883,9 @@ object Exec {
     val st3 = st2.assign(lhs, _rhs) // update P
     st3.updateDAssign(lhs, _rhs)
   }
+   */
 
+  /*
   def compareAndSwapRule(lhs: Id, x: Id, r1: Expression, r2: Expression, st0: State, line: Int): State = {
     // CAS rule
     if (st0.toLog)
@@ -1081,98 +1051,7 @@ object Exec {
     val st7 = st6.assignCAS(lhs, x, _r1, _r2)
     st7.updateDCAS(lhs, x, _r1, _r2)
   }
-
-
-  // start application of the nonblocking rule
-  def startNonBlocking(stable: Set[Id], state0: State): (Map[Id, Mode], State) = {
-    // add stable set to gamma
-    val state1 = state0.updateRead(stable)
-    val PRestrict = state1.restrictP(state1.knownW)
-
-    var zSec: Map[Id, Security] = Map()
-    for (z <- stable) {
-      zSec += (z -> state1.security(z, PRestrict))
-    }
-    val state2 = state1.updateGammasDomain(zSec)
-    val state3 = state2.resetReadWrite()
-    if (state3.debug) {
-      println("previous gamma: " + state1.gamma.gammaStr)
-      println("updated gamma: " + state3.gamma.gammaStr)
-    }
-
-
-    // make z noW
-    val oldModes: Map[Id, Mode] = {stable map {
-      case z if state3.noWrite.contains(z) =>
-        z -> NoW
-      case z if state3.noReadWrite.contains(z) =>
-        z -> NoRW
-      case z if state3.readWrite.contains(z) =>
-        z -> RW
-      case z =>
-        z -> Reg
-    }}.toMap
-    for (z <- stable) {
-      if (oldModes(z) == Reg) {
-        throw error.ProgramError(z + " does not have a mode - internal error")
-      }
-    }
-
-    val state4 = state3.setModes(stable, NoW)
-    if (state4.debug) {
-      println("previous modes: ")
-      println("no read write: " + state3.noReadWrite)
-      println("read write: " + state3.readWrite)
-      println("no write: " + state3.noWrite)
-      println("stable: " + state3.stable)
-      println("current modes: ")
-      println("no read write: " + state4.noReadWrite)
-      println("read write: " + state4.readWrite)
-      println("no write: " + state4.noWrite)
-      println("stable: " + state4.stable)
-    }
-
-    // increment nonblocking depth so that the nonblocking rule will be checked while executing loop contents
-    val state5 = state4.copy(nonblocking = true, nonblockingDepth = state4.nonblockingDepth + 1)
-
-    (oldModes, state5)
-  }
-
-  // end application of the nonblocking rule for variables, restoring their mode to oldMode
-  def endNonBlocking(stable: Set[Id], oldModes: Map[Id, Mode], state0: State): State = {
-    // restore original modes
-    val state1 = state0.setModes(oldModes)
-
-    if (state1.debug) {
-      println("previous modes: ")
-      println("no read write: " + state0.noReadWrite)
-      println("read write: " + state0.readWrite)
-      println("no write: " + state0.noWrite)
-      println("stable: " + state0.stable)
-      println("current modes: ")
-      println("no read write: " + state1.noReadWrite)
-      println("read write: " + state1.readWrite)
-      println("no write: " + state1.noWrite)
-      println("stable: " + state1.stable)
-    }
-
-    // remove z from gamma
-    val state2 = state1.removeGamma(stable)
-    if (state2.debug) {
-      println("previous gamma: " + state1.gamma.gammaStr)
-      println("updated gamma: " + state2.gamma.gammaStr)
-    }
-
-    // decrement nonblocking depth so that the nonblocking rule will not be applied anymore if all nonblocking loops
-    // are finished
-    val state3 = if (state2.nonblockingDepth == 1) {
-      state2.copy(nonblocking = false, nonblockingDepth = state2.nonblockingDepth - 1)
-    } else {
-      state2.copy(nonblockingDepth = state2.nonblockingDepth - 1)
-    }
-    state3
-  }
-
+   */
 
   // evaluate multiple expressions
   def evals(exprs: List[Expression], pre: State): (List[Expression], State) = exprs match {

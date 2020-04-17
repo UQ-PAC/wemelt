@@ -1,11 +1,18 @@
 bare minimum necessary for AssignL rule
--user supplied L_R, L_G, R, G
--updated gamma - predicates instead of values, changed evaluation
--updated security evaluation
+-fix parsing vardefs
+-R automation stuff
 -P + R
 -{P, Gamma + R }
 -low_or_eq
+--either L_R(x) true in current state so x's classification doesn't change
+--or x's classification trivially unmodified due to R preventing x from being written to
+-P stability check
+-Gamma stability check
 for AssignG rule
 -updated falling check
 -guar P
 -t <:_P L_G(x)
+
+for later
+-quantification in L?
+-updated gamma - predicates instead of values, changed evaluation

@@ -14,30 +14,31 @@ package object wemelt {
     case class WhileError(line: Int, test: Expression, message: String) extends Exception {
       override def toString = "line " + line + ": WHILE rule not valid for while(" + test + ") {...} as " + message
     }
-    case class AssignError(line: Int, lhs: Id, rhs: Expression, message: String)  extends Exception {
-      override def toString = "line " + line + ": ASSIGN rule not valid for " + lhs + " = " + rhs + " as " + message
+    case class AssignLError(line: Int, lhs: Id, rhs: Expression, message: String)  extends Exception {
+      override def toString = "line " + line + ": ASSIGNL rule not valid for " + lhs + " = " + rhs + " as " + message
     }
-    case class AssignCError(line: Int, lhs: Id, rhs: Expression, message: String)  extends Exception {
-      override def toString = "line " + line + ": ASSIGNC rule not valid for " + lhs + " = " + rhs + " as " + message
+    case class AssignGError(line: Int, lhs: Id, rhs: Expression, message: String)  extends Exception {
+      override def toString = "line " + line + ": ASSIGNG rule not valid for " + lhs + " = " + rhs + " as " + message
     }
+    /*
     case class CASError(line: Int, lhs: Id, x: Id, r1: Expression, r2: Expression, message: String)  extends Exception {
       override def toString = "line " + line + ": CAS rule not valid for " + lhs + " = " + "CAS(" + x + ", " + r1 + ", " + r2 + ") as " + message
     }
     case class CASCError(line: Int, lhs: Id, x: Id, r1: Expression, r2: Expression, message: String)  extends Exception {
       override def toString = "line " + line + ": CASC rule not valid for " + lhs + " = " + "CAS(" + x + ", " + r1 + ", " + r2 + ") as " + message
     }
+     */
     case class IfError(line: Int, test: Expression, message: String) extends Exception {
       override def toString = "line " + line + ": IF rule not valid for if(" + test + ") {...} as " + message
     }
-    case class NonblockingError(line: Int, statement: Statement, message: String) extends Exception {
-      override def toString = "line " + line + ": NONBLOCKING rule not valid for " + statement + " as " + message
-    }
+    /*
     case class ArrayError(line: Int, a: Id, index: Expression, rhs: Expression, message: String) extends Exception {
       override def toString = "line " + line + ": ARRAY ASSIGN rule not valid for " + a + "[" + index + "] = " + rhs + " as " + message
     }
     case class ArrayCError(line: Int, a: Id, index: Expression, rhs: Expression, message: String) extends Exception {
       override def toString = "line " + line + ": ARRAY ASSIGNC rule not valid for " + a + "[" + index + "] = " + rhs + " as " + message
     }
+     */
 
   }
 

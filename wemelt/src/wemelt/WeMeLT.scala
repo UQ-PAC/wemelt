@@ -30,16 +30,18 @@ object WeMeLT {
             val statements = res.statements
             val P_0 = res.P_0
             val gamma_0 = res.gamma_0
+            val R = res.rely
+            val G = res.guarantee
             if (debug) {
               println(statements)
               println(variables)
               println(P_0)
               println(gamma_0)
             }
-            val state0: State = State.init(variables, P_0, gamma_0, toLog, debug, noInfeasible)
+            val state0: State = State.init(variables, P_0, gamma_0, R, G, toLog, debug, noInfeasible)
             Var.index = 0
             Switch.index = 0
-            Exec.execute(statements, state0)
+            //Exec.execute(statements, state0)
             printTime(start)
           } catch {
             case e: java.io.FileNotFoundException =>
@@ -53,7 +55,7 @@ object WeMeLT {
             case e: Z3Error =>
               println("Z3 Failed (this probably means there was an error in the input to Z3): " + e)
               printTime(start)
-            case e @ (_: WhileError | _: IfError | _: AssignCError | _: AssignError | _: NonblockingError | _: CASCError | _: CASError | _: ArrayError | _: ArrayCError) =>
+            case e @ (_: WhileError | _: IfError | _: AssignGError | _: AssignLError ) =>
               println(e)
               printTime(start)
           }
@@ -71,12 +73,12 @@ object WeMeLT {
     }
   }
 
-  def parse(file: String): Global = {
+  def parse(file: String): Parsed = {
     val reader = new FileReader(file)
     val scanner = new Scanner(reader)
     val parser = new Parser()
 
-    val result = parser.parse(scanner).asInstanceOf[Global]
+    val result = parser.parse(scanner).asInstanceOf[Parsed]
 
     result
   }

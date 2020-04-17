@@ -104,6 +104,8 @@ case class Var(name: String, index: Option[Int] = None) extends Expression {
 
   def fresh = Var.fresh(name)
 
+  def prime = Var(name.prime, index)
+
   // replaces the Var with the value it is to be substituted with, if there is one
   override def subst(su: Subst): Var = su.getOrElse(this, this)
   override def subst(su: Subst, num: Int): Var = su.getOrElse(this, this)
@@ -247,7 +249,6 @@ object Const {
 }
 
 case class Const(name: String) extends Expression {
-  override def toString = name.toString
   override def variables: Set[Id] = Set()
   override def subst(su: Subst): Const = this
   override def subst(su: Subst, num: Int): Const = this

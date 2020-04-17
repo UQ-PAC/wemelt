@@ -5,16 +5,15 @@ case class State(
   D: Map[Id, (Set[Id], Set[Id], Set[Id], Set[Id])], // W_w, W_r, R_w, R_r
   P: List[Expression],
 
+  R: List[Expression],
+  G: List[Expression],
+
+  L_R: Map[Id, Expression],
+  L_G: Map[Id, Expression],
   L: Map[Id, Expression],
 
   globals: Set[Id],
   locals: Set[Id],
-
-  noReadWrite: Set[Id],
-  readWrite: Set[Id],
-  noWrite: Set[Id],
-
-  stable: Set[Id],
 
   controls: Set[Id],
   controlled: Set[Id],
@@ -25,11 +24,8 @@ case class State(
   read: Set[Id],
   written: Set[Id],
 
-  arrayIndices: Set[Id],
-  arrays: Map[Id, IdArray],
-
-  nonblocking: Boolean, // whether the nonblocking rule is currently being applied
-  nonblockingDepth: Int, // how many layers of the nonblocking rule are currently being applied
+  //arrayIndices: Set[Id],
+  //arrays: Map[Id, IdArray],
 
   toLog: Boolean,
   debug: Boolean,
@@ -40,7 +36,7 @@ case class State(
   def R_w(v: Id): Set[Id] = D(v)._3
   def R_r(v: Id): Set[Id] = D(v)._4
 
-  def log = {
+  def log: Unit = {
     if (toLog) {
       println("gamma: " + gamma.gammaStr)
       println("P: " + P.PStr)
@@ -64,7 +60,7 @@ case class State(
     val PPrime = BinOp("==", v, argReplace) :: PReplace
 
     // restrict PPrime to stable variables
-    val PPrimeRestrict = State.restrictP(PPrime, stable)
+    val PPrimeRestrict = PPrime // State.restrictP(PPrime, stable)
 
     if (debug) {
       println("assigning " + arg + " to " + id + ":")
@@ -74,6 +70,7 @@ case class State(
     copy(P = PPrimeRestrict)
   }
 
+  /*
   def assignCAS(lhs: Id, x: Id, r1: Expression, r2: Expression): State = {
     val _lhs = lhs.toVar
     val _x = x.toVar
@@ -158,6 +155,7 @@ case class State(
     }
     copy(P = POut)
   }
+   */
 
   def addToP(expr: Expression): State = {
     copy(P = expr :: P)
@@ -191,6 +189,7 @@ case class State(
     copy(written = written ++ id)
   }
 
+  /*
   def updateWritten(array: IdArray): State = {
     val ids: Set[Id] = {for (i <- array.array.indices)
       yield array.array(i)}.toSet
@@ -205,7 +204,7 @@ case class State(
     if (debug)
       println("updating read (" + read + ") with " + ids)
     copy(read = read ++ ids)
-  }
+  } */
 
   def knownW: Set[Id] = {
     if (debug) {
@@ -302,6 +301,7 @@ case class State(
     copy(D = DPrimePrime, read = Set(), written = Set())
   }
 
+  /*
   def updateDArrayAssign(x: Id, e: Expression) : State = {
     val varE = e.variables // var(e)
     val laterW: Set[Id] = varE
@@ -332,6 +332,7 @@ case class State(
 
     copy(D = DPrimePrime, read = Set(), written = Set())
   }
+   */
 
   def updateDCAS(r3: Id, x: Id, r1: Expression, r2: Expression) : State = {
     val varR1 = r1.variables
@@ -409,6 +410,7 @@ case class State(
     res
   }
 
+  /*
   // !L(A[0]) || !L(A[1]) || ... to array.size
   def multiHighP(array: IdArray, indices: Seq[Int], p: List[Expression]): Boolean = {
     val list = {for (i <- indices)
@@ -494,6 +496,7 @@ case class State(
       yield BinOp("&&", BinOp("==", index, Lit(i)), L(array.array(i)))}.toList
     orPredicates(list)
   }
+   */
 
   def orPredicates(exprs: List[Expression]): Expression = exprs match {
     case Nil =>
@@ -522,8 +525,8 @@ case class State(
     var sec: Security = High
     if (gamma.contains(x)) {
       sec = gamma(x)
-    } else if (lowP(x, p)) {
-      sec = Low // LOW if L(x) holds given P, HIGH otherwise
+    } else if (globals.contains(x) && lowP(x, p)) {
+      sec = Low
     }
     if (debug)
       println(x + " security is " + sec)
@@ -545,6 +548,7 @@ case class State(
       secMap += (x -> xSec)
     }
 
+    /*
     val arraysE = e.arrays
     var arraySecMap: Map[Access, Security] = Map()
     for (a <- arraysE) {
@@ -558,7 +562,7 @@ case class State(
     // checking for possibility expression contains a high variable/array access but its evaluation is not dependent
     // on the high data, e.g. high - high, high * 0
     if (sec == High) {
-      val highAccess: Set[Access] = (arraySecMap collect {case a if a._2 == High => a._1}).toSet
+      //val highAccess: Set[Access] = (arraySecMap collect {case a if a._2 == High => a._1}).toSet
 
       val idToVar: Subst = {
         for (v <- variables)
@@ -599,6 +603,7 @@ case class State(
         sec = Low
       }
     }
+    */
     if (debug)
       println(e + " security is " + sec)
     sec
@@ -614,6 +619,7 @@ case class State(
     }
   }
 
+  /*
   def updateGammaArray(a: IdArray, indices: Seq[Int], t: Security): State = {
     // array assignment is unambiguous
     val toUpdate = if (indices.size == 1) {
@@ -633,7 +639,7 @@ case class State(
     val gammaPrime = gamma ++ toUpdate
     copy (gamma = gammaPrime)
   }
-
+   */
   def updateGammaCAS(x: Id, t: Security): State = {
     if (gamma.contains(x)) {
       val toUpdate = if (gamma(x) == High) {
@@ -676,7 +682,7 @@ case class State(
 
   def updatePIfLeft(b: Expression): State = {
     // remove free occurrences of unstable variables
-    val bRestrict = b.restrict(stable)
+    val bRestrict = b // b.restrict(stable)
 
     val PPrime = bRestrict :: this.P
     copy(P = PPrime)
@@ -686,7 +692,7 @@ case class State(
     // negate b
     val notB = PreOp("!", b)
     // remove free occurrences of unstable variables
-    val bRestrict = notB.restrict(stable)
+    val bRestrict = notB // notB.restrict(stable)
 
     val PPrime = bRestrict :: this.P
     copy(P = PPrime)
@@ -711,7 +717,7 @@ case class State(
     // P1 OR P2 converted to CNF
     val PPrime = mergeP(state1.P, state2.P)
     // restrict P' to stable variables
-    val PPrimeRestricted = State.restrictP(PPrime, stable)
+    val PPrimeRestricted = PPrime // State.restrictP(PPrime, stable)
     if (debug)
       println("restricting P to stable variables: " + PPrimeRestricted.PStr)
 
@@ -748,7 +754,7 @@ case class State(
       mergeP(ps(0), ps(1))
     } else if (ps.size == 1) {
       ps.head
-    }  else if (ps.size == 0) {
+    }  else if (ps.isEmpty) {
       List()
     } else {
       // common is intersection of all lists
@@ -781,85 +787,21 @@ case class State(
   }
 */
 
-  def setMode(z: Id, mode: Mode): State = {
-    mode match {
-      case NoW =>
-        val noWritePrime = noWrite + z
-        val readWritePrime = readWrite - z
-        val noReadWritePrime = noReadWrite - z
-        val stablePrime = stable + z
-        copy(noWrite = noWritePrime, noReadWrite = noReadWritePrime, readWrite = readWritePrime, stable = stablePrime)
-      case RW =>
-        val noWritePrime = noWrite - z
-        val readWritePrime = readWrite + z
-        val noReadWritePrime = noReadWrite - z
-        val stablePrime = stable - z
-        copy(noWrite = noWritePrime, noReadWrite = noReadWritePrime, readWrite = readWritePrime, stable = stablePrime)
-      case NoRW =>
-        val noWritePrime = noWrite - z
-        val readWritePrime = readWrite - z
-        val noReadWritePrime = noReadWrite + z
-        val stablePrime = stable + z
-        copy(noWrite = noWritePrime, noReadWrite = noReadWritePrime, readWrite = readWritePrime, stable = stablePrime)
-      case _ =>
-        this
-    }
-  }
-
-  def setModes(ids: Set[Id], mode: Mode): State = {
-    mode match {
-      case NoW =>
-        val noWritePrime = noWrite ++ ids
-        val readWritePrime = readWrite -- ids
-        val noReadWritePrime = noReadWrite -- ids
-        val stablePrime = stable ++ ids
-        copy(noWrite = noWritePrime, noReadWrite = noReadWritePrime, readWrite = readWritePrime, stable = stablePrime)
-      case RW =>
-        val noWritePrime = noWrite -- ids
-        val readWritePrime = readWrite ++ ids
-        val noReadWritePrime = noReadWrite -- ids
-        val stablePrime = stable -- ids
-        copy(noWrite = noWritePrime, noReadWrite = noReadWritePrime, readWrite = readWritePrime, stable = stablePrime)
-      case NoRW =>
-        val noWritePrime = noWrite -- ids
-        val readWritePrime = readWrite -- ids
-        val noReadWritePrime = noReadWrite ++ ids
-        val stablePrime = stable ++ ids
-        copy(noWrite = noWritePrime, noReadWrite = noReadWritePrime, readWrite = readWritePrime, stable = stablePrime)
-      case _ =>
-        this
-    }
-  }
-
-  def setModes(modes: Map[Id, Mode]): State = {
-    val toNoWrite = modes collect {case (i, m) if m == NoW => i}
-    val toReadWrite = modes collect {case (i, m) if m == RW => i}
-    val toNoReadWrite = modes collect {case (i, m) if m == NoRW => i}
-    val noWritePrime = noWrite ++ toNoWrite -- toReadWrite -- toNoReadWrite
-    val readWritePrime = readWrite -- toNoWrite ++ toReadWrite -- toNoReadWrite
-    val noReadWritePrime = noReadWrite -- toNoWrite -- toReadWrite ++ toNoReadWrite
-    val stablePrime = stable ++ toNoWrite -- toReadWrite ++ toNoReadWrite
-    copy(noWrite = noWritePrime, noReadWrite = noReadWritePrime, readWrite = readWritePrime, stable = stablePrime)
-  }
-
 }
 
 object State {
   def init(definitions: Set[Definition], P_0: Option[List[Expression]], gamma_0: Option[List[GammaMapping]],
-           toLog: Boolean, debug: Boolean, noInfeasible: Boolean): State = {
+           R: List[Expression], G: List[Expression], toLog: Boolean, debug: Boolean, noInfeasible: Boolean): State = {
     var globals: Set[Id] = Set()
     var locals: Set[Id] = Set()
-    var noReadWrite: Set[Id] = Set()
-    var readWrite: Set[Id] = Set()
-    var noWrite: Set[Id] = Set()
     var controls: Set[Id] = Set()
     var controlled: Set[Id] = Set()
     var controlledBy: Map[Id, Set[Id]] = Map()
 
-    val arrays: Map[Id, IdArray] = (definitions collect {case a: ArrayDef => a.name -> IdArray(a.name, a.size)}).toMap
-    val arrayIndices: Set[Id] = definitions collect {case a: ArrayDef => a.name}
+    //val arrays: Map[Id, IdArray] = (definitions collect {case a: ArrayDef => a.name -> IdArray(a.name, a.size)}).toMap
+    //val arrayIndices: Set[Id] = definitions collect {case a: ArrayDef => a.name}
     val variables: Set[VarDef] = definitions flatMap {
-      case a: ArrayDef => a.toVarDefs
+     // case a: ArrayDef => a.toVarDefs
       case v: VarDef => Seq(v)
     }
     if (debug) {
@@ -869,21 +811,13 @@ object State {
     val ids: Set[Id] = {for (v <- variables) yield v.name} ++ Set(CFence)
 
     for (v <- variables) {
-      v.mode match {
-        case Reg =>
-          locals += v.name
-          noReadWrite += v.name
-        case NoRW =>
-          globals += v.name
-          noReadWrite += v.name
-        case NoW =>
-          globals += v.name
-          noWrite += v.name
-        case RW =>
-          globals += v.name
-          readWrite += v.name
+      if (v.local) {
+        locals += v.name
+      } else {
+        globals += v.name
       }
 
+      /*
       val controllingArrays: Set[Id] = {
         for (i <- v.pred.arrays) yield {
           i.index match {
@@ -893,8 +827,8 @@ object State {
               arrays(i.name).array.toSet
           }
         }
-        }.flatten
-      val controlling: Set[Id] = v.pred.variables ++ controllingArrays
+        }.flatten */
+      val controlling: Set[Id] = v.lpredr.variables ++ v.lpredg.variables //++ controllingArrays
 
       if (controlling.nonEmpty) {
         controlled += v.name
@@ -920,24 +854,18 @@ object State {
         yield i -> (ids, ids, ids, ids)
     }.toMap
 
-    val stable = noReadWrite ++ noWrite
-
     if (debug) {
       println("variables: " + ids)
-      println("array indices: " + arrayIndices)
-      println("arrays: " + arrays.keySet)
+      //println("array indices: " + arrayIndices)
+      //println("arrays: " + arrays.keySet)
       println("globals: " + globals)
       println("locals: " + locals)
-      println("no read write: " + noReadWrite)
-      println("read write: " + readWrite)
-      println("no write: " + noWrite)
-      println("stable: " + stable)
       println("controls: " + controls)
       println("controlled: " + controlled)
       println("controlled by: " + controlledBy)
     }
 
-    val gammaDom: Set[Id] = ids collect {case v if !controls.contains(v) && stable.contains(v) => v}
+    val gammaDom: Set[Id] = ids collect {case v if !controls.contains(v) /* && stable.contains(v) */ => v}
 
     // init gamma
     val gamma: Map[Id, Security] = gamma_0 match {
@@ -949,7 +877,8 @@ object State {
         }.toMap
       // user provided
       case Some(gs) => {
-        gs flatMap {g => g.toPair(arrays)}
+        //gs flatMap {g => g.toPair(arrays)}
+        gs map {g => g.variable -> g.security}
         }.toMap
     }
 
@@ -962,10 +891,10 @@ object State {
     val idToVar: Subst = {
       for (v <- ids)
         yield v -> v.toVar
-      }.toMap ++ {
+      }.toMap /* ++ {
       for (v <- arrays.keySet)
         yield v -> v.toVar
-      }.toMap
+      }.toMap */
 
     // initialise P - true by default
     val P: List[Expression] = P_0 match {
@@ -976,29 +905,52 @@ object State {
         // check no unstable variables in user-defined P_0
 
         // get all array index variables from P_0 - doesn't need to be precise as arrays share a mode
-        val PArrayAccess: Set[Id] = {p flatMap {x => x.arrays flatMap {y => arrays(y.name).array}}}.toSet
+        //val PArrayAccess: Set[Id] = {p flatMap {x => x.arrays flatMap {y => arrays(y.name).array}}}.toSet
 
-        val PVars: Set[Id] = (p flatMap {x => x.variables}).toSet ++ PArrayAccess
+        val PVars: Set[Id] = (p flatMap {x => x.variables}).toSet //++ PArrayAccess
         if (debug) {
           println("variables in P_0: " + PVars.mkString(" "))
         }
+        /*
         val unstableP = for (i <- PVars if !stable.contains(i))
           yield i
         if (unstableP.nonEmpty) {
           throw error.InvalidProgram("unstable variables in P_0: " + unstableP.mkString(", "))
-        }
+        }idtoV
+         */
 
         p map {i => i.subst(idToVar)}
     }
 
     // init L - map variables to their L predicates
-    val L: Map[Id, Expression] = {
-      for (v <- variables) yield {
-        val predVar = v.pred.subst(idToVar)
-        v.name -> predVar
+    val L_R: Map[Id, Expression] = {
+      for (v <- globals) yield {
+        val lpredVar = v.lpredr.subst(idToVar)
+        v.name -> lpredVar
       }
     }.toMap
+    val L_G: Map[Id, Expression] = {
+      for (v <- variables) yield {
+        val lpredVar = v.lpredg.subst(idToVar)
+        v.name -> lpredVar
+      }
+    }.toMap
+
+    val L: Map[Id, Expression] = {
+      for (i <- ids) yield {
+        val lR = L_R(i)
+        val lG = L_G(i)
+        if (lR == lG) {
+          i -> lR
+        } else {
+          i -> BinOp("&&", lR, lG)
+        }
+      }
+    }.toMap
+
     if (debug) {
+      println("L_R: " + L_R)
+      println("L_G: " + L_G)
       println("L: " + L)
     }
     if (toLog) {
@@ -1011,23 +963,21 @@ object State {
       gamma = gamma,
       D = D,
       P = P,
+      R = R,
+      G = G,
+      L_R = L_R,
+      L_G = L_G,
       L = L,
       globals = globals,
       locals = locals,
-      noReadWrite = noReadWrite,
-      readWrite = readWrite,
-      noWrite = noWrite,
-      stable = stable,
       controls = controls,
       controlled = controlled,
       controlledBy = controlledBy,
       variables = ids,
       read = Set(),
       written = Set(),
-      nonblocking = false,
-      nonblockingDepth = 0,
-      arrayIndices = arrayIndices,
-      arrays = arrays,
+      //arrayIndices = arrayIndices,
+      //arrays = arrays,
       toLog = toLog,
       debug = debug,
       noInfeasible = noInfeasible
