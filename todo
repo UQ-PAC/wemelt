@@ -1,5 +1,5 @@
 bare minimum necessary for AssignL rule
--fix parsing vardefs
+-fix parsing prime variables in R/G
 -R automation stuff
 -P + R
 -{P, Gamma + R }
@@ -8,12 +8,8 @@ bare minimum necessary for AssignL rule
 --or x's classification trivially unmodified due to R preventing x from being written to
 -P stability check
 -Gamma stability check
-for AssignG rule
--updated falling check
---for all y that x is a control variable of,
-  P && L(y)[e/x] ==> (sec(y) || L(y))
 --update substitution to handle variable to expression
 
 for later
--quantification in L?
+-quantification in predicates?
 -updated gamma - predicates instead of values, changed evaluation

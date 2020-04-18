@@ -792,30 +792,21 @@ case class State(
 object State {
   def init(definitions: Set[Definition], P_0: Option[List[Expression]], gamma_0: Option[List[GammaMapping]],
            R: List[Expression], G: List[Expression], toLog: Boolean, debug: Boolean, noInfeasible: Boolean): State = {
-    var globals: Set[Id] = Set()
-    var locals: Set[Id] = Set()
+    val globalDefs: Set[GlobalVarDef] = definitions collect {case g: GlobalVarDef => g}
+    val localDefs: Set[LocalVarDef] = definitions collect {case l: LocalVarDef => l}
+
+    val globals: Set[Id] = globalDefs map {case g => g.name}
+    val locals: Set[Id] = localDefs map {case l => l.name}
+
     var controls: Set[Id] = Set()
     var controlled: Set[Id] = Set()
     var controlledBy: Map[Id, Set[Id]] = Map()
 
-    //val arrays: Map[Id, IdArray] = (definitions collect {case a: ArrayDef => a.name -> IdArray(a.name, a.size)}).toMap
-    //val arrayIndices: Set[Id] = definitions collect {case a: ArrayDef => a.name}
-    val variables: Set[VarDef] = definitions flatMap {
-     // case a: ArrayDef => a.toVarDefs
-      case v: VarDef => Seq(v)
-    }
     if (debug) {
-      println(variables)
+      //println(variables)
     }
 
-    val ids: Set[Id] = {for (v <- variables) yield v.name} ++ Set(CFence)
-
-    for (v <- variables) {
-      if (v.local) {
-        locals += v.name
-      } else {
-        globals += v.name
-      }
+    val ids: Set[Id] = globals ++ locals // ++ Set(CFence)
 
       /*
       val controllingArrays: Set[Id] = {
@@ -828,16 +819,17 @@ object State {
           }
         }
         }.flatten */
-      val controlling: Set[Id] = v.lpredr.variables ++ v.lpredg.variables //++ controllingArrays
+    for (g <- globalDefs) {
+      val controlling: Set[Id] = g.lpredr.variables ++ g.lpredg.variables //++ controllingArrays
 
       if (controlling.nonEmpty) {
-        controlled += v.name
+        controlled += g.name
       }
       for (i <- controlling) {
         if (controlledBy.contains(i))
-          controlledBy += (i -> (controlledBy(i) + v.name))
+          controlledBy += (i -> (controlledBy(i) + g.name))
         else
-          controlledBy += (i -> Set(v.name))
+          controlledBy += (i -> Set(g.name))
         controls += i
       }
     }
@@ -924,26 +916,26 @@ object State {
 
     // init L - map variables to their L predicates
     val L_R: Map[Id, Expression] = {
-      for (v <- globals) yield {
+      for (v <- globalDefs) yield {
         val lpredVar = v.lpredr.subst(idToVar)
         v.name -> lpredVar
       }
     }.toMap
     val L_G: Map[Id, Expression] = {
-      for (v <- variables) yield {
+      for (v <- globalDefs) yield {
         val lpredVar = v.lpredg.subst(idToVar)
         v.name -> lpredVar
       }
     }.toMap
 
     val L: Map[Id, Expression] = {
-      for (i <- ids) yield {
-        val lR = L_R(i)
-        val lG = L_G(i)
+      for (g <- globals) yield {
+        val lR = L_R(g)
+        val lG = L_G(g)
         if (lR == lG) {
-          i -> lR
+          g -> lR
         } else {
-          i -> BinOp("&&", lR, lG)
+          g -> BinOp("&&", lR, lG)
         }
       }
     }.toMap

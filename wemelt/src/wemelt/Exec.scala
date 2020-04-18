@@ -805,7 +805,7 @@ object Exec {
     // check guar P(x := e)
     val guarUnchanged: List[Expression] = {for (g <- st1.globals - lhs)
       yield BinOp("==", g.toVar, g.toVar.prime)}.toList
-    val guarP: List[Expression] = (BinOp("==", lhs.toVar.prime, _rhs) :: guarUnchanged) :: st1.P
+    val guarP: List[Expression] = (BinOp("==", lhs.toVar.prime, _rhs) :: guarUnchanged) ::: st1.P
     if (!SMT.proveImplies(guarP, st1.G, st1.debug)) {
       throw error.AssignGError(line, lhs, rhs, "assignment doesn't conform to guarantee " + st1.G)
     }
@@ -826,6 +826,7 @@ object Exec {
     // for all y that x is a control variable of,
     // P && L(y)[e/x] ==> (sec(y) || L(y))
     // implementation will be changed for predicate gamma
+    /*
     val toSubst: Subst = Map(lhs.toVar, _rhs)
     for (y <- st1.controlledBy(lhs)) {
       val ySec = if (st1.security(y.toVar, st1.P) == Low) {
@@ -837,6 +838,7 @@ object Exec {
         throw error.AssignGError(line, lhs, rhs, "falling error for variable " + y)
       }
     }
+     */
 
 
     val st2 = st1.updateGamma(lhs, t)
