@@ -803,13 +803,41 @@ object Exec {
     val t = st1.security(_rhs, st1.P)
 
     // check guar P(x := e)
-    val guarGlobals = st1.globals - lhs
-    val guarUnchanged: List[Expression] = {for (g <- guarGlobals)
+    val guarUnchanged: List[Expression] = {for (g <- st1.globals - lhs)
       yield BinOp("==", g.toVar, g.toVar.prime)}.toList
     val guarP: List[Expression] = (BinOp("==", lhs.toVar.prime, _rhs) :: guarUnchanged) :: st1.P
     if (!SMT.proveImplies(guarP, st1.G, st1.debug)) {
-      throw error.AssignGError(line, lhs, rhs, "assignment doesn't conform to guarantee" + st1.G)
+      throw error.AssignGError(line, lhs, rhs, "assignment doesn't conform to guarantee " + st1.G)
     }
+
+    // check t <:_P L_G(x)
+    // L_G(x) && P ==> t
+    // implementation will be changed for predicate gamma
+    val tBool = if (t == Low) {
+      Const._true
+    } else {
+      Const._false
+    }
+    if (!SMT.proveImplies(st1.L_G(lhs) :: st1.P, List(tBool), st1.debug)) {
+      throw error.AssignGError(line, lhs, rhs, "t <:_P L_G(x) doesn't hold for assignment")
+    }
+
+    // check fall P Gamma(x := e)
+    // for all y that x is a control variable of,
+    // P && L(y)[e/x] ==> (sec(y) || L(y))
+    // implementation will be changed for predicate gamma
+    val toSubst: Subst = Map(lhs.toVar, _rhs)
+    for (y <- st1.controlledBy(lhs)) {
+      val ySec = if (st1.security(y.toVar, st1.P) == Low) {
+        Const._true
+      } else {
+        Const._false
+      }
+      if (!SMT.proveImplies(st1.L(y).subst(toSubst) :: P, List(BinOp("||", ySec, st1.L(y))), st1.debug)) {
+        throw error.AssignGError(line, lhs, rhs, "falling error for variable " + y)
+      }
+    }
+
 
     val st2 = st1.updateGamma(lhs, t)
     st2.assign(lhs, _rhs)

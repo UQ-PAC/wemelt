@@ -10,8 +10,9 @@ bare minimum necessary for AssignL rule
 -Gamma stability check
 for AssignG rule
 -updated falling check
--guar P
--t <:_P L_G(x)
+--for all y that x is a control variable of,
+  P && L(y)[e/x] ==> (sec(y) || L(y))
+--update substitution to handle variable to expression
 
 for later
 -quantification in L?
