@@ -36,7 +36,7 @@ case class State(
   def R_w(v: Id): Set[Id] = D(v)._3
   def R_r(v: Id): Set[Id] = D(v)._4
 
-  def log: Unit = {
+  def log(): Unit = {
     if (toLog) {
       println("gamma: " + gamma.gammaStr)
       println("P: " + P.PStr)
@@ -161,6 +161,7 @@ case class State(
     copy(P = expr :: P)
   }
 
+  /*
   def resetReadWrite(): State = {
     copy(read = Set(), written = Set())
   }
@@ -188,6 +189,7 @@ case class State(
       println("updating written (" + written + ") with " + id)
     copy(written = written ++ id)
   }
+   */
 
   /*
   def updateWritten(array: IdArray): State = {
@@ -206,6 +208,7 @@ case class State(
     copy(read = read ++ ids)
   } */
 
+  /*
   def knownW: Set[Id] = {
     if (debug) {
       println("calculating knownW")
@@ -300,6 +303,7 @@ case class State(
 
     copy(D = DPrimePrime, read = Set(), written = Set())
   }
+   */
 
   /*
   def updateDArrayAssign(x: Id, e: Expression) : State = {
@@ -334,6 +338,7 @@ case class State(
   }
    */
 
+  /*
   def updateDCAS(r3: Id, x: Id, r1: Expression, r2: Expression) : State = {
     val varR1 = r1.variables
     val varR2 = r2.variables
@@ -375,6 +380,7 @@ case class State(
     val DPrime: Map[Id, (Set[Id], Set[Id], Set[Id], Set[Id])] = updateD(laterW, laterR)
     copy(D = DPrime, read = Set(), written = Set())
   }
+   */
 
   def lowP(id: Id, p: List[Expression]): Boolean = {
     if (debug)
@@ -751,7 +757,7 @@ case class State(
 
   def mergePs(ps: List[List[Expression]]): List[Expression] = {
     if (ps.size == 2) {
-      mergeP(ps(0), ps(1))
+      mergeP(ps.head, ps(1))
     } else if (ps.size == 1) {
       ps.head
     }  else if (ps.isEmpty) {
@@ -787,16 +793,23 @@ case class State(
   }
 */
 
+  def PStable(): Boolean = {
+    val toSubst: Subst = {for (v <- variables)
+      yield v.toVar -> v.toVar.prime
+    }.toMap
+    val PPrime = P map {e: Expression => e.subst(toSubst) }
+    SMT.proveImplies(P ++ R, PPrime, debug)
+  }
 }
 
 object State {
   def init(definitions: Set[Definition], P_0: Option[List[Expression]], gamma_0: Option[List[GammaMapping]],
-           R: List[Expression], G: List[Expression], toLog: Boolean, debug: Boolean, noInfeasible: Boolean): State = {
+           rely: List[Expression], guarantee: List[Expression], toLog: Boolean, debug: Boolean, noInfeasible: Boolean): State = {
     val globalDefs: Set[GlobalVarDef] = definitions collect {case g: GlobalVarDef => g}
     val localDefs: Set[LocalVarDef] = definitions collect {case l: LocalVarDef => l}
 
-    val globals: Set[Id] = globalDefs map {case g => g.name}
-    val locals: Set[Id] = localDefs map {case l => l.name}
+    val globals: Set[Id] = globalDefs map {g => g.name}
+    val locals: Set[Id] = localDefs map {l => l.name}
 
     var controls: Set[Id] = Set()
     var controlled: Set[Id] = Set()
@@ -883,10 +896,18 @@ object State {
     val idToVar: Subst = {
       for (v <- ids)
         yield v -> v.toVar
-      }.toMap /* ++ {
+      }.toMap ++ {
+      for (v <- ids)
+        yield v.prime -> v.toVar.prime
+      }.toMap
+    /* ++ {
       for (v <- arrays.keySet)
         yield v -> v.toVar
       }.toMap */
+
+    // initialise R & G
+    val R = rely map {i => i.subst(idToVar)}
+    val G = guarantee map {i => i.subst(idToVar)}
 
     // initialise P - true by default
     val P: List[Expression] = P_0 match {
@@ -894,24 +915,16 @@ object State {
         List(Const._true)
 
       case Some(p) =>
-        // check no unstable variables in user-defined P_0
-
-        // get all array index variables from P_0 - doesn't need to be precise as arrays share a mode
-        //val PArrayAccess: Set[Id] = {p flatMap {x => x.arrays flatMap {y => arrays(y.name).array}}}.toSet
-
-        val PVars: Set[Id] = (p flatMap {x => x.variables}).toSet //++ PArrayAccess
-        if (debug) {
-          println("variables in P_0: " + PVars.mkString(" "))
-        }
-        /*
-        val unstableP = for (i <- PVars if !stable.contains(i))
-          yield i
-        if (unstableP.nonEmpty) {
-          throw error.InvalidProgram("unstable variables in P_0: " + unstableP.mkString(", "))
-        }idtoV
-         */
-
         p map {i => i.subst(idToVar)}
+    }
+
+    // check P_0 is stable
+    val toSubstP: Subst = {for (v <- ids)
+      yield v.toVar -> v.toVar.prime
+    }.toMap
+    val PPrime = P map {e: Expression => e.subst(toSubstP)}
+    if (!SMT.proveImplies(P ++ R, PPrime, debug)) {
+      throw error.InvalidProgram("P_0 is not stable")
     }
 
     // init L - map variables to their L predicates
@@ -944,6 +957,8 @@ object State {
       println("L_R: " + L_R)
       println("L_G: " + L_G)
       println("L: " + L)
+      println("R: " + R)
+      println("G: " + G)
     }
     if (toLog) {
       println("gamma: " + gamma.gammaStr)

@@ -23,6 +23,10 @@ import wemelt.Parser.Terminals;
         return newToken(Terminals.ID, name);
     }
 
+    Symbol resolvePrime(String name) {
+            return newToken(Terminals.PRIMEID, name);
+        }
+
 	Symbol newToken(short id)
 	{
 		return newToken(id, yytext());
@@ -76,6 +80,7 @@ WS = {NL} | [ \t\f]
     ":"         { return newToken(Terminals.COLON);    }
     "="         { return newToken(Terminals.ASG);      }
 
+
     //"<=>"       { return newToken(Terminals.EQV);      }
     //"==>"       { return newToken(Terminals.IMP);      }
     ","         { return newToken(Terminals.COMMA);    }
@@ -117,6 +122,8 @@ WS = {NL} | [ \t\f]
 
     [a-zA-Z_][a-zA-Z_0-9]*
                 { return resolve(yytext()); }
+    [a-zA-Z_][a-zA-Z_0-9]*[']
+                { return resolvePrime(yytext()); }
 
     [0-9]+      { return newToken(Terminals.NUM, new Integer(yytext())); }
 

@@ -35,7 +35,7 @@ object Exec {
       } else {
         assignGRule(lhs, rhs, state0, statement.line)
       }
-      state1.log
+      state1.log()
       Cont.next(state1)
 
 
@@ -77,6 +77,7 @@ object Exec {
       Cont.next(state1)
 */
 
+      /*
     case Fence =>
       // reset D
       val state1 = state0.updateDFence
@@ -84,7 +85,6 @@ object Exec {
         println("fence:")
         state1.log
       }
-
       Cont.next(state1)
 
     case ControlFence =>
@@ -95,8 +95,8 @@ object Exec {
         println("cfence:")
         state1.log
       }
-
       Cont.next(state2)
+       */
 
     case If(test, left, right) =>
       if (state0.toLog)
@@ -104,7 +104,7 @@ object Exec {
       val state1 = ifRule(test, left, right, state0, statement.line)
       if (state0.toLog)
         println("end of line " + statement.line + ": If(" + test + ")")
-      state1.log
+      state1.log()
       if (state0.toLog)
         println("}")
       Cont.next(state1)
@@ -130,7 +130,7 @@ object Exec {
       val state1 = whileRule(test, PPrime, gammaPrime, body, state0, statement.line)
       if (state0.toLog)
         println("end of line " + statement.line + ": While(" + test + ")")
-      state1.log
+      state1.log()
       if (state0.toLog)
         println("}")
       Cont.next(state1)
@@ -159,7 +159,7 @@ object Exec {
       val state2 = whileRule(test, PPrime, gammaPrime, body, state1, statement.line)
       if (state0.toLog)
         println("end of line " + statement.line + ": While(" + test + ")")
-      state2.log
+      state2.log()
       if (state0.toLog)
         println("}")
       Cont.next(state2)
@@ -169,6 +169,7 @@ object Exec {
 
   }
 
+  /*
   // compute fixed point of D
   def DFixedPoint(test: Expression, body: Statement, state: State): Map[Id, (Set[Id], Set[Id], Set[Id], Set[Id])] = {
     var DFixed = false
@@ -181,8 +182,8 @@ object Exec {
       dfixedloops = dfixedloops + 1
       // update rd for the guard
       val st1 = DFixedPoint(test, st0)
-      val st2 = st1.updateDGuard(test)
-      val st3 = DFixedPoint(body, st2)
+      //val st2 = st1.updateDGuard(test)
+      val st3 = DFixedPoint(body, st1)
       // intersect with original D after loop body
       val st4 = st3.copy(D = st3.mergeD(state))
 
@@ -230,13 +231,11 @@ object Exec {
       val st2 = st1.updateWritten(lhs)
       st2.updateDAssign(lhs, rhs)
 
-      /*
     case ArrayAssignment(name, index, rhs) =>
       val st1 = DFixedPoint(rhs, st0)
       val st2 = DFixedPoint(index, st1)
       val st3 = st2.updateWritten(st2.arrays(name))
       st3.updateDArrayAssign(name, rhs)
-       */
 
     case Fence =>
       // reset D
@@ -312,12 +311,13 @@ object Exec {
     case _ =>
       throw error.InvalidProgram("unimplemented expression: " + expr)
   }
+   */
 
   def eval(expr: Expression, st0: State): (Expression, State) = expr match {
     case id: Id =>
       // value has been READ
-      val st1 = st0.updateRead(id)
-      (id.toVar, st1)
+      //val st1 = st0.updateRead(id)
+      (id.toVar, st0)
 
     case res: Lit =>
       (res, st0)
@@ -437,28 +437,32 @@ object Exec {
     val (_test, state1) = eval(test, state0)
 
     // check test is LOW
+    /*
     val PRestrict = state1.restrictP(state1.knownW) // calculate P_b
     if (state0.debug)
       println("P_b: " + PRestrict.PStr)
+     */
 
     // check any array indices in test are low
     for (i <- _test.arrays) {
-      if (state1.security(i.index, PRestrict) == High) {
+      if (state1.security(i.index, state1.P) == High) {
         throw error.IfError(line, test, "array index " + i.index + " is HIGH")
       }
     }
 
-    if (state1.security(_test, PRestrict, true) == High) {
+    if (state1.security(_test, state1.P, guard = true) == High) {
       throw error.IfError(line, test, "guard expression is HIGH")
     }
 
+    /*
     val state2 = state1.updateDGuard(_test)
     if (state0.toLog)
       println("D[b]: " + state2.D.DStr)
+     */
 
     // execute both sides of if statement
-    val _left = state2.updatePIfLeft(_test)
-    val _left1 = if (state2.noInfeasible) {
+    val _left = state1.updatePIfLeft(_test)
+    val _left1 = if (state1.noInfeasible) {
       // don't check infeasible paths
       if (SMT.proveP(_left.P, _left.debug)) {
         execute(left, _left).st
@@ -473,8 +477,8 @@ object Exec {
       case Some(r) =>
         if (state0.toLog)
           println("} else {")
-        val _right = state2.updatePIfRight(_test)
-        if (state2.noInfeasible) {
+        val _right = state1.updatePIfRight(_test)
+        if (state1.noInfeasible) {
           // don't check infeasible paths
           if (SMT.proveP(_right.P, _right.debug)) {
             execute(r, _right).st
@@ -485,7 +489,7 @@ object Exec {
           execute(r, _right).st
         }
       case None =>
-        state2.updatePIfRight(_test)
+        state1.updatePIfRight(_test)
     }
 
     // merge states
@@ -541,11 +545,13 @@ object Exec {
     // D and DFixed, but not D''. this is impossible as if an element is in D and D_fixed, it will not be removed after
     // the single loop iteration that produces D''
 
+    /*
     val DPrime = DFixedPoint(test, body, state0)
     if (state0.debug)
       println("D': " + DPrime.DStr)
+     */
 
-    val state1 = state0.copy(P = PPrime, gamma = gammaPrime, D = DPrime)
+    val state1 = state0.copy(P = PPrime, gamma = gammaPrime)
 
     // check D' is subset of D
     for (v <- state0.variables) {
@@ -555,22 +561,22 @@ object Exec {
 
     // evaluate test and update D
     val (_test, state2) = eval(test, state1)
-    val state3 = state2.updateDGuard(_test)
+   //val state3 = state2.updateDGuard(_test)
 
     // check any array indices in test are low
     for (i <- _test.arrays) {
-      if (state3.security(i.index, state3.P) == High) {
+      if (state2.security(i.index, state2.P) == High) {
         throw error.WhileError(line, test, "array index " + i.index + " is HIGH")
       }
     }
 
     // check test is LOW with regards to P', gamma' - tested
-    if (state3.security(_test, state3.P, true) == High) {
+    if (state2.security(_test, state2.P, guard = true) == High) {
       throw error.WhileError(line, test, "guard expression is HIGH")
     }
 
     // add test to P
-    val state4 = state3.updatePIfLeft(_test)
+    val state4 = state2.updatePIfLeft(_test)
 
     if (state0.debug) {
       println("while rule after test, before loop body:")

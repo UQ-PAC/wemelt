@@ -34,6 +34,7 @@
 %terminals RELY, GUARANTEE;
 %terminals LPRED, LPREDGUAR, LPREDRELY;
 %terminals MAPSTO;
+%terminals PRIMEID;
 
 %nonassoc IF;
 %nonassoc ELSE;
@@ -54,10 +55,12 @@
 %left  COMMA;
 
 %typeof ID      = "String";
+%typeof PRIMEID      = "String";
 
 %typeof NUM     = "Integer";
 
 %typeof expr    = "Expression";
+%typeof rgexpr    = "Expression";
 
 %typeof statement   = "Statement";
 %typeof statement1  = "Statement";
@@ -74,12 +77,13 @@
 
 %goal unit;
 
-unit = defs.v RELY COLON exprs.r GUARANTEE COLON exprs.g statements.s {: return new Parsed(v, r, g, s); :}
-     | defs.v RELY COLON exprs.r GUARANTEE COLON exprs.g GAMMA_0 COLON gamma_mappings.f statements.s {: return new Parsed(v, r, g, f, s); :}
-     | defs.v RELY COLON exprs.r GUARANTEE COLON exprs.g P_0 COLON exprs.p statements.s {: return new Parsed(v, r, g, p, s); :}
-     | defs.v RELY COLON exprs.r GUARANTEE COLON exprs.g P_0 COLON exprs.p GAMMA_0 COLON gamma_mappings.f statements.s {: return new Parsed(v, r, g, p, f, s); :};
+unit = defs.v RELY COLON rgexprs.r GUARANTEE COLON rgexprs.g statements.s {: return new Parsed(v, r, g, s); :}
+     | defs.v RELY COLON rgexprs.r GUARANTEE COLON rgexprs.g GAMMA_0 COLON gamma_mappings.f statements.s {: return new Parsed(v, r, g, f, s); :}
+     | defs.v RELY COLON rgexprs.r GUARANTEE COLON rgexprs.g P_0 COLON exprs.p statements.s {: return new Parsed(v, r, g, p, s); :}
+     | defs.v RELY COLON rgexprs.r GUARANTEE COLON rgexprs.g P_0 COLON exprs.p GAMMA_0 COLON gamma_mappings.f statements.s {: return new Parsed(v, r, g, p, f, s); :};
 
 exprs = expr @ ASG | exprs COMMA expr;
+rgexprs = rgexpr @ ASG | rgexprs COMMA rgexpr;
 
 
 statement
@@ -152,6 +156,38 @@ expr
     | expr.a AND    expr.b              {: return new BinOp("&&",a, b); :}
     | expr.a OR     expr.b              {: return new BinOp("||",a, b); :}
     | LPAREN expr.e RPAREN              {: return (Symbol) e;           :}
+    | TRUE                              {: return new Const("True");  :}
+    | FALSE                             {: return new Const("False");  :}
+    ;
+
+rgexpr = ID.n                              {: return new Id(n);  :}
+    | PRIMEID.n                           {: return new Id(n);  :}
+    | ID.n LBRACK rgexpr.i RBRACK       {: return new Access(n, i); :}
+    | NUM.n                             {: return new Lit(n); :}
+    | PLUS  rgexpr.a @ PREFIX             {: return new PreOp("+", a);    :}
+    | MINUS rgexpr.a @ PREFIX             {: return new PreOp("-", a);    :}
+    | BANG  rgexpr.a @ PREFIX             {: return new PreOp("!", a);    :}
+    | TILDE rgexpr.a @ PREFIX             {: return new PreOp("~", a);    :}
+    | rgexpr.a STAR   rgexpr.b              {: return new BinOp("*", a, b); :}
+    | rgexpr.a DIV    rgexpr.b              {: return new BinOp("/", a, b); :}
+    | rgexpr.a MOD    rgexpr.b              {: return new BinOp("%", a, b); :}
+    | rgexpr.a PLUS   rgexpr.b              {: return new BinOp("+", a, b); :}
+    | rgexpr.a MINUS  rgexpr.b              {: return new BinOp("-", a, b); :}
+    | rgexpr.a SHL    rgexpr.b              {: return new BinOp("<<",a, b); :}
+    | rgexpr.a SHR    rgexpr.b              {: return new BinOp(">>",a, b); :}
+    | rgexpr.a ASHR   rgexpr.b              {: return new BinOp(">>>",a, b); :}
+    | rgexpr.a LT     rgexpr.b              {: return new BinOp("<", a, b); :}
+    | rgexpr.a LE     rgexpr.b              {: return new BinOp("<=",a, b); :}
+    | rgexpr.a GE     rgexpr.b              {: return new BinOp(">=",a, b); :}
+    | rgexpr.a GT     rgexpr.b              {: return new BinOp(">", a, b); :}
+    | rgexpr.a EQ     rgexpr.b              {: return new BinOp("==",a, b); :}
+    | rgexpr.a NEQ    rgexpr.b              {: return new BinOp("!=",a, b); :}
+    | rgexpr.a AMP    rgexpr.b              {: return new BinOp("&", a, b); :}
+    | rgexpr.a CARET  rgexpr.b              {: return new BinOp("^", a, b); :}
+    | rgexpr.a PIPE   rgexpr.b              {: return new BinOp("|", a, b); :}
+    | rgexpr.a AND    rgexpr.b              {: return new BinOp("&&",a, b); :}
+    | rgexpr.a OR     rgexpr.b              {: return new BinOp("||",a, b); :}
+    | LPAREN rgexpr.e RPAREN              {: return (Symbol) e;           :}
     | TRUE                              {: return new Const("True");  :}
     | FALSE                             {: return new Const("False");  :}
     ;
