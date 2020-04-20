@@ -2,7 +2,7 @@ package wemelt
 
 case class State(
   gamma: Map[Id, Security],
-  D: Map[Id, (Set[Id], Set[Id], Set[Id], Set[Id])], // W_w, W_r, R_w, R_r
+  //D: Map[Id, (Set[Id], Set[Id], Set[Id], Set[Id])], // W_w, W_r, R_w, R_r
   P: List[Expression],
 
   R: List[Expression],
@@ -21,8 +21,8 @@ case class State(
 
   variables: Set[Id],
 
-  read: Set[Id],
-  written: Set[Id],
+  //read: Set[Id],
+  //written: Set[Id],
 
   //arrayIndices: Set[Id],
   //arrays: Map[Id, IdArray],
@@ -31,16 +31,16 @@ case class State(
   debug: Boolean,
   noInfeasible: Boolean) {
 
-  def W_w(v: Id): Set[Id] = D(v)._1
-  def W_r(v: Id): Set[Id] = D(v)._2
-  def R_w(v: Id): Set[Id] = D(v)._3
-  def R_r(v: Id): Set[Id] = D(v)._4
+  //def W_w(v: Id): Set[Id] = D(v)._1
+  //def W_r(v: Id): Set[Id] = D(v)._2
+  //def R_w(v: Id): Set[Id] = D(v)._3
+  //def R_r(v: Id): Set[Id] = D(v)._4
 
   def log(): Unit = {
     if (toLog) {
       println("gamma: " + gamma.gammaStr)
       println("P: " + P.PStr)
-      println("D: " + D.DStr)
+      //println("D: " + D.DStr)
     }
   }
 
@@ -718,7 +718,7 @@ case class State(
       }
     }.toMap
 
-    val DPrime = this.mergeD(state2)
+    //val DPrime = this.mergeD(state2)
 
     // P1 OR P2 converted to CNF
     val PPrime = mergeP(state1.P, state2.P)
@@ -727,13 +727,14 @@ case class State(
     if (debug)
       println("restricting P to stable variables: " + PPrimeRestricted.PStr)
 
-    copy(gamma = gammaPrime, D = DPrime, P = PPrimeRestricted)
+    copy(gamma = gammaPrime, P = PPrimeRestricted)
   }
 
+  /*
   // D' = D1 intersect D2
   def mergeD(state2: State): Map[Id, (Set[Id], Set[Id], Set[Id], Set[Id])] = {
     State.mergeD(this.D, state2.D)
-  }
+  } */
 
   // https://www.cs.jhu.edu/~jason/tutorials/convert-to-CNF.html
   // P1 OR P2 converted to CNF, using switching variable to keep converted formula small
@@ -800,6 +801,16 @@ case class State(
     val PPrime = P map {e: Expression => e.subst(toSubst) }
     SMT.proveImplies(P ++ R, PPrime, debug)
   }
+
+  // needs further work with the SMT but will do for now
+  def low_or_eq(P: List[Expression]): Set[Id] = {
+    val localLow = for (l <- locals if SMT.proveImplies(P, List(L_R(l)), debug))
+      yield l
+    val globalLowOrEq = for (g <- globals if (SMT.proveImplies(P, List(L_R(g)), debug)
+      || SMT.proveImplies(P ++ R, List(BinOp("==", g.toVar, g.toVar.prime)), debug)))
+      yield g
+    localLow ++ globalLowOrEq
+  }
 }
 
 object State {
@@ -853,11 +864,13 @@ object State {
         + controlAndControlled.mkString(", "))
     }
 
+    /*
     // init D - every variable maps to Var
     val D: Map[Id, (Set[Id], Set[Id], Set[Id], Set[Id])] = {
       for (i <- ids)
         yield i -> (ids, ids, ids, ids)
     }.toMap
+     */
 
     if (debug) {
       println("variables: " + ids)
@@ -963,12 +976,12 @@ object State {
     if (toLog) {
       println("gamma: " + gamma.gammaStr)
       println("P: " + P.PStr)
-      println("D: " + D.DStr)
+      //println("D: " + D.DStr)
     }
 
     State(
       gamma = gamma,
-      D = D,
+      //D = D,
       P = P,
       R = R,
       G = G,
@@ -981,8 +994,8 @@ object State {
       controlled = controlled,
       controlledBy = controlledBy,
       variables = ids,
-      read = Set(),
-      written = Set(),
+      //read = Set(),
+      //written = Set(),
       //arrayIndices = arrayIndices,
       //arrays = arrays,
       toLog = toLog,

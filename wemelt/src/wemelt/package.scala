@@ -4,7 +4,7 @@ package object wemelt {
     abstract class Error extends Exception {
       def info: Seq[Any]
 
-      override def toString = info.mkString(" ")
+      override def toString: String = info.mkString(" ")
     }
 
     case class InvalidProgram(info: Any*) extends Error
@@ -12,13 +12,13 @@ package object wemelt {
     case class Z3Error(info: Any*) extends Error
 
     case class WhileError(line: Int, test: Expression, message: String) extends Exception {
-      override def toString = "line " + line + ": WHILE rule not valid for while(" + test + ") {...} as " + message
+      override def toString: String = "line " + line + ": WHILE rule not valid for while(" + test + ") {...} as " + message
     }
     case class AssignLError(line: Int, lhs: Id, rhs: Expression, message: String)  extends Exception {
-      override def toString = "line " + line + ": ASSIGNL rule not valid for " + lhs + " = " + rhs + " as " + message
+      override def toString: String = "line " + line + ": ASSIGNL rule not valid for " + lhs + " = " + rhs + " as " + message
     }
     case class AssignGError(line: Int, lhs: Id, rhs: Expression, message: String)  extends Exception {
-      override def toString = "line " + line + ": ASSIGNG rule not valid for " + lhs + " = " + rhs + " as " + message
+      override def toString: String = "line " + line + ": ASSIGNG rule not valid for " + lhs + " = " + rhs + " as " + message
     }
     /*
     case class CASError(line: Int, lhs: Id, x: Id, r1: Expression, r2: Expression, message: String)  extends Exception {
@@ -29,7 +29,7 @@ package object wemelt {
     }
      */
     case class IfError(line: Int, test: Expression, message: String) extends Exception {
-      override def toString = "line " + line + ": IF rule not valid for if(" + test + ") {...} as " + message
+      override def toString: String = "line " + line + ": IF rule not valid for if(" + test + ") {...} as " + message
     }
     /*
     case class ArrayError(line: Int, a: Id, index: Expression, rhs: Expression, message: String) extends Exception {
@@ -42,19 +42,11 @@ package object wemelt {
 
   }
 
-  type Subst = Map[Expression, Var]
-
-  object Subst {
-    val empty: Subst = Map()
-
-    def apply(xs: (Expression, Var)*): Subst = {
-      xs.toMap
-    }
-  }
+  type Subst = Map[Expression, Expression]
 
   val sub = "₀₁₂₃₄₅₆₇₈₉"
   implicit class StringOps(self: String) {
-    def prime = self + "'"
+    def prime: String = self + "'"
 
     def __(index: Int): String = {
       self + (index.toString map (n => sub(n - '0')))
@@ -69,7 +61,7 @@ package object wemelt {
 
   }
 
-  val newline ="""
+  val newline: String ="""
       |""".stripMargin
 
   implicit class DToString(D: Map[Id, (Set[Id], Set[Id], Set[Id], Set[Id])]) {
@@ -87,6 +79,6 @@ package object wemelt {
   }
 
   implicit class GammaToString(gamma: Map[Id, Security]) {
-    def gammaStr = gamma.mkString(", ")
+    def gammaStr: String = gamma.mkString(", ")
   }
 }

@@ -5,7 +5,7 @@ trait Expression extends beaver.Symbol {
   def variables: Set[Id] // returns all variables in the expression, does NOT include array indices
   def subst(su: Subst): Expression
   def subst(su: Subst, num: Int): Expression
-  def arrays: Set[Access] // returns all array accesses in the expression
+  //def arrays: Set[Access] // returns all array accesses in the expression
 
   // existentially quantify (substitute with fresh variables) all variables that aren't in restricted
   def restrict(restricted: Set[Id]): Expression = {
@@ -33,7 +33,7 @@ trait BoolExpression extends Expression {
 case class Lit(arg: Int) extends Expression {
   override def toString: String = arg.toString
   override def variables: Set[Id] = Set()
-  override def arrays = Set()
+  //override def arrays = Set()
   override def subst(su: Subst): Lit = this
   override def subst(su: Subst, num: Int): Lit = this.subst(su)
 }
@@ -46,12 +46,12 @@ case class Id(name: String) extends Expression {
   override def subst(su: Subst): Expression = su.getOrElse(this, this)
   override def subst(su: Subst, num: Int): Expression = this.subst(su)
   def toVar: Var = Var(name, None)
-  override def arrays = Set()
+  //override def arrays = Set()
   def prime: Id = Id(name + "'")
 }
 
 object CFence extends Id("cfence")
-
+/*
 // array access parsed from input
 case class Access(name: Id, index: Expression) extends Expression {
   def this (name: String, index: Expression) = this(Id(name), index)
@@ -71,8 +71,10 @@ case class Access(name: Id, index: Expression) extends Expression {
   override def toString: String = name + "[" + index + "]"
   override def arrays = Set(this)
 }
+ */
 
 // array access with Var for use in logical predicates
+/*
 case class VarAccess(name: Var, index: Expression) extends Expression {
   def variables: Set[Id] = index.variables
   def subst(su: Subst): Expression = if (su.keySet.contains(this)) {
@@ -96,6 +98,7 @@ case class VarAccess(name: Var, index: Expression) extends Expression {
       Set(Access(name.ident, index))
   }
 }
+ */
 
 // logical variable for use in predicates
 case class Var(name: String, index: Option[Int] = None) extends Expression {
@@ -108,21 +111,21 @@ case class Var(name: String, index: Option[Int] = None) extends Expression {
   def prime: Var = Var(name.prime, index)
 
   // replaces the Var with the value it is to be substituted with, if there is one
-  override def subst(su: Subst): Var = su.getOrElse(this, this)
-  override def subst(su: Subst, num: Int): Var = su.getOrElse(this, this)
+  override def subst(su: Subst): Expression = su.getOrElse(this, this)
+  override def subst(su: Subst, num: Int): Expression = su.getOrElse(this, this)
 
   // only return free variables
   override def variables: Set[Id] = this match {
-    case Var(name, Some(index)) =>
+    case Var(_, Some(_)) =>
       Set()
-    case Var(name, None) =>
+    case Var(_, None) =>
       Set(ident)
   }
 
   override def toString: String = name __ index
   //override def toString = "VAR_" + name __ index
 
-  override def arrays = Set()
+  //override def arrays = Set()
 }
 
 object Var {
@@ -138,7 +141,7 @@ case class Switch(index: Int) extends BoolExpression {
   def variables: Set[Id] = Set()
   def subst(su: Subst): BoolExpression = this
   def subst(su: Subst, num: Int): BoolExpression = this
-  override def arrays = Set()
+  //override def arrays = Set()
 }
 
 object Switch {
@@ -153,7 +156,7 @@ case class MultiSwitch(index: Int) extends Expression {
   def variables: Set[Id] = Set()
   def subst(su: Subst): Expression = this
   def subst(su: Subst, num: Int): Expression = this
-  override def arrays = Set()
+  //override def arrays = Set()
 }
 
 object MultiSwitch {
@@ -203,7 +206,7 @@ case class PreOp(op: String, arg: Expression) extends Expression {
   override def variables: Set[Id] = arg.variables
   def subst(su: Subst) =  PreOp(op, arg.subst(su))
   def subst(su: Subst, num: Int) =  PreOp(op, arg.subst(su, num))
-  override def arrays: Set[Access] = arg.arrays
+  //override def arrays: Set[Access] = arg.arrays
 }
 
 case class PostOp(op: String, arg: Expression) extends Expression {
@@ -211,7 +214,7 @@ case class PostOp(op: String, arg: Expression) extends Expression {
   override def variables: Set[Id] = arg.variables
   def subst(su: Subst) = PostOp(op, arg.subst(su))
   def subst(su: Subst, num: Int) =  PostOp(op, arg.subst(su, num))
-  override def arrays: Set[Access] = arg.arrays
+  //override def arrays: Set[Access] = arg.arrays
 }
 
 case class BinOp(op: String, arg1: Expression, arg2: Expression) extends Expression {
@@ -219,7 +222,7 @@ case class BinOp(op: String, arg1: Expression, arg2: Expression) extends Express
   override def variables: Set[Id] = arg1.variables ++ arg2.variables
   def subst(su: Subst) = BinOp(op, arg1.subst(su), arg2.subst(su))
   def subst(su: Subst, num: Int) = BinOp(op, arg1.subst(su, num), arg2.subst(su, num))
-  override def arrays: Set[Access] = arg1.arrays ++ arg2.arrays
+  //override def arrays: Set[Access] = arg1.arrays ++ arg2.arrays
 }
 
 case class Question(test: Expression, left: Expression, right: Expression) extends Expression {
@@ -227,21 +230,21 @@ case class Question(test: Expression, left: Expression, right: Expression) exten
   override def variables: Set[Id] = test.variables ++ left.variables ++ right.variables
   def subst(su: Subst) = Question(test.subst(su), left.subst(su), right.subst(su))
   def subst(su: Subst, num: Int) = Question(test.subst(su, num), left.subst(su, num), right.subst(su, num))
-  override def arrays: Set[Access] = test.arrays ++ left.arrays ++ right.arrays
+  //override def arrays: Set[Access] = test.arrays ++ left.arrays ++ right.arrays
 }
 
 case class ForAll(bound: Set[_ <: Expression], body: Expression) extends BoolExpression {
   override def variables: Set[Id]  = body.variables -- (bound collect {case x: Var => x.ident})
   def subst(su: Subst) = ForAll(bound, body.subst(su))
   def subst(su: Subst, num: Int) = ForAll(bound, body.subst(su, num))
-  override def arrays: Set[Access] = body.arrays
+  //override def arrays: Set[Access] = body.arrays
 }
 
 case class Exists(bound: Set[_ <: Expression], body: Expression) extends BoolExpression {
   override def variables: Set[Id] = body.variables -- (bound collect {case x: Var => x.ident})
   def subst(su: Subst) = Exists(bound, body.subst(su))
   def subst(su: Subst, num: Int) = Exists(bound, body.subst(su, num))
-  override def arrays: Set[Access] = body.arrays
+  //override def arrays: Set[Access] = body.arrays
 }
 
 object Const {
@@ -253,5 +256,5 @@ case class Const(name: String) extends Expression {
   override def variables: Set[Id] = Set()
   override def subst(su: Subst): Const = this
   override def subst(su: Subst, num: Int): Const = this
-  override def arrays = Set()
+  //override def arrays = Set()
 }

@@ -44,7 +44,7 @@ object WeMeLT {
             //Exec.execute(statements, state0)
             printTime(start)
           } catch {
-            case e: java.io.FileNotFoundException =>
+            case _: java.io.FileNotFoundException =>
               println("file does not exist")
             case e: InvalidProgram =>
               println("invalid input file: " + e)

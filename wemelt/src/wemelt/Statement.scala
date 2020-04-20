@@ -1,7 +1,7 @@
 package wemelt
 
 object Block {
-  def empty = Block(Nil)
+  def empty: Block = Block(Nil)
 }
 
 sealed trait Statement extends beaver.Symbol {
@@ -18,17 +18,17 @@ case class Block(statements: List[Statement]) extends Statement {
 
 case class Assignment(lhs: Id, expression: Expression) extends Statement {
   def this(lhs: String, expression: Expression) = this(Id(lhs), expression)
-  override def toString = lhs + " = " + expression
+  override def toString: String = lhs + " = " + expression
 }
 
 case class ArrayAssignment(name: Id, index: Expression, expression: Expression) extends Statement {
   def this(name: String, index: Expression, expression: Expression) = this(Id(name), index, expression)
-  override def toString = name + "[" + index + "]" + " = " + expression
+  override def toString: String = name + "[" + index + "]" + " = " + expression
 }
 
 case class CompareAndSwap(result: Id, toCompare: Id, oldValue: Expression, newValue: Expression) extends Statement {
   def this(result: String, toCompare: String, oldValue: Expression, newValue: Expression) = this(Id(result), Id(toCompare), oldValue, newValue)
-  override def toString = result + " = " + "CAS(" + toCompare + ", " + oldValue + ", " + newValue + ")"
+  override def toString: String = result + " = " + "CAS(" + toCompare + ", " + oldValue + ", " + newValue + ")"
 }
 
 /*

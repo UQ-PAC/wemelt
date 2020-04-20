@@ -444,11 +444,13 @@ object Exec {
      */
 
     // check any array indices in test are low
+    /*
     for (i <- _test.arrays) {
       if (state1.security(i.index, state1.P) == High) {
         throw error.IfError(line, test, "array index " + i.index + " is HIGH")
       }
     }
+     */
 
     if (state1.security(_test, state1.P, guard = true) == High) {
       throw error.IfError(line, test, "guard expression is HIGH")
@@ -553,22 +555,26 @@ object Exec {
 
     val state1 = state0.copy(P = PPrime, gamma = gammaPrime)
 
+    /*
     // check D' is subset of D
     for (v <- state0.variables) {
       if (!((state1.W_r(v) subsetOf state0.W_r(v)) && (state1.W_w(v) subsetOf state0.W_w(v)) && (state1.R_r(v) subsetOf state0.R_r(v)) && (state1.R_w(v) subsetOf state0.R_w(v))))
         throw error.ProgramError("line " + line + ": D' is not a subset of D." + newline + "D': " +  state1.D.DStr + newline + "D: " + state0.D.DStr)
     }
+     */
 
     // evaluate test and update D
     val (_test, state2) = eval(test, state1)
    //val state3 = state2.updateDGuard(_test)
 
     // check any array indices in test are low
+    /*
     for (i <- _test.arrays) {
       if (state2.security(i.index, state2.P) == High) {
         throw error.WhileError(line, test, "array index " + i.index + " is HIGH")
       }
     }
+     */
 
     // check test is LOW with regards to P', gamma' - tested
     if (state2.security(_test, state2.P, guard = true) == High) {
@@ -599,10 +605,12 @@ object Exec {
 
     // this shouldn't be able to happen if D' is calculated correctly
     // check D' is subset of D''
+    /*
     for (v <- state0.variables) {
       if (!((state1.W_r(v) subsetOf state5.W_r(v)) && (state1.W_w(v) subsetOf state5.W_w(v)) && (state1.R_r(v) subsetOf state5.R_r(v)) && (state1.R_w(v) subsetOf state5.R_w(v))))
         throw error.ProgramError("line " + line + ": D' is not a subset of D''." + newline + "D': " +  state1.D.DStr + newline + "D'': " + state5.D.DStr)
     }
+     */
 
     // check gamma' is greater or equal than gamma'' for all x - tested
     val gammaPrimeGreater = for (g <- gammaPrime.keySet if state5.gamma(g) > gammaPrime(g))
@@ -825,26 +833,24 @@ object Exec {
       Const._false
     }
     if (!SMT.proveImplies(st1.L_G(lhs) :: st1.P, List(tBool), st1.debug)) {
-      throw error.AssignGError(line, lhs, rhs, "t <:_P L_G(x) doesn't hold for assignment")
+      throw error.AssignGError(line, lhs, rhs, "t <:_P L_G(" + lhs + ") doesn't hold for assignment")
     }
 
     // check fall P Gamma(x := e)
     // for all y that x is a control variable of,
     // P && L(y)[e/x] ==> (sec(y) || L(y))
     // implementation will be changed for predicate gamma
-    /*
-    val toSubst: Subst = Map(lhs.toVar, _rhs)
+    val toSubst: Subst = Map(lhs.toVar -> _rhs)
     for (y <- st1.controlledBy(lhs)) {
       val ySec = if (st1.security(y.toVar, st1.P) == Low) {
         Const._true
       } else {
         Const._false
       }
-      if (!SMT.proveImplies(st1.L(y).subst(toSubst) :: P, List(BinOp("||", ySec, st1.L(y))), st1.debug)) {
+      if (!SMT.proveImplies(st1.L(y).subst(toSubst) :: st1.P, List(BinOp("||", ySec, st1.L(y))), st1.debug)) {
         throw error.AssignGError(line, lhs, rhs, "falling error for variable " + y)
       }
     }
-     */
 
 
     val st2 = st1.updateGamma(lhs, t)

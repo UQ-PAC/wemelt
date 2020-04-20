@@ -130,7 +130,7 @@ statement1
 expr
     = PREFIX | POSTFIX /* unused */
     | ID.n                              {: return new Id(n);  :}
-    | ID.n LBRACK expr.i RBRACK       {: return new Access(n, i); :}
+    //| ID.n LBRACK expr.i RBRACK       {: return new Access(n, i); :}
     | NUM.n                             {: return new Lit(n); :}
     | PLUS  expr.a @ PREFIX             {: return new PreOp("+", a);    :}
     | MINUS expr.a @ PREFIX             {: return new PreOp("-", a);    :}
@@ -162,7 +162,7 @@ expr
 
 rgexpr = ID.n                              {: return new Id(n);  :}
     | PRIMEID.n                           {: return new Id(n);  :}
-    | ID.n LBRACK rgexpr.i RBRACK       {: return new Access(n, i); :}
+    //| ID.n LBRACK rgexpr.i RBRACK       {: return new Access(n, i); :}
     | NUM.n                             {: return new Lit(n); :}
     | PLUS  rgexpr.a @ PREFIX             {: return new PreOp("+", a);    :}
     | MINUS rgexpr.a @ PREFIX             {: return new PreOp("-", a);    :}

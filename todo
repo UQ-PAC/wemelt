@@ -1,15 +1,13 @@
 bare minimum necessary for AssignL rule
--fix parsing prime variables in R/G
 -R automation stuff
 -P + R
--{P, Gamma + R }
--low_or_eq
---either L_R(x) true in current state so x's classification doesn't change
---or x's classification trivially unmodified due to R preventing x from being written to
--P stability check
+-{P, Gamma + R}
 -Gamma stability check
+--for all x in dom gamma,
+  P && R ==> Gamma(x) == Gamma'(x)
 --update substitution to handle variable to expression
 
 for later
+-if, while, do while rules
 -quantification in predicates?
 -updated gamma - predicates instead of values, changed evaluation

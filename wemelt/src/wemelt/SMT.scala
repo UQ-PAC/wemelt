@@ -1,14 +1,15 @@
 package wemelt
 
 import com.microsoft.z3
+import com.microsoft.z3.Solver
 
 object SMT {
   val intSize = 32 // size of bitvectors used
   val cfg = new java.util.HashMap[String, String]()
   val ctx = new z3.Context(cfg)
-  val solver = ctx.mkSolver()
+  val solver: Solver = ctx.mkSolver()
 
-  def prove(cond: Expression, given: List[Expression], debug: Boolean) = {
+  def prove(cond: Expression, given: List[Expression], debug: Boolean): Boolean = {
     if (debug)
       println("smt checking !(" + cond + ") given " + given.PStr)
     solver.push()
@@ -40,7 +41,7 @@ object SMT {
     res == z3.Status.UNSATISFIABLE
   }
 
-  def proveSat(cond: Expression, given: List[Expression], debug: Boolean) = {
+  def proveSat(cond: Expression, given: List[Expression], debug: Boolean): Boolean = {
     if (debug)
       println("smt checking " + cond + " given " + given.PStr)
     solver.push()
@@ -71,7 +72,7 @@ object SMT {
     res == z3.Status.SATISFIABLE
   }
 
-  def proveP(given: List[Expression], debug: Boolean) = {
+  def proveP(given: List[Expression], debug: Boolean): Boolean = {
     if (debug)
       println("smt checking " + given.PStr)
     solver.push()
@@ -99,7 +100,7 @@ object SMT {
     res == z3.Status.SATISFIABLE
   }
 
-  def proveImplies(strong: List[Expression], weak: List[Expression], debug: Boolean) = {
+  def proveImplies(strong: List[Expression], weak: List[Expression], debug: Boolean): Boolean = {
     if (debug)
       println("smt checking !(" + strong.PStr + newline + " implies " + weak.PStr + ")")
     solver.push()
@@ -121,7 +122,7 @@ object SMT {
     res == z3.Status.UNSATISFIABLE
   }
 
-  def proveExpression(cond: Expression, debug: Boolean) = {
+  def proveExpression(cond: Expression, debug: Boolean): Boolean = {
     if (debug)
       println("smt checking (" + cond + ")")
     solver.push()
@@ -236,7 +237,7 @@ object SMT {
       ctx.mkExists(bound.toArray map translate, translate(body), 0, scala.Array(), null, null, null)
 
       // array index
-    case VarAccess(name, index) => ctx.mkSelect(ctx.mkArrayConst(name.toString, ctx.getIntSort, ctx.getIntSort), translate(index))
+    //case VarAccess(name, index) => ctx.mkSelect(ctx.mkArrayConst(name.toString, ctx.getIntSort, ctx.getIntSort), translate(index))
 
     case _ =>
       throw error.InvalidProgram("cannot translate to SMT", prop)
