@@ -4,7 +4,8 @@ case class State(
   gamma: Map[Id, Security],
   //D: Map[Id, (Set[Id], Set[Id], Set[Id], Set[Id])], // W_w, W_r, R_w, R_r
   P: List[Expression],
-
+  P_inv: List[Expression],
+  R_var: Map[Id, List[(Expression, Expression)]],
   R: List[Expression],
   G: List[Expression],
 
@@ -815,7 +816,7 @@ case class State(
 
 object State {
   def init(definitions: Set[Definition], P_0: Option[List[Expression]], gamma_0: Option[List[GammaMapping]],
-           rely: List[Expression], guarantee: List[Expression], toLog: Boolean, debug: Boolean, noInfeasible: Boolean): State = {
+           P_invIn: List[Expression], guarantee: List[Expression], toLog: Boolean, debug: Boolean, noInfeasible: Boolean): State = {
     val globalDefs: Set[GlobalVarDef] = definitions collect {case g: GlobalVarDef => g}
     val localDefs: Set[LocalVarDef] = definitions collect {case l: LocalVarDef => l}
 
@@ -918,8 +919,33 @@ object State {
         yield v -> v.toVar
       }.toMap */
 
+    val toSubstPrime: Subst = {for (v <- ids)
+      yield v.toVar -> v.toVar.prime
+    }.toMap
+
     // initialise R & G
-    val R = rely map {i => i.subst(idToVar)}
+    val P_inv = P_invIn map {i => i.subst(idToVar)}
+
+    var R_var: Map[Id, List[(Expression, Expression)]] = Map()
+    for (g <- globalDefs) {
+      g.rvar match {
+        case Some(rvars) =>
+          R_var += (g.name -> (rvars map {rvar => (rvar.condition.subst(idToVar), rvar.relation.subst(idToVar))}))
+        case None =>
+
+      }
+    }
+
+    val R_var_pred: List[Expression] = {for (g <- R_var.keys) yield {
+      for ((c, r) <- R_var(g))
+        yield BinOp("==>", c, r)
+    }
+    }.flatten.toList
+    val P_invConc = State.concatenateExprs(P_inv)
+
+    // R == P_inv ==> primed(P_inv) && R_var
+    val R = BinOp("==>", P_invConc, P_invConc.subst(toSubstPrime)) :: R_var_pred
+
     val G = guarantee map {i => i.subst(idToVar)}
 
     // initialise P - true by default
@@ -932,10 +958,7 @@ object State {
     }
 
     // check P_0 is stable
-    val toSubstP: Subst = {for (v <- ids)
-      yield v.toVar -> v.toVar.prime
-    }.toMap
-    val PPrime = P map {e: Expression => e.subst(toSubstP)}
+    val PPrime = P map {e: Expression => e.subst(toSubstPrime)}
     if (!SMT.proveImplies(P ++ R, PPrime, debug)) {
       throw error.InvalidProgram("P_0 is not stable")
     }
@@ -954,6 +977,7 @@ object State {
       }
     }.toMap
 
+    // L == L_R && L_G
     val L: Map[Id, Expression] = {
       for (g <- globals) yield {
         val lR = L_R(g)
@@ -971,10 +995,12 @@ object State {
       println("L_G: " + L_G)
       println("L: " + L)
       println("R: " + R)
+      println("R_var: " + R_var)
+      println("P_inv: " + P_inv)
       println("G: " + G)
     }
     if (toLog) {
-      println("gamma: " + gamma.gammaStr)
+      println("Gamma: " + gamma.gammaStr)
       println("P: " + P.PStr)
       //println("D: " + D.DStr)
     }
@@ -983,6 +1009,8 @@ object State {
       gamma = gamma,
       //D = D,
       P = P,
+      P_inv = P_inv,
+      R_var = R_var,
       R = R,
       G = G,
       L_R = L_R,
@@ -1002,6 +1030,17 @@ object State {
       debug = debug,
       noInfeasible = noInfeasible
     )
+  }
+
+  // convert a List[Expression] into a single expression
+  def concatenateExprs(P: List[Expression]): Expression = {
+    P match {
+      case Nil =>
+        Const._true
+      case expr :: rest =>
+        val xs = concatenateExprs(rest)
+        BinOp("&&", expr, xs)
+    }
   }
 
   // calculate P|_known_W(a) etc. with known_W(a) being the input set in that example

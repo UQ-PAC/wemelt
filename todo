@@ -1,11 +1,11 @@
 bare minimum necessary for AssignL rule
+-make P_inv optional in parsing
 -R automation stuff
 -P + R
 -{P, Gamma + R}
 -Gamma stability check
 --for all x in dom gamma,
   P && R ==> Gamma(x) == Gamma'(x)
---update substitution to handle variable to expression
 
 for later
 -if, while, do while rules

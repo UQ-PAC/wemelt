@@ -101,7 +101,8 @@ WS = {NL} | [ \t\f]
     "_L_R"      { return newToken(Terminals.LPREDRELY);      }
 
     "_invariant"   {return newToken(Terminals.INVARIANT);}
-    "_R"        {return newToken(Terminals.RELY);}
+    "_P_inv"    {return newToken(Terminals.P_INV);}
+    "_R_var"    {return newToken(Terminals.R_VAR);}
     "_G"        {return newToken(Terminals.GUARANTEE);}
     "_Gamma"    {return newToken(Terminals.GAMMA);}
     "_Gamma_0"  {return newToken(Terminals.GAMMA_0);}

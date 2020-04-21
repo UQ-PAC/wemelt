@@ -38,12 +38,12 @@ class Scanner extends beaver.Scanner {
   private static final String ZZ_CMAP_PACKED = 
     "\11\0\1\3\1\2\1\5\1\6\1\1\22\0\1\66\1\17\1\0"+
     "\1\7\1\0\1\21\1\27\1\103\1\11\1\12\1\10\1\22\1\33"+
-    "\1\23\1\0\1\4\1\64\11\102\1\32\1\34\1\24\1\26\1\25"+
+    "\1\23\1\0\1\4\1\65\11\102\1\32\1\34\1\24\1\26\1\25"+
     "\2\0\1\36\1\101\1\35\1\101\1\73\1\74\1\55\1\77\1\100"+
-    "\2\101\1\54\2\101\1\75\1\65\1\101\1\56\1\37\1\71\1\72"+
+    "\2\101\1\54\2\101\1\75\1\63\1\101\1\56\1\37\1\71\1\72"+
     "\1\101\1\76\3\101\1\13\1\0\1\14\1\30\1\53\1\0\1\60"+
     "\1\70\1\52\1\40\1\46\1\47\1\67\1\43\1\44\2\101\1\45"+
-    "\1\63\1\51\1\41\2\101\1\61\1\50\1\62\1\101\1\57\1\42"+
+    "\1\64\1\51\1\41\2\101\1\61\1\50\1\62\1\101\1\57\1\42"+
     "\3\101\1\15\1\31\1\16\1\20\6\0\1\5\u1fa2\0\1\5\1\5"+
     "\uffff\0\uffff\0\uffff\0\uffff\0\uffff\0\uffff\0\uffff\0\uffff\0\uffff\0\uffff\0\uffff\0\uffff\0\uffff\0\uffff\0\uffff\0\uffff\0\udfe6\0";
 
@@ -64,14 +64,14 @@ class Scanner extends beaver.Scanner {
     "\1\27\1\30\12\31\1\32\3\31\2\0\2\2\1\33"+
     "\1\34\1\35\1\36\1\37\1\40\1\41\1\42\1\43"+
     "\1\31\1\44\1\45\1\31\1\46\5\31\1\47\1\50"+
-    "\1\51\6\31\2\0\1\52\1\53\12\31\1\54\3\31"+
-    "\1\0\1\31\1\55\4\31\1\56\1\57\1\31\1\60"+
-    "\1\31\1\61\1\31\1\62\1\63\1\64\5\31\1\65"+
-    "\1\66\2\31\1\67\2\31\1\0\3\31\1\0\1\70"+
-    "\1\0\1\31\2\0\1\71\1\72\1\0\1\73";
+    "\7\31\2\0\1\51\1\52\13\31\1\53\3\31\1\0"+
+    "\1\31\1\54\4\31\1\55\1\56\3\31\1\57\1\31"+
+    "\1\60\1\31\1\61\1\62\1\63\7\31\1\64\1\65"+
+    "\2\31\1\66\1\67\1\70\2\31\1\0\3\31\1\0"+
+    "\1\71\1\0\1\31\2\0\1\72\1\73\1\0\1\74";
 
   private static int [] zzUnpackAction() {
-    int [] result = new int[133];
+    int [] result = new int[140];
     int offset = 0;
     offset = zzUnpackAction(ZZ_ACTION_PACKED_0, offset, result);
     return result;
@@ -104,18 +104,19 @@ class Scanner extends beaver.Scanner {
     "\0\u0110\0\u06e8\0\u072c\0\104\0\104\0\104\0\104\0\104"+
     "\0\u0770\0\104\0\104\0\104\0\104\0\u07b4\0\104\0\u0374"+
     "\0\u07f8\0\u0374\0\u083c\0\u0880\0\u08c4\0\u0908\0\u094c\0\u0990"+
-    "\0\u09d4\0\u0374\0\u0a18\0\u0a5c\0\u0aa0\0\u0ae4\0\u0b28\0\u0b6c"+
-    "\0\u0bb0\0\u0bf4\0\104\0\u0374\0\u0c38\0\u0c7c\0\u0cc0\0\u0d04"+
-    "\0\u0d48\0\u0d8c\0\u0dd0\0\u0e14\0\u0e58\0\u0e9c\0\u0374\0\u0ee0"+
-    "\0\u0f24\0\u0f68\0\u0fac\0\u0ff0\0\u0374\0\u1034\0\u1078\0\u10bc"+
-    "\0\u1100\0\u0374\0\u0374\0\u1144\0\u0374\0\u1188\0\u0374\0\u11cc"+
-    "\0\u0374\0\u0374\0\u0374\0\u1210\0\u1254\0\u1298\0\u12dc\0\u1320"+
-    "\0\u0374\0\u0374\0\u1364\0\u13a8\0\u13ec\0\u1430\0\u1474\0\u14b8"+
-    "\0\u14fc\0\u1540\0\u1584\0\u15c8\0\u0374\0\u160c\0\u1650\0\u1694"+
-    "\0\u16d8\0\u0374\0\104\0\u171c\0\104";
+    "\0\u09d4\0\u0a18\0\u0a5c\0\u0aa0\0\u0ae4\0\u0b28\0\u0b6c\0\u0bb0"+
+    "\0\u0bf4\0\u0c38\0\104\0\u0374\0\u0c7c\0\u0cc0\0\u0d04\0\u0d48"+
+    "\0\u0d8c\0\u0dd0\0\u0e14\0\u0e58\0\u0e9c\0\u0ee0\0\u0f24\0\u0374"+
+    "\0\u0f68\0\u0fac\0\u0ff0\0\u1034\0\u1078\0\u0374\0\u10bc\0\u1100"+
+    "\0\u1144\0\u1188\0\u0374\0\u0374\0\u11cc\0\u1210\0\u1254\0\u0374"+
+    "\0\u1298\0\u0374\0\u12dc\0\u0374\0\u0374\0\u0374\0\u1320\0\u1364"+
+    "\0\u13a8\0\u13ec\0\u1430\0\u1474\0\u14b8\0\u0374\0\u0374\0\u14fc"+
+    "\0\u1540\0\u1584\0\u0374\0\u0374\0\u15c8\0\u160c\0\u1650\0\u1694"+
+    "\0\u16d8\0\u171c\0\u1760\0\u0374\0\u17a4\0\u17e8\0\u182c\0\u1870"+
+    "\0\u0374\0\104\0\u18b4\0\104";
 
   private static int [] zzUnpackRowMap() {
-    int [] result = new int[133];
+    int [] result = new int[140];
     int offset = 0;
     offset = zzUnpackRowMap(ZZ_ROWMAP_PACKED_0, offset, result);
     return result;
@@ -143,22 +144,22 @@ class Scanner extends beaver.Scanner {
     "\1\20\1\21\1\22\1\23\1\24\1\25\1\26\1\27"+
     "\1\30\1\31\1\32\1\33\2\34\1\35\1\34\1\36"+
     "\1\34\1\37\1\34\1\40\1\41\2\34\1\42\1\43"+
-    "\1\44\7\34\1\45\1\34\1\3\2\34\1\46\2\34"+
-    "\1\47\2\34\1\50\2\34\1\45\1\2\105\0\3\3"+
-    "\2\0\1\3\57\0\1\3\21\0\1\51\3\0\1\52"+
-    "\73\0\1\51\1\53\1\54\2\51\2\0\75\51\26\0"+
-    "\1\55\102\0\1\56\102\0\1\57\1\0\1\60\102\0"+
-    "\1\61\1\62\103\0\1\63\104\0\1\64\105\0\1\65"+
-    "\107\0\1\34\1\66\27\34\1\0\14\34\1\67\35\0"+
-    "\31\34\1\0\14\34\1\67\35\0\4\34\1\70\24\34"+
-    "\1\0\14\34\1\67\35\0\6\34\1\71\22\34\1\0"+
-    "\14\34\1\67\35\0\12\34\1\72\16\34\1\0\14\34"+
-    "\1\67\35\0\10\34\1\73\20\34\1\0\14\34\1\67"+
-    "\35\0\11\34\1\74\17\34\1\0\14\34\1\67\35\0"+
-    "\12\34\1\75\16\34\1\0\14\34\1\67\35\0\7\34"+
-    "\1\76\1\77\6\34\1\100\1\101\1\102\6\34\1\103"+
+    "\1\44\10\34\1\45\1\3\2\34\1\46\2\34\1\47"+
+    "\2\34\1\50\2\34\1\45\1\2\105\0\3\3\2\0"+
+    "\1\3\57\0\1\3\21\0\1\51\3\0\1\52\73\0"+
+    "\1\51\1\53\1\54\2\51\2\0\75\51\26\0\1\55"+
+    "\102\0\1\56\102\0\1\57\1\0\1\60\102\0\1\61"+
+    "\1\62\103\0\1\63\104\0\1\64\105\0\1\65\107\0"+
+    "\1\34\1\66\27\34\1\0\14\34\1\67\35\0\31\34"+
+    "\1\0\14\34\1\67\35\0\4\34\1\70\24\34\1\0"+
+    "\14\34\1\67\35\0\6\34\1\71\22\34\1\0\14\34"+
+    "\1\67\35\0\12\34\1\72\16\34\1\0\14\34\1\67"+
+    "\35\0\10\34\1\73\20\34\1\0\14\34\1\67\35\0"+
+    "\11\34\1\74\17\34\1\0\14\34\1\67\35\0\12\34"+
+    "\1\75\16\34\1\0\14\34\1\67\35\0\7\34\1\76"+
+    "\1\77\6\34\1\100\1\101\1\102\4\34\1\103\2\34"+
     "\1\0\1\104\13\34\1\67\35\0\31\34\1\0\6\34"+
-    "\1\105\5\34\1\67\64\0\1\45\15\0\1\45\36\0"+
+    "\1\105\5\34\1\67\65\0\1\45\14\0\1\45\36\0"+
     "\21\34\1\106\7\34\1\0\14\34\1\67\35\0\1\34"+
     "\1\107\27\34\1\0\14\34\1\67\35\0\31\34\1\0"+
     "\11\34\1\110\2\34\1\67\10\111\1\112\73\111\2\0"+
@@ -171,47 +172,53 @@ class Scanner extends beaver.Scanner {
     "\24\34\1\0\14\34\1\67\35\0\16\34\1\123\12\34"+
     "\1\0\14\34\1\67\35\0\23\34\1\124\5\34\1\0"+
     "\14\34\1\67\35\0\16\34\1\125\12\34\1\0\14\34"+
-    "\1\67\35\0\10\34\1\126\20\34\1\0\14\34\1\67"+
-    "\35\0\31\34\1\0\7\34\1\127\4\34\1\67\35\0"+
-    "\31\34\1\0\3\34\1\130\10\34\1\67\35\0\17\34"+
-    "\1\131\11\34\1\0\14\34\1\67\35\0\20\34\1\132"+
-    "\10\34\1\0\14\34\1\67\10\111\1\133\73\111\4\0"+
-    "\1\54\3\0\1\112\130\0\10\34\1\134\20\34\1\0"+
-    "\14\34\1\67\35\0\11\34\1\135\17\34\1\0\14\34"+
-    "\1\67\35\0\15\34\1\136\13\34\1\0\14\34\1\67"+
-    "\35\0\14\34\1\137\14\34\1\0\14\34\1\67\35\0"+
-    "\22\34\1\140\6\34\1\0\14\34\1\67\35\0\15\34"+
-    "\1\141\13\34\1\0\14\34\1\67\35\0\20\34\1\142"+
-    "\1\143\7\34\1\0\14\34\1\67\35\0\26\34\1\144"+
-    "\2\34\1\0\14\34\1\67\35\0\27\34\1\145\1\34"+
-    "\1\0\14\34\1\67\35\0\4\34\1\146\24\34\1\0"+
-    "\14\34\1\67\35\0\31\34\1\0\4\34\1\147\7\34"+
-    "\1\67\35\0\2\34\1\150\26\34\1\0\14\34\1\67"+
-    "\35\0\31\34\1\0\10\34\1\151\3\34\1\67\4\111"+
-    "\1\54\3\111\1\133\73\111\35\0\11\34\1\152\17\34"+
-    "\1\0\14\34\1\67\35\0\11\34\1\153\17\34\1\0"+
-    "\14\34\1\67\35\0\15\34\1\154\13\34\1\0\14\34"+
-    "\1\67\35\0\23\34\1\155\5\34\1\0\14\34\1\67"+
-    "\35\0\23\34\1\156\5\34\1\0\14\34\1\67\35\0"+
-    "\26\34\1\157\2\34\1\0\14\34\1\67\35\0\31\34"+
-    "\1\0\1\34\1\160\12\34\1\67\35\0\31\34\1\0"+
-    "\4\34\1\161\7\34\1\67\35\0\11\34\1\162\17\34"+
-    "\1\0\14\34\1\67\35\0\24\34\1\163\4\34\1\0"+
-    "\14\34\1\67\35\0\10\34\1\164\20\34\1\0\14\34"+
-    "\1\67\35\0\23\34\1\165\5\34\1\0\14\34\1\67"+
-    "\35\0\23\34\1\166\5\34\1\0\14\34\1\67\35\0"+
-    "\7\34\1\167\21\34\1\0\14\34\1\67\35\0\31\34"+
-    "\1\170\14\34\1\67\35\0\16\34\1\171\12\34\1\0"+
-    "\14\34\1\67\35\0\10\34\1\172\20\34\1\0\14\34"+
-    "\1\67\35\0\23\34\1\173\5\34\1\0\14\34\1\67"+
-    "\57\0\1\174\61\0\27\34\1\175\1\34\1\0\14\34"+
-    "\1\67\35\0\31\34\1\176\14\34\1\67\35\0\14\34"+
-    "\1\177\14\34\1\0\14\34\1\67\60\0\1\200\102\0"+
-    "\1\201\61\0\25\34\1\202\3\34\1\0\14\34\1\67"+
-    "\61\0\1\203\102\0\1\204\104\0\1\205\22\0";
+    "\1\67\35\0\16\34\1\126\12\34\1\0\14\34\1\67"+
+    "\35\0\10\34\1\127\20\34\1\0\14\34\1\67\35\0"+
+    "\31\34\1\0\7\34\1\130\4\34\1\67\35\0\31\34"+
+    "\1\0\3\34\1\131\10\34\1\67\35\0\17\34\1\132"+
+    "\11\34\1\0\14\34\1\67\35\0\20\34\1\133\10\34"+
+    "\1\0\14\34\1\67\10\111\1\134\73\111\4\0\1\54"+
+    "\3\0\1\112\130\0\10\34\1\135\20\34\1\0\14\34"+
+    "\1\67\35\0\11\34\1\136\17\34\1\0\14\34\1\67"+
+    "\35\0\15\34\1\137\13\34\1\0\14\34\1\67\35\0"+
+    "\14\34\1\140\14\34\1\0\14\34\1\67\35\0\22\34"+
+    "\1\141\6\34\1\0\14\34\1\67\35\0\15\34\1\142"+
+    "\13\34\1\0\14\34\1\67\35\0\20\34\1\143\1\144"+
+    "\7\34\1\0\14\34\1\67\35\0\27\34\1\145\1\34"+
+    "\1\0\14\34\1\67\35\0\22\34\1\146\6\34\1\0"+
+    "\14\34\1\67\35\0\7\34\1\147\20\34\1\150\1\0"+
+    "\14\34\1\67\35\0\4\34\1\151\24\34\1\0\14\34"+
+    "\1\67\35\0\31\34\1\0\4\34\1\152\7\34\1\67"+
+    "\35\0\2\34\1\153\26\34\1\0\14\34\1\67\35\0"+
+    "\31\34\1\0\10\34\1\154\3\34\1\67\4\111\1\54"+
+    "\3\111\1\134\73\111\35\0\11\34\1\155\17\34\1\0"+
+    "\14\34\1\67\35\0\11\34\1\156\17\34\1\0\14\34"+
+    "\1\67\35\0\15\34\1\157\13\34\1\0\14\34\1\67"+
+    "\35\0\23\34\1\160\5\34\1\0\14\34\1\67\35\0"+
+    "\23\34\1\161\5\34\1\0\14\34\1\67\35\0\27\34"+
+    "\1\162\1\34\1\0\14\34\1\67\35\0\23\34\1\163"+
+    "\5\34\1\0\14\34\1\67\35\0\14\34\1\164\14\34"+
+    "\1\0\14\34\1\67\35\0\31\34\1\0\1\34\1\165"+
+    "\12\34\1\67\35\0\31\34\1\0\4\34\1\166\7\34"+
+    "\1\67\35\0\11\34\1\167\17\34\1\0\14\34\1\67"+
+    "\35\0\24\34\1\170\4\34\1\0\14\34\1\67\35\0"+
+    "\10\34\1\171\20\34\1\0\14\34\1\67\35\0\23\34"+
+    "\1\172\5\34\1\0\14\34\1\67\35\0\24\34\1\173"+
+    "\4\34\1\0\14\34\1\67\35\0\22\34\1\174\6\34"+
+    "\1\0\14\34\1\67\35\0\23\34\1\175\5\34\1\0"+
+    "\14\34\1\67\35\0\7\34\1\176\21\34\1\0\14\34"+
+    "\1\67\35\0\31\34\1\177\14\34\1\67\35\0\16\34"+
+    "\1\200\12\34\1\0\14\34\1\67\35\0\10\34\1\201"+
+    "\20\34\1\0\14\34\1\67\35\0\23\34\1\202\5\34"+
+    "\1\0\14\34\1\67\57\0\1\203\61\0\30\34\1\204"+
+    "\1\0\14\34\1\67\35\0\31\34\1\205\14\34\1\67"+
+    "\35\0\14\34\1\206\14\34\1\0\14\34\1\67\60\0"+
+    "\1\207\102\0\1\210\61\0\25\34\1\211\3\34\1\0"+
+    "\14\34\1\67\61\0\1\212\102\0\1\213\104\0\1\214"+
+    "\22\0";
 
   private static int [] zzUnpackTrans() {
-    int [] result = new int[5984];
+    int [] result = new int[6392];
     int offset = 0;
     offset = zzUnpackTrans(ZZ_TRANS_PACKED_0, offset, result);
     return result;
@@ -251,12 +258,12 @@ class Scanner extends beaver.Scanner {
   private static final String ZZ_ATTRIBUTE_PACKED_0 =
     "\1\0\1\11\3\1\7\11\1\1\3\11\5\1\1\11"+
     "\1\1\3\11\16\1\2\0\1\1\5\11\1\1\4\11"+
-    "\1\1\1\11\21\1\2\0\1\11\17\1\1\0\34\1"+
+    "\1\1\1\11\21\1\2\0\1\11\20\1\1\0\42\1"+
     "\1\0\3\1\1\0\1\1\1\0\1\1\2\0\1\1"+
     "\1\11\1\0\1\11";
 
   private static int [] zzUnpackAttribute() {
-    int [] result = new int[133];
+    int [] result = new int[140];
     int offset = 0;
     offset = zzUnpackAttribute(ZZ_ATTRIBUTE_PACKED_0, offset, result);
     return result;
@@ -726,297 +733,302 @@ class Scanner extends beaver.Scanner {
             { throw new Scanner.Exception("unexpected character '" + yytext() + "'");
             } 
             // fall through
-          case 60: break;
+          case 61: break;
           case 2: 
             { 
             } 
             // fall through
-          case 61: break;
+          case 62: break;
           case 3: 
             { return newToken(Terminals.DIV);
             } 
             // fall through
-          case 62: break;
+          case 63: break;
           case 4: 
             { return newToken(Terminals.STAR);
             } 
             // fall through
-          case 63: break;
+          case 64: break;
           case 5: 
             { return newToken(Terminals.LPAREN);
             } 
             // fall through
-          case 64: break;
+          case 65: break;
           case 6: 
             { return newToken(Terminals.RPAREN);
             } 
             // fall through
-          case 65: break;
+          case 66: break;
           case 7: 
             { return newToken(Terminals.LBRACK);
             } 
             // fall through
-          case 66: break;
+          case 67: break;
           case 8: 
             { return newToken(Terminals.RBRACK);
             } 
             // fall through
-          case 67: break;
+          case 68: break;
           case 9: 
             { return newToken(Terminals.LBRACE);
             } 
             // fall through
-          case 68: break;
+          case 69: break;
           case 10: 
             { return newToken(Terminals.RBRACE);
             } 
             // fall through
-          case 69: break;
+          case 70: break;
           case 11: 
             { return newToken(Terminals.BANG);
             } 
             // fall through
-          case 70: break;
+          case 71: break;
           case 12: 
             { return newToken(Terminals.TILDE);
             } 
             // fall through
-          case 71: break;
+          case 72: break;
           case 13: 
             { return newToken(Terminals.MOD);
             } 
             // fall through
-          case 72: break;
+          case 73: break;
           case 14: 
             { return newToken(Terminals.PLUS);
             } 
             // fall through
-          case 73: break;
+          case 74: break;
           case 15: 
             { return newToken(Terminals.MINUS);
             } 
             // fall through
-          case 74: break;
+          case 75: break;
           case 16: 
             { return newToken(Terminals.LT);
             } 
             // fall through
-          case 75: break;
+          case 76: break;
           case 17: 
             { return newToken(Terminals.GT);
             } 
             // fall through
-          case 76: break;
+          case 77: break;
           case 18: 
             { return newToken(Terminals.ASG);
             } 
             // fall through
-          case 77: break;
+          case 78: break;
           case 19: 
             { return newToken(Terminals.AMP);
             } 
             // fall through
-          case 78: break;
+          case 79: break;
           case 20: 
             { return newToken(Terminals.CARET);
             } 
             // fall through
-          case 79: break;
+          case 80: break;
           case 21: 
             { return newToken(Terminals.PIPE);
             } 
             // fall through
-          case 80: break;
+          case 81: break;
           case 22: 
             { return newToken(Terminals.COLON);
             } 
             // fall through
-          case 81: break;
+          case 82: break;
           case 23: 
             { return newToken(Terminals.COMMA);
             } 
             // fall through
-          case 82: break;
+          case 83: break;
           case 24: 
             { return newToken(Terminals.SEMICOLON);
             } 
             // fall through
-          case 83: break;
+          case 84: break;
           case 25: 
             { return resolve(yytext());
             } 
             // fall through
-          case 84: break;
+          case 85: break;
           case 26: 
             { return newToken(Terminals.NUM, new Integer(yytext()));
             } 
             // fall through
-          case 85: break;
+          case 86: break;
           case 27: 
             { return newToken(Terminals.NEQ);
             } 
             // fall through
-          case 86: break;
+          case 87: break;
           case 28: 
             { return newToken(Terminals.MAPSTO);
             } 
             // fall through
-          case 87: break;
+          case 88: break;
           case 29: 
             { return newToken(Terminals.SHL);
             } 
             // fall through
-          case 88: break;
+          case 89: break;
           case 30: 
             { return newToken(Terminals.LE);
             } 
             // fall through
-          case 89: break;
+          case 90: break;
           case 31: 
             { return newToken(Terminals.SHR);
             } 
             // fall through
-          case 90: break;
+          case 91: break;
           case 32: 
             { return newToken(Terminals.GE);
             } 
             // fall through
-          case 91: break;
+          case 92: break;
           case 33: 
             { return newToken(Terminals.EQ);
             } 
             // fall through
-          case 92: break;
+          case 93: break;
           case 34: 
             { return newToken(Terminals.AND);
             } 
             // fall through
-          case 93: break;
+          case 94: break;
           case 35: 
             { return newToken(Terminals.OR);
             } 
             // fall through
-          case 94: break;
+          case 95: break;
           case 36: 
             { return resolvePrime(yytext());
             } 
             // fall through
-          case 95: break;
+          case 96: break;
           case 37: 
             { return newToken(Terminals.DO);
             } 
             // fall through
-          case 96: break;
+          case 97: break;
           case 38: 
             { return newToken(Terminals.IF);
             } 
             // fall through
-          case 97: break;
+          case 98: break;
           case 39: 
             { return newToken(Terminals.LPRED);
             } 
             // fall through
-          case 98: break;
+          case 99: break;
           case 40: 
             { return newToken(Terminals.GUARANTEE);
             } 
             // fall through
-          case 99: break;
-          case 41: 
-            { return newToken(Terminals.RELY);
-            } 
-            // fall through
           case 100: break;
-          case 42: 
+          case 41: 
             { return newToken(Terminals.ASHR);
             } 
             // fall through
           case 101: break;
-          case 43: 
+          case 42: 
             { return newToken(Terminals.CAS);
             } 
             // fall through
           case 102: break;
-          case 44: 
+          case 43: 
             { return newToken(Terminals.LOW);
             } 
             // fall through
           case 103: break;
-          case 45: 
+          case 44: 
             { return newToken(Terminals.ELSE);
             } 
             // fall through
           case 104: break;
-          case 46: 
+          case 45: 
             { return newToken(Terminals.LPREDGUAR);
             } 
             // fall through
           case 105: break;
-          case 47: 
+          case 46: 
             { return newToken(Terminals.LPREDRELY);
             } 
             // fall through
           case 106: break;
-          case 48: 
+          case 47: 
             { return newToken(Terminals.P_0);
             } 
             // fall through
           case 107: break;
-          case 49: 
+          case 48: 
             { return newToken(Terminals.TRUE);
             } 
             // fall through
           case 108: break;
-          case 50: 
+          case 49: 
             { return newToken(Terminals.HIGH);
             } 
             // fall through
           case 109: break;
-          case 51: 
+          case 50: 
             { return newToken(Terminals.WHILE);
             } 
             // fall through
           case 110: break;
-          case 52: 
+          case 51: 
             { return newToken(Terminals.FENCE);
             } 
             // fall through
           case 111: break;
-          case 53: 
+          case 52: 
             { return newToken(Terminals.FALSE);
             } 
             // fall through
           case 112: break;
-          case 54: 
+          case 53: 
             { return newToken(Terminals.CFENCE);
             } 
             // fall through
           case 113: break;
-          case 55: 
+          case 54: 
             { return newToken(Terminals.GAMMA);
             } 
             // fall through
           case 114: break;
-          case 56: 
-            { return newToken(Terminals.GAMMA_0);
+          case 55: 
+            { return newToken(Terminals.R_VAR);
             } 
             // fall through
           case 115: break;
-          case 57: 
-            { return newToken(Terminals.INVARIANT);
+          case 56: 
+            { return newToken(Terminals.P_INV);
             } 
             // fall through
           case 116: break;
-          case 58: 
-            { return newToken(Terminals.LOCAL);
+          case 57: 
+            { return newToken(Terminals.GAMMA_0);
             } 
             // fall through
           case 117: break;
-          case 59: 
-            { return newToken(Terminals.GLOBAL);
+          case 58: 
+            { return newToken(Terminals.INVARIANT);
             } 
             // fall through
           case 118: break;
+          case 59: 
+            { return newToken(Terminals.LOCAL);
+            } 
+            // fall through
+          case 119: break;
+          case 60: 
+            { return newToken(Terminals.GLOBAL);
+            } 
+            // fall through
+          case 120: break;
           default:
             zzScanError(ZZ_NO_MATCH);
         }

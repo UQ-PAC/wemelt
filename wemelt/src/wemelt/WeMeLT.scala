@@ -30,7 +30,7 @@ object WeMeLT {
             val statements = res.statements
             val P_0 = res.P_0
             val gamma_0 = res.gamma_0
-            val R = res.rely
+            val P_inv = res.P_inv
             val G = res.guarantee
             if (debug) {
               println(statements)
@@ -38,7 +38,7 @@ object WeMeLT {
               println(P_0)
               println(gamma_0)
             }
-            val state0: State = State.init(variables, P_0, gamma_0, R, G, toLog, debug, noInfeasible)
+            val state0: State = State.init(variables, P_0, gamma_0, P_inv, G, toLog, debug, noInfeasible)
             Var.index = 0
             Switch.index = 0
             //Exec.execute(statements, state0)

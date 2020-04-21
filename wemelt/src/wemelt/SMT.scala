@@ -205,6 +205,7 @@ object SMT {
     case PreOp("!", arg) => ctx.mkNot(formula(arg))
     case BinOp("&&", arg1, arg2) => ctx.mkAnd(formula(arg1), formula(arg2))
     case BinOp("||", arg1, arg2) => ctx.mkOr(formula(arg1), formula(arg2))
+    case BinOp("==>", arg1, arg2) => ctx.mkImplies(formula(arg1), formula(arg2))
 
     case PreOp("-", arg) => ctx.mkUnaryMinus(arith(arg))
     case BinOp("+", arg1, arg2) => ctx.mkAdd(arith(arg1), arith(arg2))
