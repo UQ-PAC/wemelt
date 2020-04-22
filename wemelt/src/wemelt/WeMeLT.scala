@@ -41,7 +41,7 @@ object WeMeLT {
             val state0: State = State.init(variables, P_0, gamma_0, P_inv, G, toLog, debug, noInfeasible)
             Var.index = 0
             Switch.index = 0
-            //Exec.execute(statements, state0)
+            Exec.execute(statements, state0)
             printTime(start)
           } catch {
             case _: java.io.FileNotFoundException =>

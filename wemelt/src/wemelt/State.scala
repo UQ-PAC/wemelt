@@ -45,8 +45,8 @@ case class State(
     }
   }
 
-  // update P with strongest post-condition after assignment
-  def assign(id: Id, arg: Expression): State = {
+  // update P and Gamma after assignment
+  def assignUpdate(id: Id, arg: Expression, t: Security): State = {
     val v = id.toVar
     // create mapping from variable to fresh variable
     val toSubst: Subst = Map(v -> Var.fresh(id.name))
@@ -94,15 +94,53 @@ case class State(
 
     val domM = new_var ++ weaker -- equals
 
-    // need to map all of domM to fresh temporary variables
-    //val m: Map[Var, Var]
+    // map all of domM to fresh temporary variables - probably change to different fresh allocator
+    val m: Subst = {
+      for (v <- domM)
+        yield v.toVar -> v.toVar.fresh
+    }.toMap
+
+    val mPlusMPrime: Subst = m ++ {
+      for (v <- domM)
+        yield v.toVar.prime -> v.toVar
+    }.toMap
+
+    val PPlus = PPrime map {p : Expression => p.subst(m)}
+
+    if (debug) {
+      println("dom R_var: " + R_var.keySet)
+      println("dom m: " + domM)
+    }
+    val RPlus: List[Expression] = {for (y <- R_var.keySet & domM) yield {
+      for ((c, r) <- R_var(y))
+        yield BinOp("==>", c, r.subst(mPlusMPrime))
+    }
+    }.flatten.toList
+
+    if (debug) {
+      println("P +: " + PPlus.PStr)
+      println("+ R: " + RPlus.PStr)
+    }
+
+    val PPlusR = PPlus ++ RPlus
+
+    val domGamma = low_or_eq(PPlusR)
+    val gammaPrime = if (domGamma.contains(id)) {
+      gamma + (id -> t)
+    } else {
+      gamma
+    }
+
+    val gammaPlusR = gammaPrime -- (gammaPrime.keySet -- domGamma)
 
     if (debug) {
       println("assigning " + arg + " to " + id + ":")
       println("P: " + P.PStr)
       println("P': " + PPrime.PStr)
+      println("P + R: " + PPlusR.PStr)
+      println("Gamma + R: " + gammaPlusR.gammaStr)
     }
-    copy(P = PPrime)
+    copy(P = PPlusR, gamma = gammaPlusR)
   }
 
   /*

@@ -804,10 +804,7 @@ object Exec {
     val (_rhs, st1) = eval(rhs, st0)
     val t = st1.security(_rhs, st1.P)
 
-    val st2 = st1.assign(lhs, _rhs)
-    //val st2 = st1.updateGamma(lhs, t)
-
-    st2
+    st1.assignUpdate(lhs, _rhs, t)
   }
 
   def assignGRule(lhs: Id, rhs: Expression, st0: State, line: Int): State = {
@@ -838,25 +835,26 @@ object Exec {
       throw error.AssignGError(line, lhs, rhs, "t <:_P L_G(" + lhs + ") doesn't hold for assignment")
     }
 
-    // check fall P Gamma(x := e)
-    // for all y that x is a control variable of,
-    // P && L(y)[e/x] ==> (sec(y) || L(y))
-    // implementation will be changed for predicate gamma
-    val toSubst: Subst = Map(lhs.toVar -> _rhs)
-    for (y <- st1.controlledBy(lhs)) {
-      val ySec = if (st1.security(y.toVar, st1.P) == Low) {
-        Const._true
-      } else {
-        Const._false
-      }
-      if (!SMT.proveImplies(st1.L(y).subst(toSubst) :: st1.P, List(BinOp("||", ySec, st1.L(y))), st1.debug)) {
-        throw error.AssignGError(line, lhs, rhs, "falling error for variable " + y)
+    // check falling if x is control variable of
+    if (st1.controls.contains(lhs)) {
+      // check fall P Gamma(x := e)
+      // for all y that x is a control variable of,
+      // P && L(y)[e/x] ==> (sec(y) || L(y))
+      // implementation will be changed for predicate gamma
+      val toSubst: Subst = Map(lhs.toVar -> _rhs)
+      for (y <- st1.controlledBy(lhs)) {
+        val ySec = if (st1.security(y.toVar, st1.P) == Low) {
+          Const._true
+        } else {
+          Const._false
+        }
+        if (!SMT.proveImplies(st1.L(y).subst(toSubst) :: st1.P, List(BinOp("||", ySec, st1.L(y))), st1.debug)) {
+          throw error.AssignGError(line, lhs, rhs, "falling error for variable " + y)
+        }
       }
     }
 
-
-    val st2 = st1.updateGamma(lhs, t)
-    st2.assign(lhs, _rhs)
+    st1.assignUpdate(lhs, _rhs, t)
   }
 
   /*

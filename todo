@@ -4,20 +4,21 @@ bare minimum necessary for AssignL rule
 -Gamma stability check
 --for all x in dom gamma,
   P && R ==> Gamma(x) == Gamma'(x)
--update P/Gamma
+-update P/Gamma - DONE
 -include in R: x \in Locals => x == x' to fix issues with locals not handled properly
 
-update P/Gamma
--update P with temp variables
--calculate P + R
---calculate dom m == new_var U weaker / equal
---do P + R update with R_var
--calculate {P, Gamma} + R
---calculate low_or_eq(P + R)
---if x in low_or_eq, add x -> t to gamma
---restrict gamma domain to low_or_eq
---apply mapping m to gamma
+update P/Gamma - done
+-update P with temp variables - done
+-calculate P + R - done
+--calculate dom m == new_var U weaker / equal - done
+--do P + R update with R_var - done
+-calculate {P, Gamma} + R - done
+--calculate low_or_eq(P + R) - done
+--if x in low_or_eq, add x -> t to gamma - done
+--restrict gamma domain to low_or_eq - done
+--apply mapping m to gamma - need to do when gamma update finished
 
 for later
+-fix r_var implementation
 -if, while, do while rules
 -quantification in predicates?
