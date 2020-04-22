@@ -60,15 +60,49 @@ case class State(
     // add new assignment statement to P
     val PPrime = BinOp("==", v, argReplace) :: PReplace
 
-    // restrict PPrime to stable variables
-    val PPrimeRestrict = PPrime // State.restrictP(PPrime, stable)
+    // calculate new_var
+    val varE = arg.variables
+    val varLY: Set[Id] = {
+      for (y <- varE -- gamma.keySet)
+        yield L(y).variables
+    }.flatten
+    val new_var: Set[Id] = Set(id) ++ varE ++ varLY
+
+    val toSubstC = Map(arg -> v)
+    // calculate weaker - this can definitely be improved
+    // OR each of the implies to do them all in one go per y
+    val weaker: Set[Id] = {
+      for (y <- R_var.keySet)
+        yield {
+          // check !(P && c ==> c[e/x]
+          for ((c, r) <- R_var(y) if !SMT.proveImplies(c :: PPrime, List(c.subst(toSubstC)), debug))
+            yield y
+        }
+    }.flatten
+
+    // calculate equals - this can be improved too
+    // separate method for identity relation? check all identity relations at the start?
+    val equals: Set[Id] = {
+      for (y <- R_var.keySet)
+        yield {
+          // check P ==> c && r is identity relation
+          for ((c, r) <- R_var(y) if (r == BinOp("==", y.toVar, y.toVar.prime) || r == BinOp("==", y.toVar.prime, y.toVar))
+            && SMT.proveImplies(PPrime, List(c), debug))
+            yield y
+        }
+    }.flatten
+
+    val domM = new_var ++ weaker -- equals
+
+    // need to map all of domM to fresh temporary variables
+    //val m: Map[Var, Var]
 
     if (debug) {
       println("assigning " + arg + " to " + id + ":")
       println("P: " + P.PStr)
-      println("P': " + PPrimeRestrict.PStr)
+      println("P': " + PPrime.PStr)
     }
-    copy(P = PPrimeRestrict)
+    copy(P = PPrime)
   }
 
   /*

@@ -1,13 +1,23 @@
 bare minimum necessary for AssignL rule
 -make P_inv optional in parsing
--R automation stuff
--P + R
--{P, Gamma + R}
+-Gamma contains predicates
 -Gamma stability check
 --for all x in dom gamma,
   P && R ==> Gamma(x) == Gamma'(x)
+-update P/Gamma
+-include in R: x \in Locals => x == x' to fix issues with locals not handled properly
+
+update P/Gamma
+-update P with temp variables
+-calculate P + R
+--calculate dom m == new_var U weaker / equal
+--do P + R update with R_var
+-calculate {P, Gamma} + R
+--calculate low_or_eq(P + R)
+--if x in low_or_eq, add x -> t to gamma
+--restrict gamma domain to low_or_eq
+--apply mapping m to gamma
 
 for later
 -if, while, do while rules
 -quantification in predicates?
--updated gamma - predicates instead of values, changed evaluation

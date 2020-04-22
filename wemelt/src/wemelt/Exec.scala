@@ -803,9 +803,11 @@ object Exec {
 
     val (_rhs, st1) = eval(rhs, st0)
     val t = st1.security(_rhs, st1.P)
-    val st2 = st1.updateGamma(lhs, t)
 
-    st2.assign(lhs, _rhs)
+    val st2 = st1.assign(lhs, _rhs)
+    //val st2 = st1.updateGamma(lhs, t)
+
+    st2
   }
 
   def assignGRule(lhs: Id, rhs: Expression, st0: State, line: Int): State = {
