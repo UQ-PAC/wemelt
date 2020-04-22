@@ -803,14 +803,12 @@ case class State(
     SMT.proveImplies(P ++ R, PPrime, debug)
   }
 
-  // needs further work with the SMT but will do for now
+  // needs further work with the SMT to be all in one statement but will do for now
   def low_or_eq(P: List[Expression]): Set[Id] = {
-    val localLow = for (l <- locals if SMT.proveImplies(P, List(L_R(l)), debug))
-      yield l
     val globalLowOrEq = for (g <- globals if (SMT.proveImplies(P, List(L_R(g)), debug)
       || SMT.proveImplies(P ++ R, List(BinOp("==", g.toVar, g.toVar.prime)), debug)))
       yield g
-    localLow ++ globalLowOrEq
+    locals ++ globalLowOrEq
   }
 }
 
@@ -883,28 +881,6 @@ object State {
       println("controlled: " + controlled)
       println("controlled by: " + controlledBy)
     }
-
-    val gammaDom: Set[Id] = ids collect {case v if !controls.contains(v) /* && stable.contains(v) */ => v}
-
-    // init gamma
-    val gamma: Map[Id, Security] = gamma_0 match {
-      // security high by default if user hasn't provided
-      case None => {
-        for (i <- gammaDom) yield {
-          i -> High
-        }
-        }.toMap
-      // user provided
-      case Some(gs) => {
-        //gs flatMap {g => g.toPair(arrays)}
-        gs map {g => g.variable -> g.security}
-        }.toMap
-    }
-
-    // check gamma domain
-    if (gamma.keySet != gammaDom)
-      throw error.InvalidProgram("provided gamma has invalid domain (" + gamma.keySet.mkString(", ")
-        + "), correct domain is " + gammaDom.mkString(", "))
 
     // for replacing Ids in predicates with Vars
     val idToVar: Subst = {
@@ -989,6 +965,28 @@ object State {
         }
       }
     }.toMap
+
+
+
+    // init Gamma
+    val gamma: Map[Id, Security] = gamma_0 match {
+      // empty gamma by default if user hasn't provided
+      case None => Map()
+      // user provided
+      case Some(gs) => {
+        //gs flatMap {g => g.toPair(arrays)}
+        gs map {g => g.variable -> g.security}
+      }.toMap
+    }
+    val globalLowOrEq = for (g <- globals if (SMT.proveImplies(P, List(L_R(g)), debug)
+      || SMT.proveImplies(P ++ R, List(BinOp("==", g.toVar, g.toVar.prime)), debug)))
+      yield g
+    val low_or_eq: Set[Id] = locals ++ globalLowOrEq
+
+    // check gamma domain only contains any variables in low_or_eq
+    if (!(gamma.keySet subsetOf low_or_eq))
+      throw error.InvalidProgram("provided gamma has invalid domain (" + gamma.keySet.mkString(", ")
+        + "), as domain is not a subset of " + low_or_eq.mkString(", "))
 
     if (debug) {
       println("L_R: " + L_R)
