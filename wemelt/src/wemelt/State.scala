@@ -991,8 +991,13 @@ object State {
     }.flatten.toList
     val P_invConc = State.concatenateExprs(P_inv)
 
+    val R_loc: List[Expression] = {
+      for (l <- locals) yield
+        BinOp("==", l.toVar, l.toVar.prime)
+    }.toList
+
     // R == P_inv ==> primed(P_inv) && R_var
-    val R = BinOp("==>", P_invConc, P_invConc.subst(toSubstPrime)) :: R_var_pred
+    val R = BinOp("==>", P_invConc, P_invConc.subst(toSubstPrime)) :: R_var_pred ++ R_loc
 
     val G = guarantee map {i => i.subst(idToVar)}
 
