@@ -1,7 +1,7 @@
 package wemelt
 
 case class State(
-  gamma: Map[Id, Security],
+  gamma: Map[Id, Expression],
   //D: Map[Id, (Set[Id], Set[Id], Set[Id], Set[Id])], // W_w, W_r, R_w, R_r
   P: List[Expression],
   P_inv: List[Expression],
@@ -21,6 +21,7 @@ case class State(
   controlledBy: Map[Id, Set[Id]], // CLed(name)
 
   variables: Set[Id],
+  primed: Subst,
 
   //read: Set[Id],
   //written: Set[Id],
@@ -46,7 +47,7 @@ case class State(
   }
 
   // update P and Gamma after assignment
-  def assignUpdate(id: Id, arg: Expression, t: Security): State = {
+  def assignUpdate(id: Id, arg: Expression, t: Expression): State = {
     val v = id.toVar
     // create mapping from variable to fresh variable
     val toSubst: Subst = Map(v -> Var.fresh(id.name))
@@ -597,99 +598,39 @@ case class State(
       x
   }
 
-  // x is variable to get security of, p is P value given so can substitute in P_a etc.
-  def security(x: Id, p: List[Expression]): Security = {
+  // gamma mapping
+  def security(x: Id): Expression = {
     if (debug)
       println("checking security for " + x)
-    var sec: Security = High
+    var gammaOut: Expression = Const._true
     if (gamma.contains(x)) {
-      sec = gamma(x)
-    } else if (globals.contains(x) && lowP(x, p)) {
-      sec = Low
+      gammaOut = gamma(x)
+    } else if (globals.contains(x)) {
+      gammaOut = L(x)
     }
     if (debug)
-      println(x + " security is " + sec)
-    sec
+      println(x + " security is " + gammaOut)
+    gammaOut
   }
 
-  // e is expression to get security of, p is P value given so can substitute in P_a etc.
-  def security(e: Expression, p: List[Expression], guard: Boolean = false): Security = {
+  // e is expression to get security of, returns predicate t
+  def security(e: Expression): Expression = {
     if (debug)
       println("checking security for " + e)
-    var sec: Security = Low
     val varE = e.variables
-    var secMap: Map[Id, Security] = Map()
-    for (x <- varE) {
-      val xSec = security(x, p)
-      if (xSec == High) {
-        sec = High
-      }
-      secMap += (x -> xSec)
-    }
 
-    /*
-    val arraysE = e.arrays
-    var arraySecMap: Map[Access, Security] = Map()
-    for (a <- arraysE) {
-      val aSec = security(a.name, a.index, p)
-      if (aSec == High) {
-        sec = High
-      }
-      arraySecMap += (a -> aSec)
-    }
+    val tList: List[Expression] = {for (x <- varE)
+      yield security(x)
+    }.toList
 
-    // checking for possibility expression contains a high variable/array access but its evaluation is not dependent
-    // on the high data, e.g. high - high, high * 0
-    if (sec == High) {
-      //val highAccess: Set[Access] = (arraySecMap collect {case a if a._2 == High => a._1}).toSet
-
-      val idToVar: Subst = {
-        for (v <- variables)
-          yield v -> v.toVar
-        }.toMap ++ {
-        for (v <- arrays.keySet)
-          yield v -> v.toVar
-        }
-
-      // replace high array accesses with new variables
-
-      var arrayReplace: Map[Access, Var] = Map()
-      for (a <- highAccess) {
-        arrayReplace += (a -> Var.fresh(a.name.name))
-        for (i <- arrayReplace.keySet if i != a) {
-          // check if array indices can be proved to be equivalent, if so replace with same variable
-          if (i.name == a.name && SMT.prove(BinOp("==", i.index, a.index), p, debug)) {
-            arrayReplace += (a -> arrayReplace(i))
-          }
-        }
-      }
-      val toSubst: Subst = arrayReplace map {case (k, v) => k.subst(idToVar) -> v}
-
-      val eSubst = e.subst(toSubst).subst(idToVar)
-
-      // set of variables to bind - high variables and replacement variables for high array accesses
-      val high: Set[Var] = (secMap collect {case x if x._2 == High => x._1.toVar}).toSet ++
-        (highAccess map {x => toSubst(x.subst(idToVar))})
-
-      // guards are boolean expressions so must create boolean variable for them
-      val v = if (guard) {
-        Switch(0) // to make boolean variable
-      } else {
-        Var("_var") // not a valid variable name from parser so won't clash
-      }
-
-      if (SMT.prove(Exists(Set(v), ForAll(high, BinOp("==", eSubst, v))), p, debug)) {
-        sec = Low
-      }
-    }
-    */
+    val t = andPredicates(tList)
     if (debug)
-      println(e + " security is " + sec)
-    sec
+      println(e + " security is " + t)
+    t
   }
 
   // update gamma with new value t mapped to x, if x is in the domain of gamma
-  def updateGamma(x: Id, t: Security): State = {
+  def updateGamma(x: Id, t: Expression): State = {
     if (gamma.contains(x)) {
       val gammaPrime = gamma + (x -> t)
       copy(gamma = gammaPrime)
@@ -719,6 +660,7 @@ case class State(
     copy (gamma = gammaPrime)
   }
    */
+  /*
   def updateGammaCAS(x: Id, t: Security): State = {
     if (gamma.contains(x)) {
       val toUpdate = if (gamma(x) == High) {
@@ -753,6 +695,7 @@ case class State(
     val gammaPrime = gamma - x
     copy(gamma = gammaPrime)
   }
+   */
 
   def restrictP(restricted: Set[Id]): List[Expression] = {
     // local variables should never be restricted
@@ -781,7 +724,7 @@ case class State(
     val state1 = this
 
     // gamma'(x) = maximum security of gamma_1(x) and gamma_2(x))
-    val gammaPrime: Map[Id, Security] = {
+    val gammaPrime: Map[Id, Expression] = {
       for (v <- state1.gamma.keySet) yield {
         if (state1.gamma(v) == High || state2.gamma(v) == High) {
           v -> High
@@ -867,12 +810,19 @@ case class State(
   }
 */
 
-  def PStable(): Boolean = {
-    val toSubst: Subst = {for (v <- variables)
-      yield v.toVar -> v.toVar.prime
-    }.toMap
-    val PPrime = P map {e: Expression => e.subst(toSubst) }
+  def PStable(P: List[Expression]): Boolean = {
+    val PPrime = P map {e: Expression => e.subst(primed) }
     SMT.proveImplies(P ++ R, PPrime, debug)
+  }
+
+  // for all x in dom gamma,
+  //  P && R ==> Gamma(x) == Gamma'(x)
+  def gammaStable(gamma: Map[Id, Expression], P: List[Expression]): Boolean = {
+    val gammaEqualsGammaPrime: List[Expression] = {
+      for (g <- globals if gamma.contains(g))
+        yield BinOp("==", gamma(g), gamma(g).subst(primed))
+    }.toList
+    SMT.proveImplies(P ++ R, gammaEqualsGammaPrime, debug)
   }
 
   // needs further work with the SMT to be all in one statement but will do for now
@@ -967,7 +917,7 @@ object State {
         yield v -> v.toVar
       }.toMap */
 
-    val toSubstPrime: Subst = {for (v <- ids)
+    val primed: Subst = {for (v <- ids)
       yield v.toVar -> v.toVar.prime
     }.toMap
 
@@ -997,7 +947,7 @@ object State {
     }.toList
 
     // R == P_inv ==> primed(P_inv) && R_var
-    val R = BinOp("==>", P_invConc, P_invConc.subst(toSubstPrime)) :: R_var_pred ++ R_loc
+    val R = BinOp("==>", P_invConc, P_invConc.subst(primed)) :: R_var_pred ++ R_loc
 
     val G = guarantee map {i => i.subst(idToVar)}
 
@@ -1011,7 +961,7 @@ object State {
     }
 
     // check P_0 is stable
-    val PPrime = P map {e: Expression => e.subst(toSubstPrime)}
+    val PPrime = P map {e: Expression => e.subst(primed)}
     if (!SMT.proveImplies(P ++ R, PPrime, debug)) {
       throw error.InvalidProgram("P_0 is not stable")
     }
@@ -1046,7 +996,7 @@ object State {
 
 
     // init Gamma
-    val gamma: Map[Id, Security] = gamma_0 match {
+    val gamma: Map[Id, Expression] = gamma_0 match {
       // empty gamma by default if user hasn't provided
       case None => Map()
       // user provided
@@ -1064,6 +1014,13 @@ object State {
     if (!(gamma.keySet subsetOf low_or_eq))
       throw error.InvalidProgram("provided gamma has invalid domain (" + gamma.keySet.mkString(", ")
         + "), as domain is not a subset of " + low_or_eq.mkString(", "))
+
+    val gammaEqualsGammaPrime: List[Expression] = {for (g <- globals if gamma.contains(g))
+      yield BinOp("==", gamma(g), gamma(g).subst(primed))
+    }.toList
+    if (!SMT.proveImplies(P ++ R, gammaEqualsGammaPrime, debug)) {
+      throw error.InvalidProgram("Gamma is not stable")
+    }
 
     if (debug) {
       println("L_R: " + L_R)
@@ -1097,6 +1054,7 @@ object State {
       controlled = controlled,
       controlledBy = controlledBy,
       variables = ids,
+      primed = primed,
       //read = Set(),
       //written = Set(),
       //arrayIndices = arrayIndices,

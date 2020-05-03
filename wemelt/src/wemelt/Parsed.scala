@@ -29,9 +29,9 @@ case object Low extends Security {
   def <=(security: Security): Boolean = true
 }
 
-case class GammaMapping(variable: Id, security: Security) extends beaver.Symbol {
-  def this(variable: Id, index: Int, security: Security) = this(Id(variable.name + "[" + index + "]"), security)
-  def this(variable: String, security: Security) = this(Id(variable), security)
+case class GammaMapping(variable: Id, security: Expression) extends beaver.Symbol {
+  //def this(variable: Id, index: Int, security: Expression) = this(Id(variable.name + "[" + index + "]"), security)
+  def this(variable: String, security: Expression) = this(Id(variable), security)
   /*
   def toPair(arrays: Map[Id, IdArray] ): Seq[(Id, Security)] = this match {
     // array wildcard case

@@ -211,12 +211,7 @@ gamma_mappings
     = gamma_mapping | gamma_mappings COMMA gamma_mapping;
 
 gamma_mapping
-    = ID.n MAPSTO security.s {: return new GammaMapping(n, s); :}
-    //| ID.n LBRACK NUM.i RBRACK MAPSTO security.s {: return new GammaMapping(n, i, s); :}
-    //| ID.n LBRACK STAR RBRACK MAPSTO security.s {: return new GammaMapping(n, s); :}
-    ;
-
-security
-    = LOW {: return Low.instance(); :}
-    | HIGH {: return High.instance(); :}
+    = ID.n MAPSTO expr.e {: return new GammaMapping(n, e); :}
+    //| ID.n LBRACK NUM.i RBRACK MAPSTO expr.e {: return new GammaMapping(n, i, s); :}
+    //| ID.n LBRACK STAR RBRACK MAPSTO expr.e {: return new GammaMapping(n, s); :}
     ;

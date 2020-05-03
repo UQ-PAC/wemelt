@@ -124,7 +124,7 @@ object Exec {
       val PPrime = invariants map {i => i.subst(idToVar)}
 
       // convert gammaPrime to map
-      val gammaPrime: Map[Id, Security] = (gamma map {g => g.variable -> g.security}).toMap
+      val gammaPrime: Map[Id, Expression] = (gamma map {g => g.variable -> g.security}).toMap
       //val gammaPrime: Map[Id, Security] = (gamma flatMap {g => g.toPair(state0.arrays)}).toMap
 
       val state1 = whileRule(test, PPrime, gammaPrime, body, state0, statement.line)
@@ -150,7 +150,7 @@ object Exec {
       val PPrime = invariants map {i => i.subst(idToVar)}
 
       // convert gammaPrime to map
-      val gammaPrime: Map[Id, Security] = (gamma map {g => g.variable -> g.security}).toMap
+      val gammaPrime: Map[Id, Expression] = (gamma map {g => g.variable -> g.security}).toMap
       //val gammaPrime: Map[Id, Security] = (gamma flatMap {g => g.toPair(state0.arrays)}).toMap
 
       // execute loop body once at start
@@ -452,7 +452,7 @@ object Exec {
     }
      */
 
-    if (state1.security(_test, state1.P, guard = true) == High) {
+    if (!SMT.proveImplies(state1.P, List(state1.security(_test)), state1.debug)) {
       throw error.IfError(line, test, "guard expression is HIGH")
     }
 
@@ -498,41 +498,35 @@ object Exec {
     _left1.mergeIf(_right1)
   }
 
-  def whileRule(test: Expression, PPrime: List[Expression], gammaPrime: Map[Id, Security], body: Statement, state0: State, line: Int): State = {
+  def whileRule(test: Expression, PPrime: List[Expression], gammaPrime: Map[Id, Expression], body: Statement, state0: State, line: Int): State = {
     // WHILE rule
 
     if (state0.toLog)
       println("WHILE applying")
 
     // P' only contains stable variables - tested
-    //val PPrimeArrayAccess: Set[Id] = {PPrime flatMap {x => x.arrays flatMap {y => state0.arrays(y.name).array}}}.toSet
+    //val PPrimeArrayAccess: Set[Id] = {PPrime flatMap {x => x.arrays flatMap {y => state0.arrays(y.name).array}}}.toSe
 
-    val PPrimeVar: Set[Id] = (PPrime flatMap {x => x.variables}).toSet //++ PPrimeArrayAccess
-
-    /*
-    val unstablePPrime = for (i <- PPrimeVar if !state0.stable.contains(i))
-      yield i
-    if (unstablePPrime.nonEmpty) {
-      throw error.WhileError(line, test, unstablePPrime.mkString(", ") + " in invariant is/are not stable")
+    if (!state0.PStable(PPrime)) {
+      throw error.WhileError(line, test, "provided P': " + PPrime.PStr + " is not stable")
     }
-     */
 
     // check P' is weaker than previous P - tested
     if (!SMT.proveImplies(state0.P, PPrime, state0.debug)) {
       throw error.WhileError(line, test, "provided P' " + PPrime.PStr + " is not weaker than P " + state0.P.PStr)
     }
 
+    /*
     // gamma' has same domain as gamma - tested
     if (state0.gamma.keySet != gammaPrime.keySet) {
       throw error.InvalidProgram("input gamma " + gammaPrime.gammaStr + " for While(" +  test + ") { ... at line " + line + " does not have same domain as gamma: " + state0.gamma.gammaStr)
+     }
+    */
+
+    if (!state0.gammaStable(gammaPrime, PPrime)) {
+      throw error.WhileError(line, test, "provided Gamma': " + gammaPrime.gammaStr + " is not stable")
     }
 
-    // check gamma' is greater or equal than gamma for all x - tested
-    val gammaGreater = for (g <- state0.gamma.keySet if state0.gamma(g) > gammaPrime(g))
-      yield g
-    if (gammaGreater.nonEmpty) {
-      throw error.WhileError(line, test, "gamma' " + gammaPrime.gammaStr + " is not greater than or equal to gamma " + state0.gamma.gammaStr + " for: " + gammaGreater.mkString(" "))
-    }
 
     // D' will always be a subset of D as it equals D intersect DFixed
 
@@ -577,7 +571,7 @@ object Exec {
      */
 
     // check test is LOW with regards to P', gamma' - tested
-    if (state2.security(_test, state2.P, guard = true) == High) {
+    if (!SMT.proveImplies(state2.P, List(state2.security(_test)), state2.debug)) {
       throw error.WhileError(line, test, "guard expression is HIGH")
     }
 
@@ -613,11 +607,14 @@ object Exec {
      */
 
     // check gamma' is greater or equal than gamma'' for all x - tested
+
+    /*
     val gammaPrimeGreater = for (g <- gammaPrime.keySet if state5.gamma(g) > gammaPrime(g))
       yield g
     if (gammaPrimeGreater.nonEmpty) {
         throw error.WhileError(line, test, "gamma' " + gammaPrime.gammaStr + " is not greater to or equal than than gamma'' " +  state5.gamma.gammaStr + " for: " + gammaPrimeGreater.mkString(" "))
     }
+     */
 
     // check P'' is stronger than P' - tested
     if (!SMT.proveImplies(state5.P, PPrime, state0.debug)) {
@@ -802,7 +799,7 @@ object Exec {
       println("ASSIGNL applying")
 
     val (_rhs, st1) = eval(rhs, st0)
-    val t = st1.security(_rhs, st1.P)
+    val t = st1.security(_rhs)
 
     st1.assignUpdate(lhs, _rhs, t)
   }
@@ -813,7 +810,7 @@ object Exec {
       println("ASSIGNG applying")
 
     val (_rhs, st1) = eval(rhs, st0)
-    val t = st1.security(_rhs, st1.P)
+    val t = st1.security(_rhs)
 
     // check guar P(x := e)
     val guarUnchanged: List[Expression] = {for (g <- st1.globals - lhs)
@@ -825,13 +822,7 @@ object Exec {
 
     // check t <:_P L_G(x)
     // L_G(x) && P ==> t
-    // implementation will be changed for predicate gamma
-    val tBool = if (t == Low) {
-      Const._true
-    } else {
-      Const._false
-    }
-    if (!SMT.proveImplies(st1.L_G(lhs) :: st1.P, List(tBool), st1.debug)) {
+    if (!SMT.proveImplies(st1.L_G(lhs) :: st1.P, List(t), st1.debug)) {
       throw error.AssignGError(line, lhs, rhs, "t <:_P L_G(" + lhs + ") doesn't hold for assignment")
     }
 
@@ -840,15 +831,9 @@ object Exec {
       // check fall P Gamma(x := e)
       // for all y that x is a control variable of,
       // P && L(y)[e/x] ==> (sec(y) || L(y))
-      // implementation will be changed for predicate gamma
       val toSubst: Subst = Map(lhs.toVar -> _rhs)
       for (y <- st1.controlledBy(lhs)) {
-        val ySec = if (st1.security(y.toVar, st1.P) == Low) {
-          Const._true
-        } else {
-          Const._false
-        }
-        if (!SMT.proveImplies(st1.L(y).subst(toSubst) :: st1.P, List(BinOp("||", ySec, st1.L(y))), st1.debug)) {
+        if (!SMT.proveImplies(st1.L(y).subst(toSubst) :: st1.P, List(BinOp("||", st1.security(y.toVar) , st1.L(y))), st1.debug)) {
           throw error.AssignGError(line, lhs, rhs, "falling error for variable " + y)
         }
       }

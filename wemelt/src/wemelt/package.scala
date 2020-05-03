@@ -78,7 +78,7 @@ package object wemelt {
     def PStr: String = P.mkString(" &&" + newline + "   ")
   }
 
-  implicit class GammaToString(gamma: Map[Id, Security]) {
+  implicit class GammaToString(gamma: Map[Id, Expression]) {
     def gammaStr: String = gamma.mkString(", ")
   }
 }

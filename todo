@@ -1,11 +1,9 @@
-bare minimum necessary for AssignL rule
 -make P_inv optional in parsing
--Gamma contains predicates
+-Gamma contains predicates - mostly done
 -Gamma stability check
 --for all x in dom gamma,
   P && R ==> Gamma(x) == Gamma'(x)
 -update P/Gamma - DONE
--include in R: x \in Locals => x == x' to fix issues with locals not handled properly
 
 update P/Gamma - done
 -update P with temp variables - done
@@ -19,6 +17,6 @@ update P/Gamma - done
 --apply mapping m to gamma - need to do when gamma update finished
 
 for later
--fix r_var implementation
+-fix r_var implementation?
 -if, while, do while rules
 -quantification in predicates?
