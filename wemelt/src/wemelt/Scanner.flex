@@ -113,8 +113,6 @@ WS = {NL} | [ \t\f]
 
     "TRUE"      { return newToken(Terminals.TRUE);    }
     "FALSE"     { return newToken(Terminals.FALSE);    }
-    "LOW"       { return newToken(Terminals.LOW);    }
-    "HIGH"      { return newToken(Terminals.HIGH);    }
 
     "->"        { return newToken(Terminals.MAPSTO);    }
 

@@ -428,15 +428,19 @@ object Exec {
 
   }
 
-  def ifRule(test: Expression, left: Statement, right: Option[Statement], state0: State, line: Int): State = {
+  def ifRule(guard: Expression, left: Statement, right: Option[Statement], state0: State, line: Int): State = {
     // IF rule
     if (state0.toLog)
       println("IF applying")
 
     // evaluate test
-    val (_test, state1) = eval(test, state0)
+    val (_guard, state1) = eval(guard, state0)
 
     // check test is LOW
+    if (!SMT.proveImplies(state1.P, List(state1.security(_guard)), state1.debug)) {
+      throw error.IfError(line, guard, "guard expression is HIGH")
+    }
+
     /*
     val PRestrict = state1.restrictP(state1.knownW) // calculate P_b
     if (state0.debug)
@@ -452,9 +456,6 @@ object Exec {
     }
      */
 
-    if (!SMT.proveImplies(state1.P, List(state1.security(_test)), state1.debug)) {
-      throw error.IfError(line, test, "guard expression is HIGH")
-    }
 
     /*
     val state2 = state1.updateDGuard(_test)
@@ -463,7 +464,7 @@ object Exec {
      */
 
     // execute both sides of if statement
-    val _left = state1.updatePIfLeft(_test)
+    val _left = state1.guardUpdate(_guard)
     val _left1 = if (state1.noInfeasible) {
       // don't check infeasible paths
       if (SMT.proveP(_left.P, _left.debug)) {
@@ -479,7 +480,8 @@ object Exec {
       case Some(r) =>
         if (state0.toLog)
           println("} else {")
-        val _right = state1.updatePIfRight(_test)
+        val notGuard = PreOp("!", _guard)
+        val _right = state1.guardUpdate(notGuard)
         if (state1.noInfeasible) {
           // don't check infeasible paths
           if (SMT.proveP(_right.P, _right.debug)) {
@@ -491,40 +493,38 @@ object Exec {
           execute(r, _right).st
         }
       case None =>
-        state1.updatePIfRight(_test)
+        val notGuard = PreOp("!", _guard)
+        state1.guardUpdate(notGuard)
     }
 
     // merge states
     _left1.mergeIf(_right1)
   }
 
-  def whileRule(test: Expression, PPrime: List[Expression], gammaPrime: Map[Id, Expression], body: Statement, state0: State, line: Int): State = {
+  def whileRule(guard: Expression, PPrime: List[Expression], gammaPrime: Map[Id, Expression], body: Statement, state0: State, line: Int): State = {
     // WHILE rule
 
     if (state0.toLog)
       println("WHILE applying")
 
-    // P' only contains stable variables - tested
-    //val PPrimeArrayAccess: Set[Id] = {PPrime flatMap {x => x.arrays flatMap {y => state0.arrays(y.name).array}}}.toSe
-
+    // check P' is stable
     if (!state0.PStable(PPrime)) {
-      throw error.WhileError(line, test, "provided P': " + PPrime.PStr + " is not stable")
+      throw error.WhileError(line, guard, "provided P': " + PPrime.PStr + " is not stable")
     }
 
-    // check P' is weaker than previous P - tested
+    // check P' is weaker than previous P
     if (!SMT.proveImplies(state0.P, PPrime, state0.debug)) {
-      throw error.WhileError(line, test, "provided P' " + PPrime.PStr + " is not weaker than P " + state0.P.PStr)
+      throw error.WhileError(line, guard, "provided P' " + PPrime.PStr + " is not weaker than P " + state0.P.PStr)
     }
 
-    /*
-    // gamma' has same domain as gamma - tested
-    if (state0.gamma.keySet != gammaPrime.keySet) {
-      throw error.InvalidProgram("input gamma " + gammaPrime.gammaStr + " for While(" +  test + ") { ... at line " + line + " does not have same domain as gamma: " + state0.gamma.gammaStr)
-     }
-    */
+    // check gamma prime has valid domain
+    val gammaPrimeDom = state0.low_or_eq(PPrime)
+    if (!(gammaPrime.keySet subsetOf gammaPrimeDom)) {
+      throw error.WhileError(line, guard, "provided Gamma': " + gammaPrime.gammaStr + " does not have domain that is subset of " + gammaPrimeDom)
+    }
 
     if (!state0.gammaStable(gammaPrime, PPrime)) {
-      throw error.WhileError(line, test, "provided Gamma': " + gammaPrime.gammaStr + " is not stable")
+      throw error.WhileError(line, guard, "provided Gamma': " + gammaPrime.gammaStr + " is not stable")
     }
 
 
@@ -558,7 +558,7 @@ object Exec {
      */
 
     // evaluate test and update D
-    val (_test, state2) = eval(test, state1)
+    val (_guard, state2) = eval(guard, state1)
    //val state3 = state2.updateDGuard(_test)
 
     // check any array indices in test are low
@@ -570,13 +570,13 @@ object Exec {
     }
      */
 
-    // check test is LOW with regards to P', gamma' - tested
-    if (!SMT.proveImplies(state2.P, List(state2.security(_test)), state2.debug)) {
-      throw error.WhileError(line, test, "guard expression is HIGH")
+    // check guard is LOW with regards to P', gamma' - tested
+    if (!SMT.proveImplies(state2.P, List(state2.security(_guard)), state2.debug)) {
+      throw error.WhileError(line, guard, "guard expression is HIGH")
     }
 
     // add test to P
-    val state4 = state2.updatePIfLeft(_test)
+    val state4 = state2.guardUpdate(_guard)
 
     if (state0.debug) {
       println("while rule after test, before loop body:")
@@ -606,24 +606,26 @@ object Exec {
     }
      */
 
-    // check gamma' is greater or equal than gamma'' for all x - tested
+    // check gamma' is greater or equal than gamma'' for all
+    val PPrimePred = state1.andPredicates(PPrime)
+    val gammaGreaterCheck: List[Expression] = {
+      for (v <- state5.variables)
+        yield BinOp("==>", BinOp("&&", state5.security(v), PPrimePred), state1.security(v))
+    }.toList
 
-    /*
-    val gammaPrimeGreater = for (g <- gammaPrime.keySet if state5.gamma(g) > gammaPrime(g))
-      yield g
-    if (gammaPrimeGreater.nonEmpty) {
-        throw error.WhileError(line, test, "gamma' " + gammaPrime.gammaStr + " is not greater to or equal than than gamma'' " +  state5.gamma.gammaStr + " for: " + gammaPrimeGreater.mkString(" "))
+    if (!SMT.proveP(gammaGreaterCheck, state5.debug)) {
+      throw error.WhileError(line, guard, "gamma' " + gammaPrime.gammaStr + " is not greater to or equal than than gamma'' " +  state5.gamma.gammaStr)
     }
-     */
 
     // check P'' is stronger than P' - tested
     if (!SMT.proveImplies(state5.P, PPrime, state0.debug)) {
-      throw error.WhileError(line, test, "provided P' " + PPrime.PStr + " does not hold after loop body. P'': " + state5.P.PStr)
+      throw error.WhileError(line, guard, "provided P' " + PPrime.PStr + " does not hold after loop body. P'': " + state5.P.PStr)
     }
 
     // state1 used here as do not keep gamma'', P'', D'' from after loop body execution
     // remove test from P'
-    state1.updatePIfRight(_test)
+    val notGuard = PreOp("!", _guard)
+    state1.guardUpdate(notGuard)
   }
 
 
@@ -841,76 +843,6 @@ object Exec {
 
     st1.assignUpdate(lhs, _rhs, t)
   }
-
-  /*
-  def assignCRule(lhs: Id, rhs: Expression, st0: State, line: Int): State = {
-    // ASSIGNC rule
-    if (st0.toLog)
-      println("ASSIGNC applying")
-    val (_rhs, st1) = eval(rhs, st0)
-    val st2 = st1.updateWritten(lhs)
-    // at this point the rd and wr sets are complete for the current line
-
-    val knownw = st2.knownW
-    // calculate P_x:=e
-    val PRestrict = st2.restrictP(knownw)
-    if (st0.debug) {
-      println("knownW: " + knownw)
-      println("PRestrict: " + PRestrict.PStr)
-    }
-
-    // check any array indices in rhs are low
-    for (i <- _rhs.arrays) {
-      if (st2.security(i.index, PRestrict) == High) {
-        throw error.AssignCError(line, lhs, rhs, "array index " + i.index + " is high")
-      }
-    }
-
-    // check _rhs is LOW - tested
-    val t = st2.security(_rhs, PRestrict)
-    if (t == High) {
-      throw error.AssignCError(line, lhs, rhs, "HIGH expression assigned to control variable")
-    }
-
-    // secure_update
-    val PPrime = st2.assign(lhs, _rhs) // calculate PPrime
-    val PPrimeRestrict = PPrime.restrictP(knownw)
-
-    val falling = for (i <- st2.controlledBy(lhs) if (!st2.lowP(i, PRestrict)) && !st2.highP(i, PPrimeRestrict))
-      yield i
-
-    if (st0.debug) {
-      println("falling: " + falling)
-      println("knownW: " + knownw)
-    }
-
-    //val fallingFail = for (y <- falling -- st2.noReadWrite if !knownw.contains(y) || st2.security(y, PRestrict) == High)
-
-    // falling can only succeed if y is in gamma and maps to low
-    val fallingFail = for (y <- falling -- st2.noReadWrite if !st2.gamma.contains(y) || st2.gamma(y) != Low)
-      yield y
-
-    if (fallingFail.nonEmpty) {
-      throw error.AssignCError(line, lhs, rhs, "secure update fails for falling variable/s: " + fallingFail.mkString(" "))
-    }
-
-    val rising = for (i <- st2.controlledBy(lhs) if (!st2.highP(i, PRestrict)) && !st2.lowP(i, PPrimeRestrict))
-      yield i
-
-    if (st0.debug) {
-      println("rising: " + rising)
-    }
-    val risingFail = for (y <- rising if !st2.knownR.contains(y))
-      yield y
-
-    if (risingFail.nonEmpty) {
-      throw error.AssignCError(line, lhs, rhs, "secure update fails for rising variable/s: " + risingFail.mkString(" "))
-    }
-
-    val st3 = st2.assign(lhs, _rhs) // update P
-    st3.updateDAssign(lhs, _rhs)
-  }
-   */
 
   /*
   def compareAndSwapRule(lhs: Id, x: Id, r1: Expression, r2: Expression, st0: State, line: Int): State = {

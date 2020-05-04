@@ -9,7 +9,7 @@
 
 %terminals ID;
 %terminals NUM;
-%terminals LOW, HIGH, TRUE, FALSE;
+%terminals TRUE, FALSE;
 
 %terminals LPAREN, RPAREN, LBRACK, RBRACK, LBRACE, RBRACE;
 %terminals POSTFIX;
@@ -73,7 +73,6 @@
 %typeof rvar = "RVar";
 %typeof unit = "Parsed";
 %typeof gamma_mapping = "GammaMapping";
-%typeof security = "Security";
 //%typeof lpredindex = "Expression";
 
 %goal unit;

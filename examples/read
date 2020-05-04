@@ -1,0 +1,29 @@
+_global var z:
+_L: TRUE
+_R_var: (TRUE, z' >= z)
+
+_global var x:
+_L_R: z % 2 == 0
+_L_G: TRUE
+
+_global var low_out:
+_L: TRUE
+
+_local var r1
+_local var r2
+
+_P_inv: TRUE
+_G: z' == z
+_P_0: r1 % 2 == 0
+
+do {
+_invariant: r1 % 2 == 0
+_Gamma: r1 -> LOW, r2 -> LOW
+    do {
+    _invariant: r1 == z
+    _Gamma: r1 -> LOW, r2 -> LOW
+        r1 = z;
+    } while ((r1 % z) != 0)
+    r2 = x;
+} while (z != r1)
+low_out = r2;

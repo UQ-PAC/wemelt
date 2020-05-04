@@ -144,6 +144,71 @@ case class State(
     copy(P = PPlusR, gamma = gammaPlusR)
   }
 
+  // update P and Gamma with loop/if guard
+  def guardUpdate(guard: Expression): State = {
+    // add guard to P
+    val PPrime = guard :: P
+
+    // calculate new_var
+    val new_var: Set[Id] = guard.variables
+
+    // calculate equals - this can be improved too
+    // separate method for identity relation? check all identity relations at the start?
+    val equals: Set[Id] = {
+      for (y <- R_var.keySet)
+        yield {
+          // check P ==> c && r is identity relation
+          for ((c, r) <- R_var(y) if (r == BinOp("==", y.toVar, y.toVar.prime) || r == BinOp("==", y.toVar.prime, y.toVar))
+            && SMT.proveImplies(PPrime, List(c), debug))
+            yield y
+        }
+    }.flatten
+
+    val domM = new_var -- equals
+
+    // map all of domM to fresh temporary variables - probably change to different fresh allocator
+    val m: Subst = {
+      for (v <- domM)
+        yield v.toVar -> v.toVar.fresh
+    }.toMap
+
+    val mPlusMPrime: Subst = m ++ {
+      for (v <- domM)
+        yield v.toVar.prime -> v.toVar
+    }.toMap
+
+    val PPlus = PPrime map {p : Expression => p.subst(m)}
+
+    if (debug) {
+      println("dom R_var: " + R_var.keySet)
+      println("dom m: " + domM)
+    }
+    val RPlus: List[Expression] = {for (y <- R_var.keySet & domM) yield {
+      for ((c, r) <- R_var(y))
+        yield BinOp("==>", c, r.subst(mPlusMPrime))
+    }
+    }.flatten.toList
+
+    if (debug) {
+      println("P +: " + PPlus.PStr)
+      println("+ R: " + RPlus.PStr)
+    }
+
+    val PPlusR = PPlus ++ RPlus
+
+    val domGamma = low_or_eq(PPlusR)
+    val gammaPlusR = gamma -- (gamma.keySet -- domGamma)
+
+    if (debug) {
+      println("updating P and Gamma with guard " + guard)
+      println("P: " + P.PStr)
+      println("P': " + PPrime.PStr)
+      println("P + R: " + PPlusR.PStr)
+      println("Gamma + R: " + gammaPlusR.gammaStr)
+    }
+    copy(P = PPlusR, gamma = gammaPlusR)
+  }
+
   /*
   def assignCAS(lhs: Id, x: Id, r1: Expression, r2: Expression): State = {
     val _lhs = lhs.toVar
@@ -230,11 +295,6 @@ case class State(
     copy(P = POut)
   }
    */
-
-  def addToP(expr: Expression): State = {
-    copy(P = expr :: P)
-  }
-
   /*
   def resetReadWrite(): State = {
     copy(read = Set(), written = Set())
@@ -456,23 +516,6 @@ case class State(
   }
    */
 
-  def lowP(id: Id, p: List[Expression]): Boolean = {
-    if (debug)
-      println("checking lowP for " + id)
-    // prove if L(x) holds given P
-    val res = if (L(id) == Const._true) {
-      true
-    } else if (L(id) == Const._false) {
-      false
-    } else {
-      SMT.prove(L(id), p, debug)
-    }
-    if (debug) {
-      println("lowP is " + res + " for " + id)
-    }
-    res
-  }
-
   def highP(id: Id, p: List[Expression]): Boolean = {
     if (debug)
       println("checking highP for " + id)
@@ -629,121 +672,26 @@ case class State(
     t
   }
 
-  // update gamma with new value t mapped to x, if x is in the domain of gamma
-  def updateGamma(x: Id, t: Expression): State = {
-    if (gamma.contains(x)) {
-      val gammaPrime = gamma + (x -> t)
-      copy(gamma = gammaPrime)
-    } else {
-      this
-    }
-  }
-
-  /*
-  def updateGammaArray(a: IdArray, indices: Seq[Int], t: Security): State = {
-    // array assignment is unambiguous
-    val toUpdate = if (indices.size == 1) {
-      for (i <- indices if gamma.contains(a.array(i))) yield {
-        a.array(i) -> t
-      }
-    } else {
-      // ambiguous array assignment so cannot override Highs
-      for (i <- indices if gamma.contains(a.array(i))) yield {
-        if (gamma(a.array(i)) == High) {
-          a.array(i) -> High
-        } else {
-          a.array(i) -> t
-        }
-      }
-    }
-    val gammaPrime = gamma ++ toUpdate
-    copy (gamma = gammaPrime)
-  }
-   */
-  /*
-  def updateGammaCAS(x: Id, t: Security): State = {
-    if (gamma.contains(x)) {
-      val toUpdate = if (gamma(x) == High) {
-        x -> High
-      } else {
-        x -> t
-      }
-      val gammaPrime = gamma + toUpdate
-      copy(gamma = gammaPrime)
-    } else {
-      this
-    }
-  }
-
-  // update gamma with new value t mapped to x, regardless if x was in domain of gamma previously
-  def updateGammaDomain(x: Id, t: Security): State = {
-    val gammaPrime = gamma + (x -> t)
-    copy(gamma = gammaPrime)
-  }
-
-  def updateGammasDomain(sec: Map[Id, Security]): State = {
-    val gammaPrime = gamma ++ sec
-    copy(gamma = gammaPrime)
-  }
-
-  def removeGamma(xs: Set[Id]): State = {
-    val gammaPrime = gamma -- xs
-    copy(gamma = gammaPrime)
-  }
-
-  def removeGamma(x: Id): State = {
-    val gammaPrime = gamma - x
-    copy(gamma = gammaPrime)
-  }
-   */
-
-  def restrictP(restricted: Set[Id]): List[Expression] = {
-    // local variables should never be restricted
-    State.restrictP(P, restricted ++ locals)
-  }
-
-  def updatePIfLeft(b: Expression): State = {
-    // remove free occurrences of unstable variables
-    val bRestrict = b // b.restrict(stable)
-
-    val PPrime = bRestrict :: this.P
-    copy(P = PPrime)
-  }
-
-  def updatePIfRight(b: Expression): State = {
-    // negate b
-    val notB = PreOp("!", b)
-    // remove free occurrences of unstable variables
-    val bRestrict = notB // notB.restrict(stable)
-
-    val PPrime = bRestrict :: this.P
-    copy(P = PPrime)
-  }
-
   def mergeIf(state2: State): State = {
     val state1 = this
 
-    // gamma'(x) = maximum security of gamma_1(x) and gamma_2(x))
+    // gamma'(x) = gamma_1(x) && gamma_2(x)
     val gammaPrime: Map[Id, Expression] = {
-      for (v <- state1.gamma.keySet) yield {
-        if (state1.gamma(v) == High || state2.gamma(v) == High) {
-          v -> High
-        } else {
-          v -> Low
-        }
-      }
-    }.toMap
-
+      for (v <- state1.gamma.keySet & state2.gamma.keySet)
+        yield v -> BinOp("&&", state1.gamma(v), state2.gamma(v))
+    }.toMap ++ {
+      for (v <- state1.gamma.keySet -- state2.gamma.keySet)
+        yield v -> state1.gamma(v)
+    } ++ {
+      for (v <- state2.gamma.keySet -- state1.gamma.keySet)
+        yield v -> state2.gamma(v)
+    }
     //val DPrime = this.mergeD(state2)
 
     // P1 OR P2 converted to CNF
     val PPrime = mergeP(state1.P, state2.P)
-    // restrict P' to stable variables
-    val PPrimeRestricted = PPrime // State.restrictP(PPrime, stable)
-    if (debug)
-      println("restricting P to stable variables: " + PPrimeRestricted.PStr)
 
-    copy(gamma = gammaPrime, P = PPrimeRestricted)
+    copy(gamma = gammaPrime, P = PPrime)
   }
 
   /*

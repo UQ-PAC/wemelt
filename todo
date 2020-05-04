@@ -1,22 +1,8 @@
 -make P_inv optional in parsing
--Gamma contains predicates - mostly done
--Gamma stability check
---for all x in dom gamma,
-  P && R ==> Gamma(x) == Gamma'(x)
--update P/Gamma - DONE
-
-update P/Gamma - done
--update P with temp variables - done
--calculate P + R - done
---calculate dom m == new_var U weaker / equal - done
---do P + R update with R_var - done
--calculate {P, Gamma} + R - done
---calculate low_or_eq(P + R) - done
---if x in low_or_eq, add x -> t to gamma - done
---restrict gamma domain to low_or_eq - done
---apply mapping m to gamma - need to do when gamma update finished
+-fix issue with too many redundant Const(true)s everywhere from anding predicates
+-apply mapping m to gamma in gamma update
+-fix do while parsing??
 
 for later
--fix r_var implementation?
--if, while, do while rules
+-make r_var implementation better?
 -quantification in predicates?
