@@ -16,14 +16,17 @@ _P_inv: TRUE
 _G: z' == z
 _P_0: r1 % 2 == 0
 
-do {
+do
 _invariant: r1 % 2 == 0
 _Gamma: r1 -> TRUE, r2 -> TRUE
-    do {
+{
+    do
     _invariant: r1 == z
     _Gamma: r1 -> TRUE, r2 -> TRUE
+    {
         r1 = z;
-    } while ((r1 % z) != 0)
+    } while ((r1 % 2) != 0)
     r2 = x;
 } while (z != r1)
 low_out = r2;
+

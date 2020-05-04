@@ -1,6 +1,7 @@
 -make P_inv optional in parsing
 -fix issue with too many redundant Const(true)s everywhere from anding predicates
--fix do while parsing??
+-remove unnecessary SMT calls in R-var part of P + R
+-SMT optimisations to reduce calls in a few places
 
 for later
 -make r_var implementation better?
