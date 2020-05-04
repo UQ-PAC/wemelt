@@ -1,6 +1,5 @@
 -make P_inv optional in parsing
 -fix issue with too many redundant Const(true)s everywhere from anding predicates
--apply mapping m to gamma in gamma update
 -fix do while parsing??
 
 for later

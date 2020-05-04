@@ -132,7 +132,11 @@ case class State(
       gamma
     }
 
-    val gammaPlusR = gammaPrime -- (gammaPrime.keySet -- domGamma)
+    val gammaPrimeRestrict = gammaPrime -- (gammaPrime.keySet -- domGamma)
+    val gammaPlusR: Map[Id, Expression] = {
+      for (g <- gammaPrimeRestrict.keySet)
+        yield g -> gammaPrimeRestrict(g).subst(m)
+    }.toMap
 
     if (debug) {
       println("assigning " + arg + " to " + id + ":")
@@ -197,7 +201,11 @@ case class State(
     val PPlusR = PPlus ++ RPlus
 
     val domGamma = low_or_eq(PPlusR)
-    val gammaPlusR = gamma -- (gamma.keySet -- domGamma)
+    val gammaPrimeRestrict = gamma -- (gamma.keySet -- domGamma)
+    val gammaPlusR: Map[Id, Expression] = {
+      for (g <- gammaPrimeRestrict.keySet)
+        yield g -> gammaPrimeRestrict(g).subst(m)
+    }.toMap
 
     if (debug) {
       println("updating P and Gamma with guard " + guard)
