@@ -151,14 +151,20 @@ object SMT {
   }
 
   // recursively convert expression list into AND structure
-  def PToAnd(exprs: List[Expression]): z3.BoolExpr = exprs match {
-    case Nil =>
-      ctx.mkTrue
+  def PToAnd(exprs: List[Expression]): z3.BoolExpr = {
+    if (exprs.size == 1) {
+      formula(exprs.head)
+    } else {
+      exprs match {
+        case Nil =>
+          ctx.mkTrue
 
-    case expr :: rest =>
-      val xs = PToAnd(rest)
-      val x = ctx.mkAnd(formula(expr), xs)
-      x
+        case expr :: rest =>
+          val xs = PToAnd(rest)
+          val x = ctx.mkAnd(formula(expr), xs)
+          x
+      }
+    }
   }
 
   def formula(prop: Expression): z3.BoolExpr = translate(prop) match {

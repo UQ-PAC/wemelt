@@ -75,8 +75,8 @@ case class State(
     val weaker: Set[Id] = {
       for (y <- R_var.keySet)
         yield {
-          // check !(P && c ==> c[e/x]
-          for ((c, r) <- R_var(y) if !SMT.proveImplies(c :: PPrime, List(c.subst(toSubstC)), debug))
+          // check !(P && c ==> c[e/x])
+          for ((c, r) <- R_var(y) if c != Const._true && !SMT.proveImplies(c :: PPrime, List(c.subst(toSubstC)), debug))
             yield y
         }
     }.flatten
@@ -88,7 +88,7 @@ case class State(
         yield {
           // check P ==> c && r is identity relation
           for ((c, r) <- R_var(y) if (r == BinOp("==", y.toVar, y.toVar.prime) || r == BinOp("==", y.toVar.prime, y.toVar))
-            && SMT.proveImplies(PPrime, List(c), debug))
+            && (c == Const._true || SMT.proveImplies(PPrime, List(c), debug)))
             yield y
         }
     }.flatten
@@ -106,7 +106,7 @@ case class State(
         yield v.toVar.prime -> v.toVar
     }.toMap
 
-    val PPlus = PPrime map {p : Expression => p.subst(m)}
+    val PPlus = PPrime map {p: Expression => p.subst(m)}
 
     if (debug) {
       println("dom R_var: " + R_var.keySet)
@@ -114,7 +114,11 @@ case class State(
     }
     val RPlus: List[Expression] = {for (y <- R_var.keySet & domM) yield {
       for ((c, r) <- R_var(y))
-        yield BinOp("==>", c, r.subst(mPlusMPrime))
+        yield if (c == Const._true) {
+          r.subst(mPlusMPrime)
+        } else {
+          BinOp("==>", c, r.subst(mPlusMPrime))
+        }
     }
     }.flatten.toList
 
@@ -163,7 +167,7 @@ case class State(
         yield {
           // check P ==> c && r is identity relation
           for ((c, r) <- R_var(y) if (r == BinOp("==", y.toVar, y.toVar.prime) || r == BinOp("==", y.toVar.prime, y.toVar))
-            && SMT.proveImplies(PPrime, List(c), debug))
+            && (c == Const._true || SMT.proveImplies(PPrime, List(c), debug)))
             yield y
         }
     }.flatten
@@ -189,7 +193,11 @@ case class State(
     }
     val RPlus: List[Expression] = {for (y <- R_var.keySet & domM) yield {
       for ((c, r) <- R_var(y))
-        yield BinOp("==>", c, r.subst(mPlusMPrime))
+        yield if (c == Const._true) {
+          r.subst(mPlusMPrime)
+        } else {
+          BinOp("==>", c, r.subst(mPlusMPrime))
+        }
     }
     }.flatten.toList
 
@@ -629,30 +637,41 @@ case class State(
   }
    */
 
-  def orPredicates(exprs: List[Expression]): Expression = exprs match {
-    case Nil =>
-      Const._false
-
-    case expr :: rest =>
-      val xs = orPredicates(rest)
-      val x =  BinOp("||", expr, xs)
-      x
+  def orPredicates(exprs: List[Expression]): Expression = {
+    if (exprs.size == 1) {
+      exprs.head
+    } else {
+      exprs match {
+        case Nil =>
+          Const._false
+        case expr :: rest =>
+          val xs = orPredicates(rest)
+          val x =  BinOp("||", expr, xs)
+          x
+      }
+    }
   }
 
-  def andPredicates(exprs: List[Expression]): Expression = exprs match {
-    case Nil =>
-      Const._true
+  def andPredicates(exprs: List[Expression]): Expression = {
+    if (exprs.size == 1) {
+      exprs.head
+    } else {
+      exprs match {
+        case Nil =>
+          Const._true
 
-    case expr :: rest =>
-      val xs = andPredicates(rest)
-      val x =  BinOp("&&", expr, xs)
-      x
+        case expr :: rest =>
+          val xs = andPredicates(rest)
+          val x =  BinOp("&&", expr, xs)
+          x
+      }
+    }
   }
 
   // gamma mapping
   def security(x: Id): Expression = {
     if (debug)
-      println("checking security for " + x)
+      println("checking Gamma<> of " + x)
     var gammaOut: Expression = Const._true
     if (gamma.contains(x)) {
       gammaOut = gamma(x)
@@ -660,14 +679,14 @@ case class State(
       gammaOut = L(x)
     }
     if (debug)
-      println(x + " security is " + gammaOut)
+      println("Gamma<" + x + "> is " + gammaOut)
     gammaOut
   }
 
   // e is expression to get security of, returns predicate t
   def security(e: Expression): Expression = {
     if (debug)
-      println("checking security for " + e)
+      println("checking classification of " + e)
     val varE = e.variables
 
     val tList: List[Expression] = {for (x <- varE)
@@ -676,7 +695,7 @@ case class State(
 
     val t = andPredicates(tList)
     if (debug)
-      println(e + " security is " + t)
+      println(e + " classification is " + t)
     t
   }
 
@@ -689,10 +708,10 @@ case class State(
         yield v -> BinOp("&&", state1.gamma(v), state2.gamma(v))
     }.toMap ++ {
       for (v <- state1.gamma.keySet -- state2.gamma.keySet)
-        yield v -> state1.gamma(v)
+        yield v -> BinOp("&&", state1.gamma(v), L(v))
     } ++ {
       for (v <- state2.gamma.keySet -- state1.gamma.keySet)
-        yield v -> state2.gamma(v)
+        yield v -> BinOp("&&", state2.gamma(v), L(v))
     }
     //val DPrime = this.mergeD(state2)
 
@@ -890,10 +909,15 @@ object State {
       }
     }
 
-    val R_var_pred: List[Expression] = {for (g <- R_var.keys) yield {
-      for ((c, r) <- R_var(g))
-        yield BinOp("==>", c, r)
-    }
+    val R_var_pred: List[Expression] = {
+      for (g <- R_var.keys) yield {
+        for ((c, r) <- R_var(g))
+          yield if (c == Const._true) {
+           r
+          } else {
+            BinOp("==>", c, r)
+          }
+      }
     }.flatten.toList
     val P_invConc = State.concatenateExprs(P_inv)
 

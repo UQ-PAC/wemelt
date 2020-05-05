@@ -248,17 +248,14 @@ case class Exists(bound: Set[_ <: Expression], body: Expression) extends BoolExp
 }
 
 object Const {
-  object _true extends Const("True") {
-    override def toString: String = this.name
-  }
-  object _false extends Const("False") {
-    override def toString: String = this.name
-  }
+  object _true extends Const("True")
+  object _false extends Const("False")
 }
 
 case class Const(name: String) extends Expression {
   override def variables: Set[Id] = Set()
   override def subst(su: Subst): Const = this
   override def subst(su: Subst, num: Int): Const = this
+  override def toString: String = this.name
   //override def arrays = Set()
 }
