@@ -721,7 +721,7 @@ case class State(
       mergeP(ps.head, ps(1))
     } else if (ps.size == 1) {
       ps.head
-    }  else if (ps.isEmpty) {
+    } else if (ps.isEmpty) {
       List()
     } else {
       // common is intersection of all lists
@@ -733,12 +733,14 @@ case class State(
       val switch = MultiSwitch.fresh
 
       val it = ps.indices.toIterator
-      val out: List[Expression] = {for (p <- ps) yield {
-        val i = it.next
-        for (e <- p if !common.contains(e)) yield {
-          BinOp("||", PreOp("!", BinOp("==", switch, Lit(i))), e)
+      val out: List[Expression] = {
+        for (p <- ps) yield {
+          val i = it.next
+          for (e <- p if !common.contains(e)) yield {
+            BinOp("||", PreOp("!", BinOp("==", switch, Lit(i))), e)
+          }
         }
-      }}.flatten
+      }.flatten
 
       BinOp(">=", switch, Lit(0)) :: BinOp("<", switch, Lit(ps.size)) :: common ++ out
     }
