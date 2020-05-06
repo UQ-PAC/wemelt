@@ -637,37 +637,6 @@ case class State(
   }
    */
 
-  def orPredicates(exprs: List[Expression]): Expression = {
-    if (exprs.size == 1) {
-      exprs.head
-    } else {
-      exprs match {
-        case Nil =>
-          Const._false
-        case expr :: rest =>
-          val xs = orPredicates(rest)
-          val x =  BinOp("||", expr, xs)
-          x
-      }
-    }
-  }
-
-  def andPredicates(exprs: List[Expression]): Expression = {
-    if (exprs.size == 1) {
-      exprs.head
-    } else {
-      exprs match {
-        case Nil =>
-          Const._true
-
-        case expr :: rest =>
-          val xs = andPredicates(rest)
-          val x =  BinOp("&&", expr, xs)
-          x
-      }
-    }
-  }
-
   // gamma mapping
   def security(x: Id): Expression = {
     if (debug)
@@ -693,7 +662,7 @@ case class State(
       yield security(x)
     }.toList
 
-    val t = andPredicates(tList)
+    val t = State.andPredicates(tList)
     if (debug)
       println(e + " classification is " + t)
     t
@@ -800,11 +769,15 @@ case class State(
     SMT.proveImplies(P ++ R, gammaEqualsGammaPrime, debug)
   }
 
-  // needs further work with the SMT to be all in one statement but will do for now
   def low_or_eq(P: List[Expression]): Set[Id] = {
-    val globalLowOrEq = for (g <- globals if (SMT.proveImplies(P, List(L_R(g)), debug)
-      || SMT.proveImplies(P ++ R, List(BinOp("==", g.toVar, g.toVar.prime)), debug)))
+    val PAnd = State.andPredicates(P)
+    val PPlusRAnd = State.andPredicates(P ++ R)
+    val lowOrEqTest = for (g <- globals)
+      yield g -> BinOp("||", BinOp("==>", PAnd, L_R(g)), BinOp("==>", PPlusRAnd, BinOp("==", g.toVar, g.toVar.prime)))
+
+    val globalLowOrEq = for ((g, pred) <- lowOrEqTest if SMT.proveExpression(pred, debug))
       yield g
+
     locals ++ globalLowOrEq
   }
 }
@@ -919,7 +892,7 @@ object State {
           }
       }
     }.flatten.toList
-    val P_invConc = State.concatenateExprs(P_inv)
+    val P_invAnd = State.andPredicates(P_inv)
 
     val R_loc: List[Expression] = {
       for (l <- locals) yield
@@ -927,7 +900,7 @@ object State {
     }.toList
 
     // R == P_inv ==> primed(P_inv) && R_var
-    val R = BinOp("==>", P_invConc, P_invConc.subst(primed)) :: R_var_pred ++ R_loc
+    val R = BinOp("==>", P_invAnd, P_invAnd.subst(primed)) :: R_var_pred ++ R_loc
 
     val G = guarantee map {i => i.subst(idToVar)}
 
@@ -985,8 +958,12 @@ object State {
         gs map {g => g.variable -> g.security}
       }.toMap
     }
-    val globalLowOrEq = for (g <- globals if (SMT.proveImplies(P, List(L_R(g)), debug)
-      || SMT.proveImplies(P ++ R, List(BinOp("==", g.toVar, g.toVar.prime)), debug)))
+    val PAnd = andPredicates(P)
+    val PPlusRAnd = andPredicates(P ++ R)
+    val lowOrEqTest = for (g <- globals)
+      yield g -> BinOp("||", BinOp("==>", PAnd, L_R(g)), BinOp("==>", PPlusRAnd, BinOp("==", g.toVar, g.toVar.prime)))
+
+    val globalLowOrEq = for ((g, pred) <- lowOrEqTest if !SMT.proveExpression(pred, debug))
       yield g
     val low_or_eq: Set[Id] = locals ++ globalLowOrEq
 
@@ -1045,14 +1022,34 @@ object State {
     )
   }
 
-  // convert a List[Expression] into a single expression
-  def concatenateExprs(P: List[Expression]): Expression = {
-    P match {
-      case Nil =>
-        Const._true
-      case expr :: rest =>
-        val xs = concatenateExprs(rest)
-        BinOp("&&", expr, xs)
+  def orPredicates(exprs: List[Expression]): Expression = {
+    if (exprs.size == 1) {
+      exprs.head
+    } else {
+      exprs match {
+        case Nil =>
+          Const._false
+        case expr :: rest =>
+          val xs = orPredicates(rest)
+          val x =  BinOp("||", expr, xs)
+          x
+      }
+    }
+  }
+
+  def andPredicates(exprs: List[Expression]): Expression = {
+    if (exprs.size == 1) {
+      exprs.head
+    } else {
+      exprs match {
+        case Nil =>
+          Const._true
+
+        case expr :: rest =>
+          val xs = andPredicates(rest)
+          val x =  BinOp("&&", expr, xs)
+          x
+      }
     }
   }
 

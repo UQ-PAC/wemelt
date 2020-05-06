@@ -436,8 +436,9 @@ object Exec {
     // evaluate test
     val (_guard, state1) = eval(guard, state0)
 
-    // check test is LOW
-    if (!SMT.proveImplies(state1.P, List(state1.security(_guard)), state1.debug)) {
+    // check guard is LOW
+    val guardGamma = state1.security(_guard)
+    if (guardGamma != Const._true && !SMT.proveImplies(state1.P, List(guardGamma), state1.debug)) {
       throw error.IfError(line, guard, "guard expression is HIGH")
     }
 
@@ -570,8 +571,9 @@ object Exec {
     }
      */
 
-    // check guard is LOW with regards to P', gamma' - tested
-    if (!SMT.proveImplies(state2.P, List(state2.security(_guard)), state2.debug)) {
+    // check guard is LOW with regards to P', gamma'
+    val guardGamma = state2.security(_guard)
+    if (guardGamma != Const._true && !SMT.proveImplies(state2.P, List(guardGamma), state2.debug)) {
       throw error.WhileError(line, guard, "guard expression is HIGH")
     }
 
@@ -607,12 +609,15 @@ object Exec {
      */
 
     // check gamma' is greater or equal than gamma'' for all
-    val PPrimePred = state1.andPredicates(PPrime)
+    val PPrimePred = State.andPredicates(PPrime)
     val gammaGreaterCheck: List[Expression] = {
       for (v <- state5.variables)
         yield BinOp("==>", BinOp("&&", state5.security(v), PPrimePred), state1.security(v))
     }.toList
 
+    if (state0.debug) {
+      print("checking Gamma' >= Gamma''")
+    }
     if (!SMT.proveP(gammaGreaterCheck, state5.debug)) {
       throw error.WhileError(line, guard, "gamma' " + gammaPrime.gammaStr + " is not greater to or equal than than gamma'' " +  state5.gamma.gammaStr)
     }
@@ -818,23 +823,34 @@ object Exec {
     val guarUnchanged: List[Expression] = {for (g <- st1.globals - lhs)
       yield BinOp("==", g.toVar, g.toVar.prime)}.toList
     val guarP: List[Expression] = (BinOp("==", lhs.toVar.prime, _rhs) :: guarUnchanged) ::: st1.P
+
+    if (st1.debug) {
+      println("checking assignment conforms to guarantee")
+    }
     if (!SMT.proveImplies(guarP, st1.G, st1.debug)) {
       throw error.AssignGError(line, lhs, rhs, "assignment doesn't conform to guarantee " + st1.G)
     }
 
     // check t <:_P L_G(x)
     // L_G(x) && P ==> t
-    if (!SMT.proveImplies(st1.L_G(lhs) :: st1.P, List(t), st1.debug)) {
+    if (st1.debug) {
+      println("checking L_G(x) && P ==> t holds")
+    }
+    if (t != Const._true && !SMT.proveImplies(st1.L_G(lhs) :: st1.P, List(t), st1.debug)) {
       throw error.AssignGError(line, lhs, rhs, "t <:_P L_G(" + lhs + ") doesn't hold for assignment")
     }
 
     // check falling if x is control variable of
+
     if (st1.controls.contains(lhs)) {
       // check fall P Gamma(x := e)
       // for all y that x is a control variable of,
       // P && L(y)[e/x] ==> (sec(y) || L(y))
       val toSubst: Subst = Map(lhs.toVar -> _rhs)
       for (y <- st1.controlledBy(lhs)) {
+        if (st1.debug) {
+          println("checking fall: P && L(y)[e/x] ==> (Gamma<y> || L(y)) for y == " + y)
+        }
         if (!SMT.proveImplies(st1.L(y).subst(toSubst) :: st1.P, List(BinOp("||", st1.security(y.toVar) , st1.L(y))), st1.debug)) {
           throw error.AssignGError(line, lhs, rhs, "falling error for variable " + y)
         }

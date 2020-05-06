@@ -124,11 +124,11 @@ object SMT {
 
   def proveExpression(cond: Expression, debug: Boolean): Boolean = {
     if (debug)
-      println("smt checking (" + cond + ")")
+      println("smt checking !(" + cond + ")")
     solver.push()
     val res = try {
       // check that (NOT cond) is unsatisfiable
-      solver.add(formula(cond))
+      solver.add(ctx.mkNot(formula(cond)))
       solver.check
     } catch {
       case e: java.lang.UnsatisfiedLinkError if e.getMessage.equals("com.microsoft.z3.Native.INTERNALgetErrorMsgEx(JI)Ljava/lang/String;")=>
@@ -147,7 +147,7 @@ object SMT {
         println(model)
       }
     }
-    res == z3.Status.SATISFIABLE
+    res == z3.Status.UNSATISFIABLE
   }
 
   // recursively convert expression list into AND structure
