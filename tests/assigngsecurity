@@ -1,0 +1,16 @@
+_global var z:
+_L: TRUE
+_R_var: (TRUE, z' == z)
+
+_global var x:
+_L_R: TRUE
+_L_G: z % 2 == 0
+
+_local var secret
+
+_P_inv: TRUE
+_G: z' >= z
+_P_0: z % 2 == 0
+_Gamma_0: secret -> FALSE
+
+x = secret;

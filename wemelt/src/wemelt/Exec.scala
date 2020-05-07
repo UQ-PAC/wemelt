@@ -861,11 +861,10 @@ object Exec {
       println("checking L_G(x) && P ==> t holds")
     }
     if (t != Const._true && !SMT.proveImplies(st1.L_G(lhs) :: st1.P, t, st1.debug)) {
-      throw error.AssignGError(line, lhs, rhs, "t <:_P L_G(" + lhs + ") doesn't hold for assignment")
+      throw error.AssignGError(line, lhs, rhs, "L_G(" + lhs + ") && P ==> " + lhs + " doesn't hold for assignment")
     }
 
     // check falling if x is control variable of
-
     if (st1.controls.contains(lhs)) {
       // check fall P Gamma(x := e)
       // for all y that x is a control variable of,

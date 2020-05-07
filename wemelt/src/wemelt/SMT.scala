@@ -156,7 +156,7 @@ object SMT {
 
   def proveImplies(strong: List[Expression], weak: List[Expression], debug: Boolean): Boolean = {
     if (debug)
-      println("smt checking !(" + strong.PStr + newline + " ==> " + newline + weak.PStr + ")")
+      println("smt checking !(" + strong.PStr + newline + "==> " + newline + weak.PStr + ")")
     solver.push()
     val res = try {
       solver.add(ctx.mkNot(ctx.mkImplies(PToAnd(strong), PToAnd(weak))))
