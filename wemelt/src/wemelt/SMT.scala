@@ -100,9 +100,63 @@ object SMT {
     res == z3.Status.SATISFIABLE
   }
 
+  def proveListAnd(given: List[Expression], debug: Boolean): Boolean = {
+    if (debug)
+      println("smt checking (" + given.PStr + ")")
+    solver.push()
+    val res = try {
+      for (p <- given) {
+        solver.add(formula(p))
+      }
+      solver.check
+    } catch {
+      case e: java.lang.UnsatisfiedLinkError if e.getMessage.equals("com.microsoft.z3.Native.INTERNALgetErrorMsgEx(JI)Ljava/lang/String;")=>
+        // weird unintuitive error z3 can have when an input type is incorrect in a way it doesn't check
+        throw error.Z3Error("Z3 failed", given.PStr, "incorrect z3 expression type, probably involving ForAll/Exists")
+      case e: Throwable =>
+        throw error.Z3Error("Z3 failed", given.PStr, e)
+    } finally {
+      solver.pop()
+    }
+
+    if (debug) {
+      println(res)
+      if (res == z3.Status.SATISFIABLE) {
+        println(solver.getModel)
+      }
+    }
+    res == z3.Status.SATISFIABLE
+  }
+
+  def proveListOr(given: List[Expression], debug: Boolean): Boolean = {
+    if (debug)
+      println("smt checking !(" + given.OrStr + ")")
+    solver.push()
+    val res = try {
+        solver.add(ctx.mkOr(PToOr(given)))
+      solver.check
+    } catch {
+      case e: java.lang.UnsatisfiedLinkError if e.getMessage.equals("com.microsoft.z3.Native.INTERNALgetErrorMsgEx(JI)Ljava/lang/String;")=>
+        // weird unintuitive error z3 can have when an input type is incorrect in a way it doesn't check
+        throw error.Z3Error("Z3 failed", given.OrStr, "incorrect z3 expression type, probably involving ForAll/Exists")
+      case e: Throwable =>
+        throw error.Z3Error("Z3 failed", given.OrStr, e)
+    } finally {
+      solver.pop()
+    }
+
+    if (debug) {
+      println(res)
+      if (res == z3.Status.SATISFIABLE) {
+        println(solver.getModel)
+      }
+    }
+    res == z3.Status.UNSATISFIABLE
+  }
+
   def proveImplies(strong: List[Expression], weak: List[Expression], debug: Boolean): Boolean = {
     if (debug)
-      println("smt checking !(" + strong.PStr + newline + " implies " + weak.PStr + ")")
+      println("smt checking !(" + strong.PStr + newline + " ==> " + newline + weak.PStr + ")")
     solver.push()
     val res = try {
       solver.add(ctx.mkNot(ctx.mkImplies(PToAnd(strong), PToAnd(weak))))
@@ -121,6 +175,8 @@ object SMT {
     }
     res == z3.Status.UNSATISFIABLE
   }
+
+  def proveImplies(strong: List[Expression], weak: Expression, debug: Boolean): Boolean = proveImplies(strong, List(weak), debug)
 
   def proveExpression(cond: Expression, debug: Boolean): Boolean = {
     if (debug)
@@ -162,6 +218,23 @@ object SMT {
         case expr :: rest =>
           val xs = PToAnd(rest)
           val x = ctx.mkAnd(formula(expr), xs)
+          x
+      }
+    }
+  }
+
+  // OR all expressions in list
+  def PToOr(exprs: List[Expression]): z3.BoolExpr = {
+    if (exprs.size == 1) {
+      formula(exprs.head)
+    } else {
+      exprs match {
+        case Nil =>
+          ctx.mkFalse
+
+        case expr :: rest =>
+          val xs = PToOr(rest)
+          val x = ctx.mkOr(formula(expr), xs)
           x
       }
     }

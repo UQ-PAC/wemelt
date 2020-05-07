@@ -78,6 +78,10 @@ package object wemelt {
     def PStr: String = P.mkString(" &&" + newline + "   ")
   }
 
+  implicit class OrToString(exprs: List[Expression]) {
+    def OrStr: String = exprs.mkString(" ||" + newline + "   ")
+  }
+
   implicit class GammaToString(gamma: Map[Id, Expression]) {
     def gammaStr: String = gamma.mkString(", ")
   }

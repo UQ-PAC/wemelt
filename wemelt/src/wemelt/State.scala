@@ -72,14 +72,17 @@ case class State(
     val toSubstC = Map(arg -> v)
     // calculate weaker - this can definitely be improved
     // OR each of the implies to do them all in one go per y
-    val weaker: Set[Id] = {
-      for (y <- R_var.keySet)
-        yield {
-          // check !(P && c ==> c[e/x])
-          for ((c, r) <- R_var(y) if c != Const._true && !SMT.proveImplies(c :: PPrime, List(c.subst(toSubstC)), debug))
-            yield y
-        }
-    }.flatten
+    val PPrimeAnd = State.andPredicates(PPrime)
+    var weaker: Set[Id] = Set()
+
+    for (y <- R_var.keySet) {
+      // check !(P && c ==> c[e/x])
+      val weakerCheck: List[Expression] = for ((c, r) <- R_var(y) if c != Const._true)
+        yield PreOp("!", BinOp("==>", BinOp("&&", c, PPrimeAnd), c.subst(toSubstC)))
+      if (SMT.proveListOr(weakerCheck, debug)) {
+        weaker += y
+      }
+    }
 
     // calculate equals - this can be improved too
     // separate method for identity relation? check all identity relations at the start?
@@ -88,7 +91,7 @@ case class State(
         yield {
           // check P ==> c && r is identity relation
           for ((c, r) <- R_var(y) if (r == BinOp("==", y.toVar, y.toVar.prime) || r == BinOp("==", y.toVar.prime, y.toVar))
-            && (c == Const._true || SMT.proveImplies(PPrime, List(c), debug)))
+            && (c == Const._true || SMT.proveImplies(PPrime, c, debug)))
             yield y
         }
     }.flatten
@@ -167,7 +170,7 @@ case class State(
         yield {
           // check P ==> c && r is identity relation
           for ((c, r) <- R_var(y) if (r == BinOp("==", y.toVar, y.toVar.prime) || r == BinOp("==", y.toVar.prime, y.toVar))
-            && (c == Const._true || SMT.proveImplies(PPrime, List(c), debug)))
+            && (c == Const._true || SMT.proveImplies(PPrime, c, debug)))
             yield y
         }
     }.flatten
@@ -532,23 +535,6 @@ case class State(
   }
    */
 
-  def highP(id: Id, p: List[Expression]): Boolean = {
-    if (debug)
-      println("checking highP for " + id)
-    // prove if L(x) doesn't hold given P
-    val res = if (L(id) == Const._true) {
-      false
-    } else if (L(id) == Const._false) {
-      true
-    } else {
-      SMT.prove(PreOp("!", L(id)), p, debug)
-    }
-    if (debug) {
-      println("highP is " + res + " for " + id)
-    }
-    res
-  }
-
   /*
   // !L(A[0]) || !L(A[1]) || ... to array.size
   def multiHighP(array: IdArray, indices: Seq[Int], p: List[Expression]): Boolean = {
@@ -758,6 +744,9 @@ case class State(
 
   def PStable(P: List[Expression]): Boolean = {
     val PPrime = P map {e: Expression => e.subst(primed) }
+    if (debug) {
+      println("checking " + P.PStr + " is stable")
+    }
     SMT.proveImplies(P ++ R, PPrime, debug)
   }
 
@@ -768,6 +757,9 @@ case class State(
       for (g <- globals if gamma.contains(g))
         yield BinOp("==", gamma(g), gamma(g).subst(primed))
     }.toList
+    if (debug) {
+      println("checking Gamma: " + gamma.gammaStr + " is stable")
+    }
     SMT.proveImplies(P ++ R, gammaEqualsGammaPrime, debug)
   }
 
@@ -965,7 +957,7 @@ object State {
     val lowOrEqTest = for (g <- globals)
       yield g -> BinOp("||", BinOp("==>", PAnd, L_R(g)), BinOp("==>", PPlusRAnd, BinOp("==", g.toVar, g.toVar.prime)))
 
-    val globalLowOrEq = for ((g, pred) <- lowOrEqTest if !SMT.proveExpression(pred, debug))
+    val globalLowOrEq = for ((g, pred) <- lowOrEqTest if SMT.proveExpression(pred, debug))
       yield g
     val low_or_eq: Set[Id] = locals ++ globalLowOrEq
 

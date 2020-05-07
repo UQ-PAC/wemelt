@@ -438,7 +438,7 @@ object Exec {
 
     // check guard is LOW
     val guardGamma = state1.security(_guard)
-    if (guardGamma != Const._true && !SMT.proveImplies(state1.P, List(guardGamma), state1.debug)) {
+    if (guardGamma != Const._true && !SMT.proveImplies(state1.P, guardGamma, state1.debug)) {
       throw error.IfError(line, guard, "guard expression is HIGH")
     }
 
@@ -509,21 +509,33 @@ object Exec {
       println("WHILE applying")
 
     // check P' is stable
+    if (state0.debug) {
+      println("checking P' is stable")
+    }
     if (!state0.PStable(PPrime)) {
       throw error.WhileError(line, guard, "provided P': " + PPrime.PStr + " is not stable")
     }
 
     // check P' is weaker than previous P
+    if (state0.debug) {
+      println("checking previous P ==> P'")
+    }
     if (!SMT.proveImplies(state0.P, PPrime, state0.debug)) {
       throw error.WhileError(line, guard, "provided P' " + PPrime.PStr + " is not weaker than P " + state0.P.PStr)
     }
 
     // check gamma prime has valid domain
+    if (state0.debug) {
+      println("checking Gamma' has correct domain")
+    }
     val gammaPrimeDom = state0.low_or_eq(PPrime)
-    if (!(gammaPrime.keySet subsetOf gammaPrimeDom)) {
-      throw error.WhileError(line, guard, "provided Gamma': " + gammaPrime.gammaStr + " does not have domain that is subset of " + gammaPrimeDom)
+    if (!(gammaPrime.keySet == gammaPrimeDom)) {
+      throw error.WhileError(line, guard, "provided Gamma': " + gammaPrime.gammaStr + " has incorrect domain, correct domain is: " + gammaPrimeDom)
     }
 
+    if (state0.debug) {
+      println("checking Gamma' is stable")
+    }
     if (!state0.gammaStable(gammaPrime, PPrime)) {
       throw error.WhileError(line, guard, "provided Gamma': " + gammaPrime.gammaStr + " is not stable")
     }
@@ -573,7 +585,10 @@ object Exec {
 
     // check guard is LOW with regards to P', gamma'
     val guardGamma = state2.security(_guard)
-    if (guardGamma != Const._true && !SMT.proveImplies(state2.P, List(guardGamma), state2.debug)) {
+    if (state0.debug) {
+      println("checking guard is LOW")
+    }
+    if (guardGamma != Const._true && !SMT.proveImplies(state2.P, guardGamma, state2.debug)) {
       throw error.WhileError(line, guard, "guard expression is HIGH")
     }
 
@@ -609,20 +624,29 @@ object Exec {
      */
 
     // check gamma' is greater or equal than gamma'' for all
+    if (state0.debug) {
+      println("checking Gamma' >= Gamma''")
+    }
     val PPrimePred = State.andPredicates(PPrime)
     val gammaGreaterCheck: List[Expression] = {
       for (v <- state5.variables)
-        yield BinOp("==>", BinOp("&&", state5.security(v), PPrimePred), state1.security(v))
+        yield {
+          val gammaInvSec = state1.security(v)
+          val gammaNewSec = state5.security(v)
+          if (state0.debug) {
+            println("checking Gamma' >= Gamma'' for " + v + ": P' && " + gammaNewSec + " ==> " + gammaInvSec)
+          }
+          BinOp("==>", BinOp("&&", gammaNewSec , PPrimePred), gammaInvSec)
+        }
     }.toList
-
-    if (state0.debug) {
-      print("checking Gamma' >= Gamma''")
-    }
-    if (!SMT.proveP(gammaGreaterCheck, state5.debug)) {
-      throw error.WhileError(line, guard, "gamma' " + gammaPrime.gammaStr + " is not greater to or equal than than gamma'' " +  state5.gamma.gammaStr)
+    if (!SMT.proveListAnd(gammaGreaterCheck, state5.debug)) {
+      throw error.WhileError(line, guard, "gamma' is not greater to or equal than than gamma'' ")
     }
 
     // check P'' is stronger than P' - tested
+    if (state0.debug) {
+      println("checking P' ==> P''")
+    }
     if (!SMT.proveImplies(state5.P, PPrime, state0.debug)) {
       throw error.WhileError(line, guard, "provided P' " + PPrime.PStr + " does not hold after loop body. P'': " + state5.P.PStr)
     }
@@ -836,7 +860,7 @@ object Exec {
     if (st1.debug) {
       println("checking L_G(x) && P ==> t holds")
     }
-    if (t != Const._true && !SMT.proveImplies(st1.L_G(lhs) :: st1.P, List(t), st1.debug)) {
+    if (t != Const._true && !SMT.proveImplies(st1.L_G(lhs) :: st1.P, t, st1.debug)) {
       throw error.AssignGError(line, lhs, rhs, "t <:_P L_G(" + lhs + ") doesn't hold for assignment")
     }
 
@@ -851,7 +875,7 @@ object Exec {
         if (st1.debug) {
           println("checking fall: P && L(y)[e/x] ==> (Gamma<y> || L(y)) for y == " + y)
         }
-        if (!SMT.proveImplies(st1.L(y).subst(toSubst) :: st1.P, List(BinOp("||", st1.security(y.toVar) , st1.L(y))), st1.debug)) {
+        if (!SMT.proveImplies(st1.L(y).subst(toSubst) :: st1.P, BinOp("||", st1.security(y.toVar) , st1.L(y)), st1.debug)) {
           throw error.AssignGError(line, lhs, rhs, "falling error for variable " + y)
         }
       }
