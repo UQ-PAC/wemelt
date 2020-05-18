@@ -21,6 +21,6 @@ _Gamma: z -> TRUE, secret -> FALSE, q -> TRUE
     q = secret;
 }
 
-// This one needs to be looked into further - either bug in code or problem/misinterpretation of logic, not sure which
+// need to follow up with this one
 
 

@@ -628,15 +628,16 @@ object Exec {
       println("checking Gamma' >= Gamma''")
     }
     val PPrimePred = State.andPredicates(PPrime)
+    //val PPrimePred = State.andPredicates(state5.P)
     val gammaGreaterCheck: List[Expression] = {
       for (v <- state5.variables)
         yield {
           val gammaInvSec = state1.security(v)
           val gammaNewSec = state5.security(v)
           if (state0.debug) {
-            println("checking Gamma' >= Gamma'' for " + v + ": P' && " + gammaNewSec + " ==> " + gammaInvSec)
+            println("checking Gamma' >= Gamma'' for " + v + ": P' && " + gammaInvSec + " ==> " + gammaNewSec)
           }
-          BinOp("==>", BinOp("&&", gammaNewSec , PPrimePred), gammaInvSec)
+          BinOp("==>", BinOp("&&", gammaInvSec, PPrimePred), gammaNewSec)
         }
     }.toList
     if (!SMT.proveListAnd(gammaGreaterCheck, state5.debug)) {
