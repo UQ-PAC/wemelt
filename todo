@@ -6,3 +6,4 @@
 for later
 -make r_var implementation better?
 -quantification in predicates?
+-check rely & guarantee don't evaluate to false initially

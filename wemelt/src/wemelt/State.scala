@@ -949,7 +949,7 @@ object State {
       // user provided
       case Some(gs) => {
         //gs flatMap {g => g.toPair(arrays)}
-        gs map {g => g.variable -> g.security}
+        gs map {g => g.variable -> g.security.subst(idToVar)}
       }.toMap
     }
     val PAnd = andPredicates(P)

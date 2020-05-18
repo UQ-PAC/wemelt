@@ -1,0 +1,28 @@
+_global var z:
+_L: TRUE
+_R_var: (TRUE, z' == z)
+
+_global var x:
+_L_R: TRUE
+_L_G: z % 2 == 0
+
+_global var q:
+_L: TRUE
+_R_var: (TRUE, q' >= q)
+
+_local var secret
+
+_P_inv: TRUE
+_G: z' >= z
+_P_0: z % 2 == 0
+_Gamma_0: secret -> FALSE
+
+while(TRUE)
+_invariant: z % 2 == 0, q == 0
+_Gamma: z -> TRUE, x -> TRUE, secret -> FALSE
+{
+    z = z + 1;
+    x = secret;
+    x = 0;
+    z = z + 1;
+}

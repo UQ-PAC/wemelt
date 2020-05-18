@@ -1,0 +1,26 @@
+_global var z:
+_L: TRUE
+_R_var: (TRUE, z' == z)
+
+_local var secret
+
+_global var q:
+_L: FALSE
+_R_var: (TRUE, q' == q)
+
+_P_inv: TRUE
+_G: z' >= z
+_P_0: z == 0
+_Gamma_0: secret -> FALSE, q -> TRUE
+
+while(TRUE)
+_invariant: TRUE
+_Gamma: z -> TRUE, secret -> FALSE, q -> TRUE
+{
+    q = z;
+    q = secret;
+}
+
+// This one needs to be looked into further - either bug in code or problem/misinterpretation of logic, not sure which
+
+
