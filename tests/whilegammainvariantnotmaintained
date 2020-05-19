@@ -21,6 +21,3 @@ _Gamma: z -> TRUE, secret -> FALSE, q -> TRUE
     q = secret;
 }
 
-// need to follow up with this one
-
-

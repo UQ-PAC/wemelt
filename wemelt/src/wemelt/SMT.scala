@@ -102,12 +102,10 @@ object SMT {
 
   def proveListAnd(given: List[Expression], debug: Boolean): Boolean = {
     if (debug)
-      println("smt checking (" + given.PStr + ")")
+      println("smt checking !(" + given.PStr + ")")
     solver.push()
     val res = try {
-      for (p <- given) {
-        solver.add(formula(p))
-      }
+      solver.add(ctx.mkOr(PToAnd(given)))
       solver.check
     } catch {
       case e: java.lang.UnsatisfiedLinkError if e.getMessage.equals("com.microsoft.z3.Native.INTERNALgetErrorMsgEx(JI)Ljava/lang/String;")=>
@@ -125,7 +123,7 @@ object SMT {
         println(solver.getModel)
       }
     }
-    res == z3.Status.SATISFIABLE
+    res == z3.Status.UNSATISFIABLE
   }
 
   def proveListOr(given: List[Expression], debug: Boolean): Boolean = {

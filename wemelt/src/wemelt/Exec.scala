@@ -540,6 +540,30 @@ object Exec {
       throw error.WhileError(line, guard, "provided Gamma': " + gammaPrime.gammaStr + " is not stable")
     }
 
+    val state1 = state0.copy(P = PPrime, gamma = gammaPrime)
+
+    /*
+    // check gamma' is greater or equal than gamma'' for all variables
+    if (state0.debug) {
+      println("checking Gamma >= Gamma'")
+    }
+    val PPred = State.andPredicates(state0.P)
+    val gammaGreaterCheckStart: List[Expression] = {
+      for (v <- state0.variables)
+        yield {
+          val gammaInvSec = state1.security(v)
+          val gammaOldSec = state0.security(v)
+          if (state0.debug) {
+            println("checking Gamma >= Gamma' for " + v + ": P && " + gammaInvSec + " ==> " + gammaOldSec)
+          }
+          BinOp("==>", BinOp("&&", gammaInvSec, PPred), gammaOldSec)
+        }
+    }.toList
+    if (!SMT.proveListAnd(gammaGreaterCheckStart, state0.debug)) {
+      throw error.WhileError(line, guard, "gamma is not greater to or equal than than gamma' ")
+    }
+     */
+
 
     // D' will always be a subset of D as it equals D intersect DFixed
 
@@ -559,8 +583,6 @@ object Exec {
     if (state0.debug)
       println("D': " + DPrime.DStr)
      */
-
-    val state1 = state0.copy(P = PPrime, gamma = gammaPrime)
 
     /*
     // check D' is subset of D
@@ -623,30 +645,29 @@ object Exec {
     }
      */
 
-    // check gamma' is greater or equal than gamma'' for all
+    // check gamma' is greater or equal than gamma'' for all in gamma domain
     if (state0.debug) {
-      println("checking Gamma' >= Gamma''")
+      println("checking Gamma'' >= Gamma'")
     }
-    val PPrimePred = State.andPredicates(PPrime)
-    //val PPrimePred = State.andPredicates(state5.P)
+    val PPrimePrimePred = State.andPredicates(state5.P) // n
     val gammaGreaterCheck: List[Expression] = {
       for (v <- state5.variables)
         yield {
           val gammaInvSec = state1.security(v)
           val gammaNewSec = state5.security(v)
           if (state0.debug) {
-            println("checking Gamma' >= Gamma'' for " + v + ": P' && " + gammaInvSec + " ==> " + gammaNewSec)
+            println("checking Gamma'' >= Gamma' for " + v + ": P'' && " + gammaInvSec + " ==> " + gammaNewSec)
           }
-          BinOp("==>", BinOp("&&", gammaInvSec, PPrimePred), gammaNewSec)
+          BinOp("==>", BinOp("&&", gammaInvSec, PPrimePrimePred), gammaNewSec)
         }
     }.toList
     if (!SMT.proveListAnd(gammaGreaterCheck, state5.debug)) {
-      throw error.WhileError(line, guard, "gamma' is not greater to or equal than than gamma'' ")
+      throw error.WhileError(line, guard, "gamma'' is not greater to or equal than than gamma' ")
     }
 
     // check P'' is stronger than P' - tested
     if (state0.debug) {
-      println("checking P' ==> P''")
+      println("checking P'' ==> P'")
     }
     if (!SMT.proveImplies(state5.P, PPrime, state0.debug)) {
       throw error.WhileError(line, guard, "provided P' " + PPrime.PStr + " does not hold after loop body. P'': " + state5.P.PStr)
