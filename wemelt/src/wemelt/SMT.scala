@@ -105,7 +105,7 @@ object SMT {
       println("smt checking !(" + given.PStr + ")")
     solver.push()
     val res = try {
-      solver.add(ctx.mkOr(PToAnd(given)))
+      solver.add(ctx.mkNot(PToAnd(given)))
       solver.check
     } catch {
       case e: java.lang.UnsatisfiedLinkError if e.getMessage.equals("com.microsoft.z3.Native.INTERNALgetErrorMsgEx(JI)Ljava/lang/String;")=>
@@ -131,7 +131,7 @@ object SMT {
       println("smt checking !(" + given.OrStr + ")")
     solver.push()
     val res = try {
-        solver.add(ctx.mkOr(PToOr(given)))
+      solver.add(ctx.mkNot(PToOr(given)))
       solver.check
     } catch {
       case e: java.lang.UnsatisfiedLinkError if e.getMessage.equals("com.microsoft.z3.Native.INTERNALgetErrorMsgEx(JI)Ljava/lang/String;")=>

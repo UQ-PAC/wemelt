@@ -542,8 +542,8 @@ object Exec {
 
     val state1 = state0.copy(P = PPrime, gamma = gammaPrime)
 
-    /*
-    // check gamma' is greater or equal than gamma'' for all variables
+
+    // check gamma' is greater or equal than gamma for all variables
     if (state0.debug) {
       println("checking Gamma >= Gamma'")
     }
@@ -554,6 +554,8 @@ object Exec {
           val gammaInvSec = state1.security(v)
           val gammaOldSec = state0.security(v)
           if (state0.debug) {
+            println("Gamma<" + v + ">: " + gammaOldSec)
+            println("Gamma'<" + v + ">: " + gammaInvSec)
             println("checking Gamma >= Gamma' for " + v + ": P && " + gammaInvSec + " ==> " + gammaOldSec)
           }
           BinOp("==>", BinOp("&&", gammaInvSec, PPred), gammaOldSec)
@@ -562,7 +564,7 @@ object Exec {
     if (!SMT.proveListAnd(gammaGreaterCheckStart, state0.debug)) {
       throw error.WhileError(line, guard, "gamma is not greater to or equal than than gamma' ")
     }
-     */
+
 
 
     // D' will always be a subset of D as it equals D intersect DFixed
@@ -649,13 +651,15 @@ object Exec {
     if (state0.debug) {
       println("checking Gamma'' >= Gamma'")
     }
-    val PPrimePrimePred = State.andPredicates(state5.P) // n
+    val PPrimePrimePred = State.andPredicates(state5.P)
     val gammaGreaterCheck: List[Expression] = {
       for (v <- state5.variables)
         yield {
           val gammaInvSec = state1.security(v)
           val gammaNewSec = state5.security(v)
           if (state0.debug) {
+            println("Gamma''<" + v + ">: " + gammaNewSec)
+            println("Gamma'<" + v + ">: " + gammaInvSec)
             println("checking Gamma'' >= Gamma' for " + v + ": P'' && " + gammaInvSec + " ==> " + gammaNewSec)
           }
           BinOp("==>", BinOp("&&", gammaInvSec, PPrimePrimePred), gammaNewSec)
