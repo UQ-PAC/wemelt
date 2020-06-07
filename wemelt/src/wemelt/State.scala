@@ -2,7 +2,7 @@ package wemelt
 
 case class State(
   gamma: Map[Id, Expression],
-  //D: Map[Id, (Set[Id], Set[Id], Set[Id], Set[Id])], // W_w, W_r, R_w, R_r
+  D: Map[Id, (Set[Id], Set[Id], Set[Id], Set[Id])], // W_w, W_r, R_w, R_r
   P: List[Expression],
   P_inv: List[Expression],
   R_var: Map[Id, List[(Expression, Expression)]],
@@ -23,8 +23,8 @@ case class State(
   variables: Set[Id],
   primed: Subst,
 
-  //read: Set[Id],
-  //written: Set[Id],
+  read: Set[Id],
+  written: Set[Id],
 
   //arrayIndices: Set[Id],
   //arrays: Map[Id, IdArray],
@@ -33,10 +33,10 @@ case class State(
   debug: Boolean,
   noInfeasible: Boolean) {
 
-  //def W_w(v: Id): Set[Id] = D(v)._1
-  //def W_r(v: Id): Set[Id] = D(v)._2
-  //def R_w(v: Id): Set[Id] = D(v)._3
-  //def R_r(v: Id): Set[Id] = D(v)._4
+  def W_w(v: Id): Set[Id] = D(v)._1
+  def W_r(v: Id): Set[Id] = D(v)._2
+  def R_w(v: Id): Set[Id] = D(v)._3
+  def R_r(v: Id): Set[Id] = D(v)._4
 
   def log(): Unit = {
     if (toLog) {
@@ -314,7 +314,7 @@ case class State(
     copy(P = POut)
   }
    */
-  /*
+
   def resetReadWrite(): State = {
     copy(read = Set(), written = Set())
   }
@@ -342,7 +342,6 @@ case class State(
       println("updating written (" + written + ") with " + id)
     copy(written = written ++ id)
   }
-   */
 
   /*
   def updateWritten(array: IdArray): State = {
@@ -361,7 +360,7 @@ case class State(
     copy(read = read ++ ids)
   } */
 
-  /*
+
   def knownW: Set[Id] = {
     if (debug) {
       println("calculating knownW")
@@ -456,7 +455,7 @@ case class State(
 
     copy(D = DPrimePrime, read = Set(), written = Set())
   }
-   */
+
 
   /*
   def updateDArrayAssign(x: Id, e: Expression) : State = {
@@ -507,6 +506,7 @@ case class State(
 
     copy(D = DPrime, read = Set(), written = Set())
   }
+  */
 
   def updateDGuard(b: Expression) : State = {
     val varB = b.variables // var(b)
@@ -533,7 +533,6 @@ case class State(
     val DPrime: Map[Id, (Set[Id], Set[Id], Set[Id], Set[Id])] = updateD(laterW, laterR)
     copy(D = DPrime, read = Set(), written = Set())
   }
-   */
 
   /*
   // !L(A[0]) || !L(A[1]) || ... to array.size
@@ -676,11 +675,11 @@ case class State(
     copy(gamma = gammaPrime, P = PPrime)
   }
 
-  /*
+
   // D' = D1 intersect D2
   def mergeD(state2: State): Map[Id, (Set[Id], Set[Id], Set[Id], Set[Id])] = {
     State.mergeD(this.D, state2.D)
-  } */
+  }
 
   // https://www.cs.jhu.edu/~jason/tutorials/convert-to-CNF.html
   // P1 OR P2 converted to CNF, using switching variable to keep converted formula small
@@ -827,13 +826,13 @@ object State {
         + controlAndControlled.mkString(", "))
     }
 
-    /*
+
     // init D - every variable maps to Var
     val D: Map[Id, (Set[Id], Set[Id], Set[Id], Set[Id])] = {
       for (i <- ids)
         yield i -> (ids, ids, ids, ids)
     }.toMap
-     */
+
 
     if (debug) {
       println("variables: " + ids)
@@ -985,12 +984,12 @@ object State {
     if (toLog) {
       println("Gamma: " + gamma.gammaStr)
       println("P: " + P.PStr)
-      //println("D: " + D.DStr)
+      println("D: " + D.DStr)
     }
 
     State(
       gamma = gamma,
-      //D = D,
+      D = D,
       P = P,
       P_inv = P_inv,
       R_var = R_var,
@@ -1006,8 +1005,8 @@ object State {
       controlledBy = controlledBy,
       variables = ids,
       primed = primed,
-      //read = Set(),
-      //written = Set(),
+      read = Set(),
+      written = Set(),
       //arrayIndices = arrayIndices,
       //arrays = arrays,
       toLog = toLog,

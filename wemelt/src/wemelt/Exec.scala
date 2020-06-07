@@ -77,7 +77,7 @@ object Exec {
       Cont.next(state1)
 */
 
-      /*
+
     case Fence =>
       // reset D
       val state1 = state0.updateDFence
@@ -96,7 +96,7 @@ object Exec {
         state1.log
       }
       Cont.next(state2)
-       */
+
 
     case If(test, left, right) =>
       if (state0.toLog)
@@ -169,7 +169,7 @@ object Exec {
 
   }
 
-  /*
+
   // compute fixed point of D
   def DFixedPoint(test: Expression, body: Statement, state: State): Map[Id, (Set[Id], Set[Id], Set[Id], Set[Id])] = {
     var DFixed = false
@@ -231,11 +231,13 @@ object Exec {
       val st2 = st1.updateWritten(lhs)
       st2.updateDAssign(lhs, rhs)
 
+      /*
     case ArrayAssignment(name, index, rhs) =>
       val st1 = DFixedPoint(rhs, st0)
       val st2 = DFixedPoint(index, st1)
       val st3 = st2.updateWritten(st2.arrays(name))
       st3.updateDArrayAssign(name, rhs)
+       */
 
     case Fence =>
       // reset D
@@ -311,13 +313,12 @@ object Exec {
     case _ =>
       throw error.InvalidProgram("unimplemented expression: " + expr)
   }
-   */
 
   def eval(expr: Expression, st0: State): (Expression, State) = expr match {
     case id: Id =>
       // value has been READ
-      //val st1 = st0.updateRead(id)
-      (id.toVar, st0)
+      val st1 = st0.updateRead(id)
+      (id.toVar, st1)
 
     case res: Lit =>
       (res, st0)
@@ -856,9 +857,10 @@ object Exec {
       println("ASSIGNL applying")
 
     val (_rhs, st1) = eval(rhs, st0)
-    val t = st1.security(_rhs)
+    val st2 = st1.updateWritten(lhs)
+    val t = st2.security(_rhs)
 
-    st1.assignUpdate(lhs, _rhs, t)
+    st2.assignUpdate(lhs, _rhs, t)
   }
 
   def assignGRule(lhs: Id, rhs: Expression, st0: State, line: Int): State = {
@@ -867,46 +869,47 @@ object Exec {
       println("ASSIGNG applying")
 
     val (_rhs, st1) = eval(rhs, st0)
-    val t = st1.security(_rhs)
+    val st2 = st1.updateWritten(lhs)
+    val t = st2.security(_rhs)
 
     // check guar P(x := e)
-    val guarUnchanged: List[Expression] = {for (g <- st1.globals - lhs)
+    val guarUnchanged: List[Expression] = {for (g <- st2.globals - lhs)
       yield BinOp("==", g.toVar, g.toVar.prime)}.toList
-    val guarP: List[Expression] = (BinOp("==", lhs.toVar.prime, _rhs) :: guarUnchanged) ::: st1.P
+    val guarP: List[Expression] = (BinOp("==", lhs.toVar.prime, _rhs) :: guarUnchanged) ::: st2.P
 
-    if (st1.debug) {
+    if (st2.debug) {
       println("checking assignment conforms to guarantee")
     }
-    if (!SMT.proveImplies(guarP, st1.G, st1.debug)) {
-      throw error.AssignGError(line, lhs, rhs, "assignment doesn't conform to guarantee " + st1.G)
+    if (!SMT.proveImplies(guarP, st2.G, st2.debug)) {
+      throw error.AssignGError(line, lhs, rhs, "assignment doesn't conform to guarantee " + st2.G)
     }
 
     // check t <:_P L_G(x)
     // L_G(x) && P ==> t
-    if (st1.debug) {
+    if (st2.debug) {
       println("checking L_G(x) && P ==> t holds")
     }
-    if (t != Const._true && !SMT.proveImplies(st1.L_G(lhs) :: st1.P, t, st1.debug)) {
+    if (t != Const._true && !SMT.proveImplies(st2.L_G(lhs) :: st2.P, t, st2.debug)) {
       throw error.AssignGError(line, lhs, rhs, "L_G(" + lhs + ") && P ==> " + lhs + " doesn't hold for assignment")
     }
 
     // check falling if x is control variable of
-    if (st1.controls.contains(lhs)) {
+    if (st2.controls.contains(lhs)) {
       // check fall P Gamma(x := e)
       // for all y that x is a control variable of,
       // P && L(y)[e/x] ==> (sec(y) || L(y))
       val toSubst: Subst = Map(lhs.toVar -> _rhs)
-      for (y <- st1.controlledBy(lhs)) {
-        if (st1.debug) {
+      for (y <- st2.controlledBy(lhs)) {
+        if (st2.debug) {
           println("checking fall: P && L(y)[e/x] ==> (Gamma<y> || L(y)) for y == " + y)
         }
-        if (!SMT.proveImplies(st1.L(y).subst(toSubst) :: st1.P, BinOp("||", st1.security(y.toVar) , st1.L(y)), st1.debug)) {
+        if (!SMT.proveImplies(st2.L(y).subst(toSubst) :: st2.P, BinOp("||", st2.security(y.toVar) , st2.L(y)), st2.debug)) {
           throw error.AssignGError(line, lhs, rhs, "falling error for variable " + y)
         }
       }
     }
 
-    st1.assignUpdate(lhs, _rhs, t)
+    st2.assignUpdate(lhs, _rhs, t)
   }
 
   /*
