@@ -171,10 +171,10 @@ object Exec {
 
 
   // compute fixed point of D
-  def DFixedPoint(test: Expression, body: Statement, state: State): Map[Id, (Set[Id], Set[Id], Set[Id], Set[Id])] = {
+  def DFixedPoint(test: Expression, body: Statement, state: State): DType = {
     var DFixed = false
     var st0 = state
-    var DPrime: Map[Id, (Set[Id], Set[Id], Set[Id], Set[Id])] = Map()
+    var DPrime: DType = Map()
     var dfixedloops = 0
     if (st0.debug)
       println("DFixed0: " + st0.D.DStr)

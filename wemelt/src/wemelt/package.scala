@@ -43,6 +43,7 @@ package object wemelt {
   }
 
   type Subst = Map[Expression, Expression]
+  type DType = Map[Id, (Set[Id], Set[Id], Set[Id], Set[Id], Set[Id], Set[Id], Set[Id], Set[Id])]
 
   val sub = "₀₁₂₃₄₅₆₇₈₉"
   implicit class StringOps(self: String) {
@@ -64,13 +65,18 @@ package object wemelt {
   val newline: String ="""
       |""".stripMargin
 
-  implicit class DToString(D: Map[Id, (Set[Id], Set[Id], Set[Id], Set[Id])]) {
+  implicit class DToString(D: DType) {
     def DStr: String = {
       val w_w: String = (D map (kv => kv._1 + " -> " + kv._2._1.mkString("(", " ", ")"))).mkString("," + newline + "        ")
       val w_r: String = (D map (kv => kv._1 + " -> " + kv._2._2.mkString("(", " ", ")"))).mkString("," + newline + "        ")
       val r_w: String = (D map (kv => kv._1 + " -> " + kv._2._3.mkString("(", " ", ")"))).mkString("," + newline + "        ")
       val r_r: String = (D map (kv => kv._1 + " -> " + kv._2._4.mkString("(", " ", ")"))).mkString("," + newline + "        ")
-      "W_w: " + w_w + newline + "   W_r: " + w_r + newline + "   R_w: " + r_w + newline + "   R_r: " + r_r
+      val i_w: String = (D map (kv => kv._1 + " -> " + kv._2._5.mkString("(", " ", ")"))).mkString("," + newline + "        ")
+      val i_r: String = (D map (kv => kv._1 + " -> " + kv._2._6.mkString("(", " ", ")"))).mkString("," + newline + "        ")
+      val u_w: String = (D map (kv => kv._1 + " -> " + kv._2._7.mkString("(", " ", ")"))).mkString("," + newline + "        ")
+      val u_r: String = (D map (kv => kv._1 + " -> " + kv._2._8.mkString("(", " ", ")"))).mkString("," + newline + "        ")
+      "W_w: " + w_w + newline + "   W_r: " + w_r + newline + "   R_w: " + r_w + newline + "   R_r: " + r_r +
+        "I_w: " + i_w + newline + "   I_r: " + i_r + newline + "   U_w: " + u_w + newline + "   U_r: " + u_r
     }
   }
 

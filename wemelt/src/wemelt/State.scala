@@ -2,7 +2,7 @@ package wemelt
 
 case class State(
   gamma: Map[Id, Expression],
-  D: Map[Id, (Set[Id], Set[Id], Set[Id], Set[Id])], // W_w, W_r, R_w, R_r
+  D: DType, // W_w, W_r, R_w, R_r
   P: List[Expression],
   P_inv: List[Expression],
   R_var: Map[Id, List[(Expression, Expression)]],
@@ -25,7 +25,8 @@ case class State(
 
   read: Set[Id],
   written: Set[Id],
-
+  indirect: Set[Id],
+  used: Set[Id],
   //arrayIndices: Set[Id],
   //arrays: Map[Id, IdArray],
 
@@ -37,23 +38,30 @@ case class State(
   def W_r(v: Id): Set[Id] = D(v)._2
   def R_w(v: Id): Set[Id] = D(v)._3
   def R_r(v: Id): Set[Id] = D(v)._4
+  def I_w(v: Id): Set[Id] = D(v)._5
+  def I_r(v: Id): Set[Id] = D(v)._6
+  def U_w(v: Id): Set[Id] = D(v)._7
+  def U_r(v: Id): Set[Id] = D(v)._8
 
   def log(): Unit = {
     if (toLog) {
-      println("gamma: " + gamma.gammaStr)
+      println("Gamma: " + gamma.gammaStr)
       println("P: " + P.PStr)
-      //println("D: " + D.DStr)
+      println("D: " + D.DStr)
     }
   }
 
   // update P and Gamma after assignment
   def assignUpdate(id: Id, arg: Expression, t: Expression): State = {
+    val vars = arg.variables + id // variables in assignment
+    val PRestrictInd = restrictPInd(vars)
+
     val v = id.toVar
     // create mapping from variable to fresh variable
     val toSubst: Subst = Map(v -> Var.fresh(id.name))
 
     // substitute variable in P for fresh variable
-    val PReplace = P map (p => p.subst(toSubst))
+    val PReplace = PRestrictInd map (p => p.subst(toSubst))
 
     // substitute variable in expression for fresh variable
     val argReplace = arg.subst(toSubst)
@@ -157,11 +165,14 @@ case class State(
 
   // update P and Gamma with loop/if guard
   def guardUpdate(guard: Expression): State = {
+    val vars = guard.variables
+    val PRestrictInd = restrictPInd(vars)
+
     // add guard to P
-    val PPrime = guard :: P
+    val PPrime = guard :: PRestrictInd
 
     // calculate new_var
-    val new_var: Set[Id] = guard.variables
+    val new_var: Set[Id] = vars
 
     // calculate equals - this can be improved too
     // separate method for identity relation? check all identity relations at the start?
@@ -316,7 +327,7 @@ case class State(
    */
 
   def resetReadWrite(): State = {
-    copy(read = Set(), written = Set())
+    copy(read = Set(), written = Set(), indirect = Set(), used = Set())
   }
 
   def updateRead(id: Id): State = {
@@ -391,12 +402,46 @@ case class State(
     r.flatten ++ w.flatten
   }
 
-  def updateD(laterW: Set[Id], laterR: Set[Id]): Map[Id, (Set[Id], Set[Id], Set[Id], Set[Id])] = {
+  def knownI: Set[Id] = {
+    if (debug) {
+      println("calculating knownI")
+      println("wr: " + written)
+      println("rd: " + read)
+    }
+    val r = for (v <- read) yield {
+      I_r(v)
+    }
+    val w = for (v <- written) yield {
+      I_w(v)
+    }
+    r.flatten ++ w.flatten
+  }
+
+  def knownU: Set[Id] = {
+    if (debug) {
+      println("calculating knownU")
+      println("wr: " + written)
+      println("rd: " + read)
+    }
+    val r = for (v <- read) yield {
+      U_r(v)
+    }
+    val w = for (v <- written) yield {
+      U_w(v)
+    }
+    r.flatten ++ w.flatten
+  }
+
+  def updateD(laterW: Set[Id], laterR: Set[Id]): DType = {
     val knownw = knownW
     val knownr = knownR
+    val knowni = knownI
+    val knownu = knownU
     if (debug) {
       println("knownW: " + knownw)
       println("knownR: " + knownr)
+      println("knownI: " + knowni)
+      println("knownU: " + knownu)
     }
     for (i <- variables) yield {
       val w_w = if (laterW.contains(i)) {
@@ -419,7 +464,27 @@ case class State(
       } else {
         R_r(i) -- read
       }
-      i -> (w_w, w_r, r_w, r_r)
+      val i_w = if (laterW.contains(i)) {
+        I_w(i) ++ knowni
+      } else {
+        I_w(i) -- indirect
+      }
+      val i_r = if (laterR.contains(i)) {
+        I_r(i) ++ knowni
+      } else {
+        I_r(i) -- indirect
+      }
+      val u_w = if (laterW.contains(i)) {
+        U_w(i) ++ knownu
+      } else {
+        U_w(i) -- used
+      }
+      val u_r = if (laterR.contains(i)) {
+        U_r(i) ++ knownu
+      } else {
+        U_r(i) -- used
+      }
+      i -> (w_w, w_r, r_w, r_r, i_w, i_r, u_w, u_r)
     }
   }.toMap
 
@@ -438,7 +503,7 @@ case class State(
       println("rd: " + read)
       println("wr: " + written)
     }
-    val DPrime: Map[Id, (Set[Id], Set[Id], Set[Id], Set[Id])] = updateD(laterW, laterR)
+    val DPrime: DType = updateD(laterW, laterR)
 
     // updated forwarding
     val DPrimePrime = if (canForward) {
@@ -448,12 +513,12 @@ case class State(
       val r_r = {for (v <- read)
         yield R_r(v)
         }.flatten -- read
-      DPrime + (x -> (DPrime(x)._1, w_r, DPrime(x)._3, r_r))
+      DPrime + (x -> (DPrime(x)._1, w_r, DPrime(x)._3, r_r, DPrime(x)._5, DPrime(x)._6, DPrime(x)._7, DPrime(x)._8))
     } else {
       DPrime
     }
 
-    copy(D = DPrimePrime, read = Set(), written = Set())
+    copy(D = DPrimePrime, read = Set(), written = Set(), indirect = Set(), used = Set())
   }
 
 
@@ -468,7 +533,7 @@ case class State(
       println("rd: " + read)
       println("wr: " + written)
     }
-    val DPrime: Map[Id, (Set[Id], Set[Id], Set[Id], Set[Id])] = updateD(laterW, laterR)
+    val DPrime: DType = updateD(laterW, laterR)
 
     // updated forwarding
     val DPrimePrime = if (varE.intersect(globals).isEmpty) {
@@ -502,7 +567,7 @@ case class State(
       println("rd: " + read)
       println("wr: " + written)
     }
-    val DPrime: Map[Id, (Set[Id], Set[Id], Set[Id], Set[Id])] = updateD(laterW, laterR)
+    val DPrime: DType = updateD(laterW, laterR)
 
     copy(D = DPrime, read = Set(), written = Set())
   }
@@ -513,25 +578,25 @@ case class State(
     val laterW: Set[Id] = globals ++ varB + CFence
     val laterR: Set[Id] = globals & varB
 
-    val DPrime: Map[Id, (Set[Id], Set[Id], Set[Id], Set[Id])] = updateD(laterW, laterR)
+    val DPrime: DType = updateD(laterW, laterR)
 
-    copy(D = DPrime, read = Set(), written = Set())
+    copy(D = DPrime, read = Set(), written = Set(), indirect = Set(), used = Set())
   }
 
   def updateDFence: State = {
-    val DPrime: Map[Id, (Set[Id], Set[Id], Set[Id], Set[Id])] = {
+    val DPrime: DType = {
       for (v <- variables)
-        yield v -> (variables, variables, variables, variables)
+        yield v -> (variables, variables, variables, variables, variables, variables, variables, variables)
     }.toMap
 
-    copy(D = DPrime, read = Set(), written = Set())
+    copy(D = DPrime, read = Set(), written = Set(), indirect = Set(), used = Set())
   }
 
   def updateDCFence: State = {
     val laterW: Set[Id] = Set()
     val laterR: Set[Id] = globals
-    val DPrime: Map[Id, (Set[Id], Set[Id], Set[Id], Set[Id])] = updateD(laterW, laterR)
-    copy(D = DPrime, read = Set(), written = Set())
+    val DPrime: DType = updateD(laterW, laterR)
+    copy(D = DPrime, read = Set(), written = Set(), indirect = Set(), used = Set())
   }
 
   /*
@@ -677,7 +742,7 @@ case class State(
 
 
   // D' = D1 intersect D2
-  def mergeD(state2: State): Map[Id, (Set[Id], Set[Id], Set[Id], Set[Id])] = {
+  def mergeD(state2: State): DType = {
     State.mergeD(this.D, state2.D)
   }
 
@@ -701,6 +766,7 @@ case class State(
     common ++ p1List ++ p2List
   }
 
+    /*
   def mergePs(ps: List[List[Expression]]): List[Expression] = {
     if (ps.size == 2) {
       mergeP(ps.head, ps(1))
@@ -730,6 +796,7 @@ case class State(
       BinOp(">=", switch, Lit(0)) :: BinOp("<", switch, Lit(ps.size)) :: common ++ out
     }
   }
+     */
 
 /* old mergePs implementation that decreases readability of P for merging multiple states (for array assignments)
    but is slightly smaller in size
@@ -773,6 +840,12 @@ case class State(
 
     locals ++ globalLowOrEq
   }
+
+  def restrictPInd(vars: Set[Id]): List[Expression] = {
+    val toRestrict = variables -- (vars -- knownI)
+    State.restrictP(P, toRestrict)
+  }
+
 }
 
 object State {
@@ -828,9 +901,9 @@ object State {
 
 
     // init D - every variable maps to Var
-    val D: Map[Id, (Set[Id], Set[Id], Set[Id], Set[Id])] = {
+    val D: DType = {
       for (i <- ids)
-        yield i -> (ids, ids, ids, ids)
+        yield i -> (ids, ids, ids, ids, ids, ids, ids, ids)
     }.toMap
 
 
@@ -1007,6 +1080,8 @@ object State {
       primed = primed,
       read = Set(),
       written = Set(),
+      indirect = Set(),
+      used = Set(),
       //arrayIndices = arrayIndices,
       //arrays = arrays,
       toLog = toLog,
@@ -1051,13 +1126,17 @@ object State {
     P map (p => p.restrict(restricted))
   }
 
-  def mergeD(D1: Map[Id, (Set[Id], Set[Id], Set[Id], Set[Id])],
-             D2: Map[Id, (Set[Id], Set[Id], Set[Id], Set[Id])]): Map[Id, (Set[Id], Set[Id], Set[Id], Set[Id])] = {
+  def mergeD(D1: DType,
+             D2: DType): DType = {
     for (v <- D1.keySet) yield {
       v -> ((D1(v)._1 intersect D2(v)._1,
         D1(v)._2 intersect D2(v)._2,
         D1(v)._3 intersect D2(v)._3,
-        D1(v)._4 intersect D2(v)._4))
+        D1(v)._4 intersect D2(v)._4,
+        D1(v)._5 intersect D2(v)._5,
+        D1(v)._6 intersect D2(v)._6,
+        D1(v)._7 intersect D2(v)._7,
+        D1(v)._8 intersect D2(v)._8))
     }
     }.toMap
 
