@@ -841,6 +841,10 @@ case class State(
     locals ++ globalLowOrEq
   }
 
+  def restrictP(restricted: Set[Id]): List[Expression] = {
+    State.restrictP(P, restricted)
+  }
+
   def restrictPInd(vars: Set[Id]): List[Expression] = {
     val toRestrict = variables -- (vars -- knownI)
     State.restrictP(P, toRestrict)
@@ -856,6 +860,16 @@ case class State(
       }
     }
     true
+  }
+
+  // update u and i
+  def calculateIndirectUsed: State = {
+    // all fresh variables in P - may need to consider bound variables too at some point?
+    val PVar: Set[Id] = {for (p <- P) yield p.variables}.flatten.toSet
+    val indirectPrime = variables -- (PVar -- (knownW & knownR))
+    val usedPrime = PVar & knownW & knownR
+
+    copy(indirect = indirectPrime, used = usedPrime)
   }
 
 }

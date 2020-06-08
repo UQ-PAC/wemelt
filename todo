@@ -4,16 +4,19 @@
 -test everything!!!
 
 new weak memory model:
--u and i calculations
 -modified P + (R, i) update
 -modified gamma update
 -AssignG rule changes
 -D fixed point calculation
+-update test files
+-local variables should never be restricted is this still true?
 done:
 -I and U updates
 -P restrict ind
 -D updates in rules
 -D subset checks
+-P restrict u checks
+-u and i calculations
 
 for later
 -make r_var implementation better?

@@ -436,15 +436,17 @@ object Exec {
 
     // evaluate test
     val (_guard, state1) = eval(guard, state0)
+    val state2 = state1.calculateIndirectUsed
 
     // check guard is LOW
-    val guardGamma = state1.security(_guard)
-    if (guardGamma != Const._true && !SMT.proveImplies(state1.P, guardGamma, state1.debug)) {
+    val guardGamma = state2.security(_guard)
+    val PRestrictU = state2.restrictP(state2.used)
+    if (guardGamma != Const._true && !SMT.proveImplies(PRestrictU, guardGamma, state2.debug)) {
       throw error.IfError(line, guard, "guard expression is HIGH")
     }
 
     /*
-    val PRestrict = state1.restrictP(state1.knownW) // calculate P_b
+    val PRestrict = state2.restrictP(state2.knownW) // calculate P_b
     if (state0.debug)
       println("P_b: " + PRestrict.PStr)
      */
@@ -452,14 +454,14 @@ object Exec {
     // check any array indices in test are low
     /*
     for (i <- _test.arrays) {
-      if (state1.security(i.index, state1.P) == High) {
+      if (state2.security(i.index, state2.P) == High) {
         throw error.IfError(line, test, "array index " + i.index + " is HIGH")
       }
     }
      */
 
     // execute both sides of if statement
-    val _left = state1.guardUpdate(_guard)
+    val _left = state2.guardUpdate(_guard)
     val _left1 = _left.updateDGuard(_guard)
     if (state0.toLog)
       println("D[b]: " + _left1.D.DStr)
@@ -480,7 +482,7 @@ object Exec {
         if (state0.toLog)
           println("} else {")
 
-        val _right = state1.guardUpdate(notGuard)
+        val _right = state2.guardUpdate(notGuard)
         val _right1 = _right.updateDGuard(_guard)
         if (_right1.noInfeasible) {
           // don't check infeasible paths
@@ -493,8 +495,8 @@ object Exec {
           execute(r, _right1).st
         }
       case None =>
-        val state2 = state1.guardUpdate(notGuard)
-        state2.updateDGuard(_guard)
+        val state3 = state2.guardUpdate(notGuard)
+        state3.updateDGuard(_guard)
     }
 
     // merge states
@@ -588,6 +590,7 @@ object Exec {
 
     // evaluate guard
     val (_guard, state2) = eval(guard, state1)
+    val state3 = state2.calculateIndirectUsed
 
     // check any array indices in test are low
     /*
@@ -599,54 +602,55 @@ object Exec {
      */
 
     // check guard is LOW with regards to P', gamma'
-    val guardGamma = state2.security(_guard)
+    val guardGamma = state3.security(_guard)
+    val PRestrictU = state3.restrictP(state3.used)
     if (state0.debug) {
       println("checking guard is LOW")
     }
-    if (guardGamma != Const._true && !SMT.proveImplies(state2.P, guardGamma, state2.debug)) {
+    if (guardGamma != Const._true && !SMT.proveImplies(PRestrictU, guardGamma, state3.debug)) {
       throw error.WhileError(line, guard, "guard expression is HIGH")
     }
 
     // update P, Gamma and D with guard
-    val state3 = state2.guardUpdate(_guard)
-    val state4 = state3.updateDGuard(_guard)
+    val state4 = state3.guardUpdate(_guard)
+    val state5 = state4.updateDGuard(_guard)
 
     if (state0.debug) {
       println("while rule after test, before loop body:")
-      println("gamma':" + state4.gamma.gammaStr)
-      println("P and [e]_M:" + state4.P.PStr)
+      println("gamma':" + state5.gamma.gammaStr)
+      println("P and [e]_M:" + state5.P.PStr)
     }
 
     // evaluate body
     val _body = execute(body, state4)
-    val state5 = _body.st
+    val state6 = _body.st
 
     if (state0.debug) {
       println("while rule after loop body:")
       println("gamma': " + gammaPrime.gammaStr)
       println("P' :" + PPrime.PStr)
 
-      println("gamma'': " + state5.gamma.gammaStr)
-      println("P'' :" + state5.P.PStr)
+      println("gamma'': " + state6.gamma.gammaStr)
+      println("P'' :" + state6.P.PStr)
     }
 
     // this shouldn't be able to happen if D' is calculated correctly
     // check D' is subset of D''
 
-    if (!state1.DSubsetOf(state5)) {
-      throw error.ProgramError("line " + line + ": D' is not a subset of D''." + newline + "D': " +  state1.D.DStr + newline + "D'': " + state5.D.DStr)
+    if (!state1.DSubsetOf(state6)) {
+      throw error.ProgramError("line " + line + ": D' is not a subset of D''." + newline + "D': " +  state1.D.DStr + newline + "D'': " + state6.D.DStr)
     }
 
     // check gamma' is greater or equal than gamma'' for all in gamma domain
     if (state0.debug) {
       println("checking Gamma'' >= Gamma'")
     }
-    val PPrimePrimePred = State.andPredicates(state5.P)
+    val PPrimePrimePred = State.andPredicates(state6.P)
     val gammaGreaterCheck: List[Expression] = {
-      for (v <- state5.variables)
+      for (v <- state6.variables)
         yield {
           val gammaInvSec = state1.security(v)
-          val gammaNewSec = state5.security(v)
+          val gammaNewSec = state6.security(v)
           if (state0.debug) {
             println("Gamma''<" + v + ">: " + gammaNewSec)
             println("Gamma'<" + v + ">: " + gammaInvSec)
@@ -655,7 +659,7 @@ object Exec {
           BinOp("==>", BinOp("&&", gammaInvSec, PPrimePrimePred), gammaNewSec)
         }
     }.toList
-    if (!SMT.proveListAnd(gammaGreaterCheck, state5.debug)) {
+    if (!SMT.proveListAnd(gammaGreaterCheck, state6.debug)) {
       throw error.WhileError(line, guard, "gamma'' is not greater to or equal than than gamma' ")
     }
 
@@ -663,15 +667,15 @@ object Exec {
     if (state0.debug) {
       println("checking P'' ==> P'")
     }
-    if (!SMT.proveImplies(state5.P, PPrime, state0.debug)) {
-      throw error.WhileError(line, guard, "provided P' " + PPrime.PStr + " does not hold after loop body. P'': " + state5.P.PStr)
+    if (!SMT.proveImplies(state6.P, PPrime, state0.debug)) {
+      throw error.WhileError(line, guard, "provided P' " + PPrime.PStr + " does not hold after loop body. P'': " + state6.P.PStr)
     }
 
     // state1 used here as do not keep gamma'', P'', D'' from after loop body execution
     // remove test from P'
     val notGuard = PreOp("!", _guard)
-    val state6 = state1.guardUpdate(notGuard)
-    state6.updateDGuard(notGuard)
+    val state7 = state1.guardUpdate(notGuard)
+    state7.updateDGuard(notGuard)
   }
 
 
@@ -847,11 +851,12 @@ object Exec {
       println("ASSIGNL applying")
 
     val (_rhs, st1) = eval(rhs, st0)
-    val st2 = st1.updateWritten(lhs)
-    val t = st2.security(_rhs)
+    val st2 = st1.calculateIndirectUsed
+    val st3 = st2.updateWritten(lhs)
+    val t = st3.security(_rhs)
 
-    val st3 = st2.assignUpdate(lhs, _rhs, t)
-    st3.updateDAssign(lhs, _rhs)
+    val st4 = st3.assignUpdate(lhs, _rhs, t)
+    st4.updateDAssign(lhs, _rhs)
   }
 
   def assignGRule(lhs: Id, rhs: Expression, st0: State, line: Int): State = {
@@ -861,47 +866,48 @@ object Exec {
 
     val (_rhs, st1) = eval(rhs, st0)
     val st2 = st1.updateWritten(lhs)
-    val t = st2.security(_rhs)
+    val st3 = st2.calculateIndirectUsed
+    val t = st3.security(_rhs)
 
     // check guar P(x := e)
-    val guarUnchanged: List[Expression] = {for (g <- st2.globals - lhs)
+    val guarUnchanged: List[Expression] = {for (g <- st3.globals - lhs)
       yield BinOp("==", g.toVar, g.toVar.prime)}.toList
-    val guarP: List[Expression] = (BinOp("==", lhs.toVar.prime, _rhs) :: guarUnchanged) ::: st2.P
+    val guarP: List[Expression] = (BinOp("==", lhs.toVar.prime, _rhs) :: guarUnchanged) ::: st3.P
 
-    if (st2.debug) {
+    if (st3.debug) {
       println("checking assignment conforms to guarantee")
     }
-    if (!SMT.proveImplies(guarP, st2.G, st2.debug)) {
-      throw error.AssignGError(line, lhs, rhs, "assignment doesn't conform to guarantee " + st2.G)
+    if (!SMT.proveImplies(guarP, st3.G, st3.debug)) {
+      throw error.AssignGError(line, lhs, rhs, "assignment doesn't conform to guarantee " + st3.G)
     }
 
     // check t <:_P L_G(x)
     // L_G(x) && P ==> t
-    if (st2.debug) {
+    if (st3.debug) {
       println("checking L_G(x) && P ==> t holds")
     }
-    if (t != Const._true && !SMT.proveImplies(st2.L_G(lhs) :: st2.P, t, st2.debug)) {
+    if (t != Const._true && !SMT.proveImplies(st3.L_G(lhs) :: st3.P, t, st3.debug)) {
       throw error.AssignGError(line, lhs, rhs, "L_G(" + lhs + ") && P ==> " + lhs + " doesn't hold for assignment")
     }
 
     // check falling if x is control variable of
-    if (st2.controls.contains(lhs)) {
+    if (st3.controls.contains(lhs)) {
       // check fall P Gamma(x := e)
       // for all y that x is a control variable of,
       // P && L(y)[e/x] ==> (sec(y) || L(y))
       val toSubst: Subst = Map(lhs.toVar -> _rhs)
-      for (y <- st2.controlledBy(lhs)) {
-        if (st2.debug) {
+      for (y <- st3.controlledBy(lhs)) {
+        if (st3.debug) {
           println("checking fall: P && L(y)[e/x] ==> (Gamma<y> || L(y)) for y == " + y)
         }
-        if (!SMT.proveImplies(st2.L(y).subst(toSubst) :: st2.P, BinOp("||", st2.security(y.toVar) , st2.L(y)), st2.debug)) {
+        if (!SMT.proveImplies(st3.L(y).subst(toSubst) :: st3.P, BinOp("||", st3.security(y.toVar) , st3.L(y)), st3.debug)) {
           throw error.AssignGError(line, lhs, rhs, "falling error for variable " + y)
         }
       }
     }
 
-    val st3 = st2.assignUpdate(lhs, _rhs, t)
-    st3.updateDAssign(lhs, _rhs)
+    val st4 = st3.assignUpdate(lhs, _rhs, t)
+    st4.updateDAssign(lhs, _rhs)
   }
 
   /*
