@@ -8,11 +8,12 @@ new weak memory model:
 -modified P + (R, i) update
 -modified gamma update
 -AssignG rule changes
--D fixed point calculation?
--D updates in rules
+-D fixed point calculation
 done:
 -I and U updates
 -P restrict ind
+-D updates in rules
+-D subset checks
 
 for later
 -make r_var implementation better?

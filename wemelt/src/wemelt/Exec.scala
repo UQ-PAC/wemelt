@@ -458,49 +458,47 @@ object Exec {
     }
      */
 
-
-    /*
-    val state2 = state1.updateDGuard(_test)
-    if (state0.toLog)
-      println("D[b]: " + state2.D.DStr)
-     */
-
     // execute both sides of if statement
     val _left = state1.guardUpdate(_guard)
-    val _left1 = if (state1.noInfeasible) {
+    val _left1 = _left.updateDGuard(_guard)
+    if (state0.toLog)
+      println("D[b]: " + _left1.D.DStr)
+    val _left2 = if (_left1.noInfeasible) {
       // don't check infeasible paths
-      if (SMT.proveP(_left.P, _left.debug)) {
-        execute(left, _left).st
+      if (SMT.proveP(_left1.P, _left1.debug)) {
+        execute(left, _left1).st
       } else {
-        _left
+        _left1
       }
     } else {
-      execute(left, _left).st
+      execute(left, _left1).st
     }
 
-    val _right1: State = right match {
+    val notGuard = PreOp("!", _guard)
+    val _right2: State = right match {
       case Some(r) =>
         if (state0.toLog)
           println("} else {")
-        val notGuard = PreOp("!", _guard)
+
         val _right = state1.guardUpdate(notGuard)
-        if (state1.noInfeasible) {
+        val _right1 = _right.updateDGuard(_guard)
+        if (_right1.noInfeasible) {
           // don't check infeasible paths
-          if (SMT.proveP(_right.P, _right.debug)) {
-            execute(r, _right).st
+          if (SMT.proveP(_right1.P, _right1.debug)) {
+            execute(r, _right1).st
           } else {
-            _right
+            _right1
           }
         } else {
-          execute(r, _right).st
+          execute(r, _right1).st
         }
       case None =>
-        val notGuard = PreOp("!", _guard)
-        state1.guardUpdate(notGuard)
+        val state2 = state1.guardUpdate(notGuard)
+        state2.updateDGuard(_guard)
     }
 
     // merge states
-    _left1.mergeIf(_right1)
+    _left2.mergeIf(_right2)
   }
 
   def whileRule(guard: Expression, PPrime: List[Expression], gammaPrime: Map[Id, Expression], body: Statement, state0: State, line: Int): State = {
@@ -543,7 +541,6 @@ object Exec {
 
     val state1 = state0.copy(P = PPrime, gamma = gammaPrime)
 
-
     // check gamma' is greater or equal than gamma for all variables
     if (state0.debug) {
       println("checking Gamma >= Gamma'")
@@ -566,8 +563,6 @@ object Exec {
       throw error.WhileError(line, guard, "gamma is not greater to or equal than than gamma' ")
     }
 
-
-
     // D' will always be a subset of D as it equals D intersect DFixed
 
     // calculating DFixed will always terminate, as whether variables are added or removed from D is dependent on
@@ -581,23 +576,18 @@ object Exec {
     // D and DFixed, but not D''. this is impossible as if an element is in D and D_fixed, it will not be removed after
     // the single loop iteration that produces D''
 
-    /*
-    val DPrime = DFixedPoint(test, body, state0)
+
+    val DPrime = DFixedPoint(guard, body, state0)
     if (state0.debug)
       println("D': " + DPrime.DStr)
-     */
 
-    /*
     // check D' is subset of D
-    for (v <- state0.variables) {
-      if (!((state1.W_r(v) subsetOf state0.W_r(v)) && (state1.W_w(v) subsetOf state0.W_w(v)) && (state1.R_r(v) subsetOf state0.R_r(v)) && (state1.R_w(v) subsetOf state0.R_w(v))))
-        throw error.ProgramError("line " + line + ": D' is not a subset of D." + newline + "D': " +  state1.D.DStr + newline + "D: " + state0.D.DStr)
+    if (!state1.DSubsetOf(state0)) {
+      throw error.ProgramError("line " + line + ": D' is not a subset of D." + newline + "D': " +  state1.D.DStr + newline + "D: " + state0.D.DStr)
     }
-     */
 
-    // evaluate test and update D
+    // evaluate guard
     val (_guard, state2) = eval(guard, state1)
-   //val state3 = state2.updateDGuard(_test)
 
     // check any array indices in test are low
     /*
@@ -617,8 +607,9 @@ object Exec {
       throw error.WhileError(line, guard, "guard expression is HIGH")
     }
 
-    // add test to P
-    val state4 = state2.guardUpdate(_guard)
+    // update P, Gamma and D with guard
+    val state3 = state2.guardUpdate(_guard)
+    val state4 = state3.updateDGuard(_guard)
 
     if (state0.debug) {
       println("while rule after test, before loop body:")
@@ -641,12 +632,10 @@ object Exec {
 
     // this shouldn't be able to happen if D' is calculated correctly
     // check D' is subset of D''
-    /*
-    for (v <- state0.variables) {
-      if (!((state1.W_r(v) subsetOf state5.W_r(v)) && (state1.W_w(v) subsetOf state5.W_w(v)) && (state1.R_r(v) subsetOf state5.R_r(v)) && (state1.R_w(v) subsetOf state5.R_w(v))))
-        throw error.ProgramError("line " + line + ": D' is not a subset of D''." + newline + "D': " +  state1.D.DStr + newline + "D'': " + state5.D.DStr)
+
+    if (!state1.DSubsetOf(state5)) {
+      throw error.ProgramError("line " + line + ": D' is not a subset of D''." + newline + "D': " +  state1.D.DStr + newline + "D'': " + state5.D.DStr)
     }
-     */
 
     // check gamma' is greater or equal than gamma'' for all in gamma domain
     if (state0.debug) {
@@ -681,7 +670,8 @@ object Exec {
     // state1 used here as do not keep gamma'', P'', D'' from after loop body execution
     // remove test from P'
     val notGuard = PreOp("!", _guard)
-    state1.guardUpdate(notGuard)
+    val state6 = state1.guardUpdate(notGuard)
+    state6.updateDGuard(notGuard)
   }
 
 
@@ -860,7 +850,8 @@ object Exec {
     val st2 = st1.updateWritten(lhs)
     val t = st2.security(_rhs)
 
-    st2.assignUpdate(lhs, _rhs, t)
+    val st3 = st2.assignUpdate(lhs, _rhs, t)
+    st3.updateDAssign(lhs, _rhs)
   }
 
   def assignGRule(lhs: Id, rhs: Expression, st0: State, line: Int): State = {
@@ -909,7 +900,8 @@ object Exec {
       }
     }
 
-    st2.assignUpdate(lhs, _rhs, t)
+    val st3 = st2.assignUpdate(lhs, _rhs, t)
+    st3.updateDAssign(lhs, _rhs)
   }
 
   /*

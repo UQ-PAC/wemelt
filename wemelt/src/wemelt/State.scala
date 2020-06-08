@@ -732,12 +732,12 @@ case class State(
       for (v <- state2.gamma.keySet -- state1.gamma.keySet)
         yield v -> BinOp("&&", state2.gamma(v), L(v))
     }
-    //val DPrime = this.mergeD(state2)
+    val DPrime = this.mergeD(state2)
 
     // P1 OR P2 converted to CNF
     val PPrime = mergeP(state1.P, state2.P)
 
-    copy(gamma = gammaPrime, P = PPrime)
+    copy(gamma = gammaPrime, P = PPrime, D = DPrime)
   }
 
 
@@ -844,6 +844,18 @@ case class State(
   def restrictPInd(vars: Set[Id]): List[Expression] = {
     val toRestrict = variables -- (vars -- knownI)
     State.restrictP(P, toRestrict)
+  }
+
+  def DSubsetOf(state1: State): Boolean = {
+    for (v <- variables) {
+      if (!((W_r(v) subsetOf state1.W_r(v)) && (W_w(v) subsetOf state1.W_w(v))
+        && (R_r(v) subsetOf state1.R_r(v)) && (R_w(v) subsetOf state1.R_w(v))
+        && (I_r(v) subsetOf state1.I_r(v)) && (I_w(v) subsetOf state1.I_w(v))
+        && (U_r(v) subsetOf state1.U_r(v)) && (U_w(v) subsetOf state1.U_w(v)))) {
+        return false
+      }
+    }
+    true
   }
 
 }
