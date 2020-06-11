@@ -80,7 +80,7 @@ case class State(
     val toSubstC = Map(arg -> v)
     // calculate weaker - this can definitely be improved
     // OR each of the implies to do them all in one go per y
-    val PPrimeAnd = State.andPredicates(PPrime)
+    val PPrimeAnd = State.andPredicates(PPrime ::: P_inv)
     var weaker: Set[Id] = Set()
 
     for (y <- R_var.keySet) {
@@ -99,7 +99,7 @@ case class State(
         yield {
           // check P ==> c && r is identity relation
           for ((c, r) <- R_var(y) if (r == BinOp("==", y.toVar, y.toVar.prime) || r == BinOp("==", y.toVar.prime, y.toVar))
-            && (c == Const._true || SMT.proveImplies(PPrime, c, debug)))
+            && (c == Const._true || SMT.proveImplies(PPrime ::: P_inv, c, debug)))
             yield y
         }
     }.flatten
@@ -181,7 +181,7 @@ case class State(
         yield {
           // check P ==> c && r is identity relation
           for ((c, r) <- R_var(y) if (r == BinOp("==", y.toVar, y.toVar.prime) || r == BinOp("==", y.toVar.prime, y.toVar))
-            && (c == Const._true || SMT.proveImplies(PPrime, c, debug)))
+            && (c == Const._true || SMT.proveImplies(PPrime ::: P_inv, c, debug)))
             yield y
         }
     }.flatten
@@ -842,7 +842,7 @@ case class State(
   }
 
   def restrictP(restricted: Set[Id]): List[Expression] = {
-    State.restrictP(P, restricted)
+    State.restrictP(P ::: P_inv, restricted)
   }
 
   def restrictPInd(vars: Set[Id]): List[Expression] = {

@@ -878,7 +878,7 @@ object Exec {
     // check guar P(x := e)
     val guarUnchanged: List[Expression] = {for (g <- st3.globals - lhs)
       yield BinOp("==", g.toVar, g.toVar.prime)}.toList
-    val guarP: List[Expression] = (BinOp("==", lhs.toVar.prime, _rhs) :: guarUnchanged) ::: st3.P
+    val guarP: List[Expression] = (BinOp("==", lhs.toVar.prime, _rhs) :: guarUnchanged) ::: st3.P ::: st3.P_inv
 
     if (st3.debug) {
       println("checking assignment conforms to guarantee")
@@ -892,7 +892,7 @@ object Exec {
     if (st3.debug) {
       println("checking L_G(x) && P ==> t holds")
     }
-    if (t != Const._true && !SMT.proveImplies(st3.L_G(lhs) :: st3.P, t, st3.debug)) {
+    if (t != Const._true && !SMT.proveImplies(st3.L_G(lhs) :: st3.P ::: st3.P_inv, t, st3.debug)) {
       throw error.AssignGError(line, lhs, rhs, "L_G(" + lhs + ") && P ==> " + lhs + " doesn't hold for assignment")
     }
 
@@ -906,7 +906,7 @@ object Exec {
         if (st3.debug) {
           println("checking fall: P && L(y)[e/x] ==> (Gamma<y> || L(y)) for y == " + y)
         }
-        if (!SMT.proveImplies(st3.L(y).subst(toSubst) :: st3.P, BinOp("||", st3.security(y.toVar) , st3.L(y)), st3.debug)) {
+        if (!SMT.proveImplies(st3.L(y).subst(toSubst) :: st3.P ::: st3.P_inv, BinOp("||", st3.security(y.toVar) , st3.L(y)), st3.debug)) {
           throw error.AssignGError(line, lhs, rhs, "falling error for variable " + y)
         }
       }
