@@ -196,7 +196,10 @@ object Exec {
       DFixed = true
       while (it.hasNext && DFixed) {
         val v = it.next
-        DFixed = (st0.W_r(v) == st4.W_r(v)) && (st0.W_w(v) == st4.W_w(v)) && (st0.R_r(v) == st4.R_r(v)) && (st0.R_w(v) == st4.R_w(v))
+        DFixed = (st0.W_r(v) == st4.W_r(v)) && (st0.W_w(v) == st4.W_w(v)) &&
+          (st0.R_r(v) == st4.R_r(v)) && (st0.R_w(v) == st4.R_w(v)) &&
+          (st0.I_r(v) == st4.I_r(v)) && (st0.I_w(v) == st4.I_w(v)) &&
+          (st0.U_r(v) == st4.U_r(v)) && (st0.U_w(v) == st4.U_w(v))
       }
       // if D has changed, repeat
       if (DFixed) {
@@ -229,7 +232,8 @@ object Exec {
     case Assignment(lhs, rhs) =>
       val st1 = DFixedPoint(rhs, st0)
       val st2 = st1.updateWritten(lhs)
-      st2.updateDAssign(lhs, rhs)
+      val st3 = st2.calculateIndirectUsed
+      st3.updateDAssign(lhs, rhs)
 
       /*
     case ArrayAssignment(name, index, rhs) =>
@@ -252,19 +256,21 @@ object Exec {
       // evaluate test which updates D
       val st1 = DFixedPoint(test, st0)
       val st2 = st1.updateDGuard(test)
+      val st3 = st2.calculateIndirectUsed
 
       // right branch is empty
-      val _left = DFixedPoint(left, st2)
-      st2.copy(D = _left.mergeD(st2))
+      val _left = DFixedPoint(left, st3)
+      st3.copy(D = _left.mergeD(st3))
 
     case If(test, left, Some(right)) =>
       // evaluate test which updates D
       val st1 = DFixedPoint(test, st0)
       val st2 = st1.updateDGuard(test)
+      val st3 = st2.calculateIndirectUsed
 
-      val _left = DFixedPoint(left, st2)
-      val _right = DFixedPoint(right, st2)
-      st2.copy(D =_left.mergeD(_right))
+      val _left = DFixedPoint(left, st3)
+      val _right = DFixedPoint(right, st3)
+      st3.copy(D =_left.mergeD(_right))
 
     case While(test, invariants, gamma, body) =>
       st0.copy(D = DFixedPoint(test, body, st0))

@@ -2,12 +2,12 @@
 -remove unnecessary SMT calls in R-var part of P + R ?? - check this ??
 -SMT optimisations to reduce calls in a few places
 -test everything!!!
+-incorporate P_inv properly
 
 new weak memory model:
 -modified P + (R, i) update
 -modified gamma update
 -AssignG rule changes
--D fixed point calculation
 -update test files
 -local variables should never be restricted is this still true?
 done:
@@ -17,6 +17,7 @@ done:
 -D subset checks
 -P restrict u checks
 -u and i calculations
+-D fixed point calculation
 
 for later
 -make r_var implementation better?
