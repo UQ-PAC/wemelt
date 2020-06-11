@@ -872,12 +872,12 @@ object Exec {
     // check guar P(x := e)
     val guarUnchanged: List[Expression] = {for (g <- st1.globals - lhs)
       yield BinOp("==", g.toVar, g.toVar.prime)}.toList
-    val guarP: List[Expression] = (BinOp("==", lhs.toVar.prime, _rhs) :: guarUnchanged) ++ st1.P
+    val guarP: List[Expression] = (BinOp("==", lhs.toVar.prime, _rhs) :: guarUnchanged) ++ st1.P ++ st1.P_inv
 
     if (st1.debug) {
       println("checking assignment conforms to guarantee")
     }
-    if (!SMT.proveImplies(guarP ++ st1.P_inv, st1.G, st1.debug)) {
+    if (!SMT.proveImplies(guarP, st1.G, st1.debug)) {
       throw error.AssignGError(line, lhs, rhs, "assignment doesn't conform to guarantee " + st1.G)
     }
 

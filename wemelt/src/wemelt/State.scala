@@ -72,7 +72,7 @@ case class State(
     val toSubstC = Map(arg -> v)
     // calculate weaker - this can definitely be improved
     // OR each of the implies to do them all in one go per y
-    val PPrimeAnd = State.andPredicates(PPrime)
+    val PPrimeAnd = State.andPredicates(PPrime ::: P_inv)
     var weaker: Set[Id] = Set()
 
     for (y <- R_var.keySet) {
@@ -760,7 +760,7 @@ case class State(
     if (debug) {
       println("checking Gamma: " + gamma.gammaStr + " is stable")
     }
-    SMT.proveImplies(P ++ R ++ P_inv, gammaEqualsGammaPrime, debug)
+    SMT.proveImplies(P ++ R, gammaEqualsGammaPrime, debug)
   }
 
   def low_or_eq(P: List[Expression]): Set[Id] = {
@@ -969,7 +969,7 @@ object State {
     val gammaEqualsGammaPrime: List[Expression] = {for (g <- globals if gamma.contains(g))
       yield BinOp("==", gamma(g), gamma(g).subst(primed))
     }.toList
-    if (!SMT.proveImplies(P ++ R ++ P_inv, gammaEqualsGammaPrime, debug)) {
+    if (!SMT.proveImplies(P ++ R, gammaEqualsGammaPrime, debug)) {
       throw error.InvalidProgram("Gamma is not stable")
     }
 
