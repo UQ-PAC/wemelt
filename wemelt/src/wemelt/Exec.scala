@@ -438,7 +438,7 @@ object Exec {
 
     // check guard is LOW
     val guardGamma = state1.security(_guard)
-    if (guardGamma != Const._true && !SMT.proveImplies(state1.P, guardGamma, state1.debug)) {
+    if (guardGamma != Const._true && !SMT.proveImplies(state1.P ++ state1.P_inv, guardGamma, state1.debug)) {
       throw error.IfError(line, guard, "guard expression is HIGH")
     }
 
@@ -468,7 +468,7 @@ object Exec {
     val _left = state1.guardUpdate(_guard)
     val _left1 = if (state1.noInfeasible) {
       // don't check infeasible paths
-      if (SMT.proveP(_left.P, _left.debug)) {
+      if (SMT.proveP(_left.P ++ _left.P_inv, _left.debug)) {
         execute(left, _left).st
       } else {
         _left
@@ -485,7 +485,7 @@ object Exec {
         val _right = state1.guardUpdate(notGuard)
         if (state1.noInfeasible) {
           // don't check infeasible paths
-          if (SMT.proveP(_right.P, _right.debug)) {
+          if (SMT.proveP(_right.P ++ _right.P_inv, _right.debug)) {
             execute(r, _right).st
           } else {
             _right
@@ -612,7 +612,7 @@ object Exec {
     if (state0.debug) {
       println("checking guard is LOW")
     }
-    if (guardGamma != Const._true && !SMT.proveImplies(state2.P, guardGamma, state2.debug)) {
+    if (guardGamma != Const._true && !SMT.proveImplies(state2.P ++ state2.P_inv, guardGamma, state2.debug)) {
       throw error.WhileError(line, guard, "guard expression is HIGH")
     }
 
@@ -872,12 +872,12 @@ object Exec {
     // check guar P(x := e)
     val guarUnchanged: List[Expression] = {for (g <- st1.globals - lhs)
       yield BinOp("==", g.toVar, g.toVar.prime)}.toList
-    val guarP: List[Expression] = (BinOp("==", lhs.toVar.prime, _rhs) :: guarUnchanged) ::: st1.P
+    val guarP: List[Expression] = (BinOp("==", lhs.toVar.prime, _rhs) :: guarUnchanged) ++ st1.P
 
     if (st1.debug) {
       println("checking assignment conforms to guarantee")
     }
-    if (!SMT.proveImplies(guarP, st1.G, st1.debug)) {
+    if (!SMT.proveImplies(guarP ++ st1.P_inv, st1.G, st1.debug)) {
       throw error.AssignGError(line, lhs, rhs, "assignment doesn't conform to guarantee " + st1.G)
     }
 
@@ -886,7 +886,8 @@ object Exec {
     if (st1.debug) {
       println("checking L_G(x) && P ==> t holds")
     }
-    if (t != Const._true && !SMT.proveImplies(st1.L_G(lhs) :: st1.P, t, st1.debug)) {
+
+    if (t != Const._true && !SMT.proveImplies(st1.L_G(lhs) :: st1.P_inv ++ st1.P , t, st1.debug)) {
       throw error.AssignGError(line, lhs, rhs, "L_G(" + lhs + ") && P ==> " + lhs + " doesn't hold for assignment")
     }
 
@@ -900,7 +901,7 @@ object Exec {
         if (st1.debug) {
           println("checking fall: P && L(y)[e/x] ==> (Gamma<y> || L(y)) for y == " + y)
         }
-        if (!SMT.proveImplies(st1.L(y).subst(toSubst) :: st1.P, BinOp("||", st1.security(y.toVar) , st1.L(y)), st1.debug)) {
+        if (!SMT.proveImplies(st1.L(y).subst(toSubst) :: st1.P ++ st1.P_inv, BinOp("||", st1.security(y.toVar) , st1.L(y)), st1.debug)) {
           throw error.AssignGError(line, lhs, rhs, "falling error for variable " + y)
         }
       }

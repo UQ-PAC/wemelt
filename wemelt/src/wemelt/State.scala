@@ -91,7 +91,7 @@ case class State(
         yield {
           // check P ==> c && r is identity relation
           for ((c, r) <- R_var(y) if (r == BinOp("==", y.toVar, y.toVar.prime) || r == BinOp("==", y.toVar.prime, y.toVar))
-            && (c == Const._true || SMT.proveImplies(PPrime, c, debug)))
+            && (c == Const._true || SMT.proveImplies(PPrime ++ P_inv, c, debug)))
             yield y
         }
     }.flatten
@@ -170,7 +170,7 @@ case class State(
         yield {
           // check P ==> c && r is identity relation
           for ((c, r) <- R_var(y) if (r == BinOp("==", y.toVar, y.toVar.prime) || r == BinOp("==", y.toVar.prime, y.toVar))
-            && (c == Const._true || SMT.proveImplies(PPrime, c, debug)))
+            && (c == Const._true || SMT.proveImplies(PPrime ++ P_inv, c, debug)))
             yield y
         }
     }.flatten
@@ -760,12 +760,12 @@ case class State(
     if (debug) {
       println("checking Gamma: " + gamma.gammaStr + " is stable")
     }
-    SMT.proveImplies(P ++ R, gammaEqualsGammaPrime, debug)
+    SMT.proveImplies(P ++ R ++ P_inv, gammaEqualsGammaPrime, debug)
   }
 
   def low_or_eq(P: List[Expression]): Set[Id] = {
     val PAnd = State.andPredicates(P)
-    val PPlusRAnd = State.andPredicates(P ++ R)
+    val PPlusRAnd = State.andPredicates(P ++ R ++ P_inv)
     val lowOrEqTest = for (g <- globals)
       yield g -> BinOp("||", BinOp("==>", PAnd, L_R(g)), BinOp("==>", PPlusRAnd, BinOp("==", g.toVar, g.toVar.prime)))
 
@@ -969,7 +969,7 @@ object State {
     val gammaEqualsGammaPrime: List[Expression] = {for (g <- globals if gamma.contains(g))
       yield BinOp("==", gamma(g), gamma(g).subst(primed))
     }.toList
-    if (!SMT.proveImplies(P ++ R, gammaEqualsGammaPrime, debug)) {
+    if (!SMT.proveImplies(P ++ R ++ P_inv, gammaEqualsGammaPrime, debug)) {
       throw error.InvalidProgram("Gamma is not stable")
     }
 
