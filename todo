@@ -4,11 +4,9 @@
 -test everything!!!
 
 new weak memory model:
--modified P + (R, i) update
--modified gamma update
--AssignG rule changes
+-convert G to being Gvar
+-AssignG rule changes - stronger
 -update test files
--local variables should never be restricted is this still true?
 done:
 -I and U updates
 -P restrict ind
@@ -17,6 +15,9 @@ done:
 -P restrict u checks
 -u and i calculations
 -D fixed point calculation
+-weaker, rising, falling, shrink checks in AssignG
+-modified P + (R, i) update
+-modified gamma update
 
 for later
 -make r_var implementation better?

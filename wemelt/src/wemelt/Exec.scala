@@ -875,10 +875,12 @@ object Exec {
     val st3 = st2.calculateIndirectUsed
     val t = st3.security(_rhs)
 
+    val PRestrictU = st3.restrictP(st3.used)
+
     // check guar P(x := e)
     val guarUnchanged: List[Expression] = {for (g <- st3.globals - lhs)
       yield BinOp("==", g.toVar, g.toVar.prime)}.toList
-    val guarP: List[Expression] = (BinOp("==", lhs.toVar.prime, _rhs) :: guarUnchanged) ::: st3.P ::: st3.P_inv
+    val guarP: List[Expression] = (BinOp("==", lhs.toVar.prime, _rhs) :: guarUnchanged) ::: PRestrictU
 
     if (st3.debug) {
       println("checking assignment conforms to guarantee")
@@ -890,26 +892,73 @@ object Exec {
     // check t <:_P L_G(x)
     // L_G(x) && P ==> t
     if (st3.debug) {
-      println("checking L_G(x) && P ==> t holds")
+      println("checking L_G(x) && P /restrict u ==> t holds")
     }
-    if (t != Const._true && !SMT.proveImplies(st3.L_G(lhs) :: st3.P ::: st3.P_inv, t, st3.debug)) {
+    if (t != Const._true && !SMT.proveImplies(st3.L_G(lhs) :: PRestrictU, t, st3.debug)) {
       throw error.AssignGError(line, lhs, rhs, "L_G(" + lhs + ") && P ==> " + lhs + " doesn't hold for assignment")
     }
 
-    // check falling if x is control variable of
-    if (st3.controls.contains(lhs)) {
-      // check fall P Gamma(x := e)
-      // for all y that x is a control variable of,
-      // P && L(y)[e/x] ==> (sec(y) || L(y))
-      val toSubst: Subst = Map(lhs.toVar -> _rhs)
-      for (y <- st3.controlledBy(lhs)) {
-        if (st3.debug) {
-          println("checking fall: P && L(y)[e/x] ==> (Gamma<y> || L(y)) for y == " + y)
-        }
-        if (!SMT.proveImplies(st3.L(y).subst(toSubst) :: st3.P ::: st3.P_inv, BinOp("||", st3.security(y.toVar) , st3.L(y)), st3.debug)) {
-          throw error.AssignGError(line, lhs, rhs, "falling error for variable " + y)
-        }
+    // calculate weaker
+    // to get c[e/x]
+    val toSubstC = Map(rhs -> lhs.toVar)
+    val PPrimeAnd = State.andPredicates(PRestrictU)
+    var weaker: Set[Id] = Set()
+    for (y <- st3.R_var.keySet) {
+      // check !(P && c ==> c[e/x])
+      val weakerCheck: List[Expression] = for ((c, r) <- st3.R_var(y) if c != Const._true)
+        yield PreOp("!", BinOp("==>", BinOp("&&", c, PPrimeAnd), c.subst(toSubstC)))
+      if (SMT.proveListOr(weakerCheck, st3.debug)) {
+        weaker += y
       }
+    }
+    val knownU = st3.knownU
+
+    if (!(weaker subsetOf knownU)) {
+      throw error.AssignGError(line, lhs, rhs, "weaker set: " + weaker + " is not subset of knownU: " + knownU)
+    }
+
+    val PPlusR = State.andPredicates(st3.PPlusRUpdate(lhs, rhs, t))
+    val PAnd = State.andPredicates(st3.P)
+
+    val falling: Set[Id] = for (x <- st3.globals if (st3.written & st3.L(x).variables).nonEmpty &&
+      SMT.proveExpression(BinOp("&&", PreOp("!", BinOp("==>", PAnd, st3.L_G(x))), PreOp("!", BinOp("==>", PPlusR, PreOp("!", st3.L_G(x))))), st3.debug))
+      yield x
+
+    val knownW = st3.knownW
+
+    val fallingCompare: Set[Id] = for (y <- knownW & st3.gamma.keySet if SMT.proveImplies(PRestrictU, st3.gamma(y), st3.debug))
+      yield y
+
+    if (!(falling subsetOf fallingCompare)) {
+      throw error.AssignGError(line, lhs, rhs, "falling set: " + falling + " is not subset of: " + fallingCompare)
+    }
+
+    val rising: Set[Id] = for (x <- st3.globals if (st3.written & st3.L(x).variables).nonEmpty &&
+      SMT.proveExpression(BinOp("&&", PreOp("!", BinOp("==>", PAnd, PreOp("!", st3.L(x)))), PreOp("!", BinOp("==>", PPlusR, st3.L(x)))), st3.debug))
+      yield x
+
+    val knownR = st3.knownR
+    if (!(rising subsetOf knownR)) {
+      throw error.AssignGError(line, lhs, rhs, "rising set: " + rising + " is not subset of knownR: " + knownR)
+    }
+
+    var shrink: Set[Id] = Set()
+    for (x <- st3.globals) {
+      val cIdentities: List[Expression] = if (st3.R_var.contains(x)) {
+        for ((c, r) <- st3.R_var(x) if r == BinOp("==", x.toVar, x.toVar.prime) || r == BinOp("==", x.toVar.prime, x.toVar))
+          yield c
+      } else {
+        List()
+      }
+      val low_or_eq_exp = State.orPredicates(st3.L_R(x) :: cIdentities)
+      if ((st3.written & low_or_eq_exp.variables).nonEmpty &&
+        SMT.proveExpression(BinOp("&&", PreOp("!", BinOp("==>", PAnd, low_or_eq_exp)), PreOp("!", BinOp("==>", PPlusR, low_or_eq_exp))), st3.debug)) {
+        shrink += x
+      }
+    }
+
+    if (!(shrink subsetOf knownR)) {
+      throw error.AssignGError(line, lhs, rhs, "shrink set: " + shrink + " is not subset of knownR: " + knownR)
     }
 
     val st4 = st3.assignUpdate(lhs, _rhs, t)

@@ -77,9 +77,9 @@ case class State(
     }.flatten
     val new_var: Set[Id] = Set(id) ++ varE ++ varLY
 
-    val toSubstC = Map(arg -> v)
-    // calculate weaker - this can definitely be improved
-    // OR each of the implies to do them all in one go per y
+
+    // calculate weaker
+    val toSubstC = Map(arg -> v) // for c[e/x]
     val PPrimeAnd = State.andPredicates(PPrime ::: P_inv)
     var weaker: Set[Id] = Set()
 
@@ -92,7 +92,8 @@ case class State(
       }
     }
 
-    // calculate equals - this can be improved too
+    // calculate equals
+    // possible improvement:
     // separate method for identity relation? check all identity relations at the start?
     val equals: Set[Id] = {
       for (y <- R_var.keySet)
@@ -128,7 +129,7 @@ case class State(
         yield if (c == Const._true) {
           r.subst(mPlusMPrime)
         } else {
-          BinOp("==>", c, r.subst(mPlusMPrime))
+          BinOp("==>", ForAll(indirect, c), r.subst(mPlusMPrime))
         }
     }
     }.flatten.toList
@@ -142,7 +143,7 @@ case class State(
 
     val domGamma = low_or_eq(PPlusR)
     val gammaPrime = if (domGamma.contains(id)) {
-      gamma + (id -> t)
+      gamma + (id -> ForAll(indirect, t))
     } else {
       gamma
     }
@@ -210,7 +211,7 @@ case class State(
         yield if (c == Const._true) {
           r.subst(mPlusMPrime)
         } else {
-          BinOp("==>", c, r.subst(mPlusMPrime))
+          BinOp("==>", ForAll(indirect, c), r.subst(mPlusMPrime))
         }
     }
     }.flatten.toList
@@ -237,6 +238,91 @@ case class State(
       println("Gamma + R: " + gammaPlusR.gammaStr)
     }
     copy(P = PPlusR, gamma = gammaPlusR)
+  }
+
+  def PPlusRUpdate(id: Id, arg: Expression, t: Expression): List[Expression] = {
+    val v = id.toVar
+    // create mapping from variable to fresh variable
+    val toSubst: Subst = Map(v -> Var.fresh(id.name))
+
+    // substitute variable in P for fresh variable
+    val PReplace = P map (p => p.subst(toSubst))
+
+    // substitute variable in expression for fresh variable
+    val argReplace = arg.subst(toSubst)
+
+    // add new assignment statement to P
+    val PPrime = BinOp("==", v, argReplace) :: PReplace
+
+    // calculate new_var
+    val varE = arg.variables
+    val varLY: Set[Id] = {
+      for (y <- varE -- gamma.keySet)
+        yield L(y).variables
+    }.flatten
+    val new_var: Set[Id] = Set(id) ++ varE ++ varLY
+
+    // calculate weaker
+    val toSubstC = Map(arg -> v) // for c[e/x]
+    val PPrimeAnd = State.andPredicates(PPrime ::: P_inv)
+    var weaker: Set[Id] = Set()
+
+    for (y <- R_var.keySet) {
+      // check !(P && c ==> c[e/x])
+      val weakerCheck: List[Expression] = for ((c, r) <- R_var(y) if c != Const._true)
+        yield PreOp("!", BinOp("==>", BinOp("&&", c, PPrimeAnd), c.subst(toSubstC)))
+      if (SMT.proveListOr(weakerCheck, debug)) {
+        weaker += y
+      }
+    }
+
+    // calculate equals
+    // possible improvement:
+    // separate method for identity relation? check all identity relations at the start?
+    val equals: Set[Id] = {
+      for (y <- R_var.keySet)
+        yield {
+          // check P ==> c && r is identity relation
+          for ((c, r) <- R_var(y) if (r == BinOp("==", y.toVar, y.toVar.prime) || r == BinOp("==", y.toVar.prime, y.toVar))
+            && (c == Const._true || SMT.proveImplies(PPrime ::: P_inv, c, debug)))
+            yield y
+        }
+    }.flatten
+
+    val domM = new_var ++ weaker -- equals
+
+    // map all of domM to fresh temporary variables - probably change to different fresh allocator
+    val m: Subst = {
+      for (v <- domM)
+        yield v.toVar -> v.toVar.fresh
+    }.toMap
+
+    val mPlusMPrime: Subst = m ++ {
+      for (v <- domM)
+        yield v.toVar.prime -> v.toVar
+    }.toMap
+
+    val PPlus = PPrime map {p: Expression => p.subst(m)}
+
+    if (debug) {
+      println("dom R_var: " + R_var.keySet)
+      println("dom m: " + domM)
+    }
+    val RPlus: List[Expression] = {for (y <- R_var.keySet & domM) yield {
+      for ((c, r) <- R_var(y))
+        yield if (c == Const._true) {
+          r.subst(mPlusMPrime)
+        } else {
+          BinOp("==>", c, r.subst(mPlusMPrime))
+        }
+    }
+    }.flatten.toList
+
+    if (debug) {
+      println("P +: " + PPlus.PStr)
+      println("+ R: " + RPlus.PStr)
+    }
+    PPlus ++ RPlus
   }
 
   /*
