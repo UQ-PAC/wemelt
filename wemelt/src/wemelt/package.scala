@@ -75,8 +75,8 @@ package object wemelt {
       val i_r: String = (D map (kv => kv._1 + " -> " + kv._2._6.mkString("(", " ", ")"))).mkString("," + newline + "        ")
       val u_w: String = (D map (kv => kv._1 + " -> " + kv._2._7.mkString("(", " ", ")"))).mkString("," + newline + "        ")
       val u_r: String = (D map (kv => kv._1 + " -> " + kv._2._8.mkString("(", " ", ")"))).mkString("," + newline + "        ")
-      "W_w: " + w_w + newline + "   W_r: " + w_r + newline + "   R_w: " + r_w + newline + "   R_r: " + r_r +
-        "I_w: " + i_w + newline + "   I_r: " + i_r + newline + "   U_w: " + u_w + newline + "   U_r: " + u_r
+      "W_w: " + w_w + newline + "   W_r: " + w_r + newline + "   R_w: " + r_w + newline + "   R_r: " + r_r + newline +
+      "   I_w: " + i_w + newline + "   I_r: " + i_r + newline + "   U_w: " + u_w + newline + "   U_r: " + u_r
     }
   }
 

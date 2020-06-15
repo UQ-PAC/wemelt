@@ -8,6 +8,7 @@ case class State(
   R_var: Map[Id, List[(Expression, Expression)]],
   R: List[Expression],
   G: List[Expression],
+  G_var: Map[Id, List[(Expression, Expression)]],
 
   L_R: Map[Id, Expression],
   L_G: Map[Id, Expression],
@@ -129,7 +130,7 @@ case class State(
         yield if (c == Const._true) {
           r.subst(mPlusMPrime)
         } else {
-          BinOp("==>", ForAll(indirect, c), r.subst(mPlusMPrime))
+          BinOp("==>", ForAll(indirect map (i => i.toVar), c), r.subst(mPlusMPrime))
         }
     }
     }.flatten.toList
@@ -143,7 +144,7 @@ case class State(
 
     val domGamma = low_or_eq(PPlusR)
     val gammaPrime = if (domGamma.contains(id)) {
-      gamma + (id -> ForAll(indirect, t))
+      gamma + (id -> ForAll(indirect map (i => i.toVar), t))
     } else {
       gamma
     }
@@ -211,7 +212,7 @@ case class State(
         yield if (c == Const._true) {
           r.subst(mPlusMPrime)
         } else {
-          BinOp("==>", ForAll(indirect, c), r.subst(mPlusMPrime))
+          BinOp("==>", ForAll(indirect map (i => i.toVar), c), r.subst(mPlusMPrime))
         }
     }
     }.flatten.toList
@@ -962,7 +963,7 @@ case class State(
 
 object State {
   def init(definitions: Set[Definition], P_0: Option[List[Expression]], gamma_0: Option[List[GammaMapping]],
-           P_invIn: List[Expression], guarantee: List[Expression], toLog: Boolean, debug: Boolean, noInfeasible: Boolean): State = {
+           P_invIn: List[Expression], toLog: Boolean, debug: Boolean, noInfeasible: Boolean): State = {
     val globalDefs: Set[GlobalVarDef] = definitions collect {case g: GlobalVarDef => g}
     val localDefs: Set[LocalVarDef] = definitions collect {case l: LocalVarDef => l}
 
@@ -1080,7 +1081,29 @@ object State {
     // R == P_inv ==> primed(P_inv) && R_var
     val R = BinOp("==>", P_invAnd, P_invAnd.subst(primed)) :: R_var_pred ++ R_loc
 
-    val G = guarantee map {i => i.subst(idToVar)}
+    var G_var: Map[Id, List[(Expression, Expression)]] = Map()
+    for (g <- globalDefs) {
+      g.gvar match {
+        case Some(gvars) =>
+          G_var += (g.name -> (gvars map {gvar => (gvar.condition.subst(idToVar), gvar.relation.subst(idToVar))}))
+        case None =>
+      }
+    }
+
+    val G_var_pred: List[Expression] = {
+      for (g <- G_var.keys) yield {
+        for ((c, r) <- G_var(g))
+          yield if (c == Const._true) {
+            r
+          } else {
+            BinOp("==>", c, r)
+          }
+      }
+    }.flatten.toList
+
+    val G = G_var_pred
+
+    //val G = guarantee map {i => i.subst(idToVar)}
 
     // initialise P - true by default
     val P: List[Expression] = P_0 match {
@@ -1180,6 +1203,7 @@ object State {
       R_var = R_var,
       R = R,
       G = G,
+      G_var = G_var,
       L_R = L_R,
       L_G = L_G,
       L = L,

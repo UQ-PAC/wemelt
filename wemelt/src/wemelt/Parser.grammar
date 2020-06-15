@@ -31,7 +31,7 @@
 %terminals CAS;
 %terminals FENCE, CFENCE;
 %terminals INVARIANT, GAMMA, P_0, GAMMA_0;
-%terminals P_INV, R_VAR, GUARANTEE;
+%terminals P_INV, R_VAR, G_VAR;
 %terminals LPRED, LPREDGUAR, LPREDRELY;
 %terminals MAPSTO;
 %terminals PRIMEID;
@@ -70,20 +70,19 @@
 %typeof lpred = "Expression";
 %typeof lpredr = "Expression";
 %typeof lpredg = "Expression";
-%typeof rvar = "RVar";
+%typeof rvar = "Relation";
 %typeof unit = "Parsed";
 %typeof gamma_mapping = "GammaMapping";
 //%typeof lpredindex = "Expression";
 
 %goal unit;
 
-unit = defs.v P_INV COLON exprs.r GUARANTEE COLON rgexprs.g statements.s {: return new Parsed(v, r, g, s); :}
-     | defs.v P_INV COLON exprs.r GUARANTEE COLON rgexprs.g GAMMA_0 COLON gamma_mappings.f statements.s {: return new Parsed(v, r, g, f, s); :}
-     | defs.v P_INV COLON exprs.r GUARANTEE COLON rgexprs.g P_0 COLON exprs.p statements.s {: return new Parsed(v, r, g, p, s); :}
-     | defs.v P_INV COLON exprs.r GUARANTEE COLON rgexprs.g P_0 COLON exprs.p GAMMA_0 COLON gamma_mappings.f statements.s {: return new Parsed(v, r, g, p, f, s); :};
+unit = defs.v P_INV COLON exprs.r statements.s {: return new Parsed(v, r, s); :}
+     | defs.v P_INV COLON exprs.r GAMMA_0 COLON gamma_mappings.f statements.s {: return new Parsed(v, r,f, s); :}
+     | defs.v P_INV COLON exprs.r P_0 COLON exprs.p statements.s {: return new Parsed(v, r, p, s); :}
+     | defs.v P_INV COLON exprs.r P_0 COLON exprs.p GAMMA_0 COLON gamma_mappings.f statements.s {: return new Parsed(v, r, p, f, s); :};
 
 exprs = expr | exprs COMMA expr;
-rgexprs = rgexpr | rgexprs COMMA rgexpr;
 
 
 statement
@@ -102,8 +101,12 @@ definition
     =     LOCAL ID.n {: return new LocalVarDef(n); :}
           | GLOBAL ID.n COLON lpred.l {: return new GlobalVarDef(n, l); :}
           | GLOBAL ID.n COLON lpredr.r lpredg.g {: return new GlobalVarDef(n, r, g); :}
-          | GLOBAL ID.n COLON lpred.l R_VAR COLON rvars.v {: return new GlobalVarDef(n, l, v); :}
-          | GLOBAL ID.n COLON lpredr.r lpredg.g R_VAR COLON rvars.v {: return new GlobalVarDef(n, r, g, v); :}
+          | GLOBAL ID.n COLON lpred.l R_VAR COLON rvars.rv {: return new GlobalVarDef(n, l, rv); :}
+          | GLOBAL ID.n COLON lpredr.r lpredg.g R_VAR COLON rvars.rv {: return new GlobalVarDef(n, r, g, rv); :}
+          | GLOBAL ID.n COLON lpred.l G_VAR COLON rvars.gv {: return new GlobalVarDef(n, gv, l); :}
+          | GLOBAL ID.n COLON lpredr.r lpredg.g G_VAR COLON rvars.gv {: return new GlobalVarDef(n, gv, r, g); :}
+          | GLOBAL ID.n COLON lpred.l R_VAR COLON rvars.rv G_VAR COLON rvars.gv {: return new GlobalVarDef(n, l, rv, gv); :}
+          | GLOBAL ID.n COLON lpredr.r lpredg.g R_VAR COLON rvars.rv G_VAR COLON rvars.gv {: return new GlobalVarDef(n, r, g, rv, gv); :}
           /*
           | ARRAY ID.n LBRACK NUM.s RBRACK COLON lpred.l mode.m {: return new ArrayDef(n, s, l, m); :}
           | ARRAY ID.n LBRACK NUM.s RBRACK COLON lpredindexes.l mode.m {: return new ArrayDef(n, s, l, m); :}
@@ -200,7 +203,7 @@ lpredr = LPREDRELY COLON expr.a {: return (Symbol) a; :};
 lpredg = LPREDGUAR COLON expr.a {: return (Symbol) a; :};
 
 rvars = rvar | rvars COMMA rvar;
-rvar = LPAREN expr.c COMMA rgexpr.r RPAREN {: return new RVar(c, r); :};
+rvar = LPAREN expr.c COMMA rgexpr.r RPAREN {: return new Relation(c, r); :};
 
 //lpredindex = LPRED LBRACK NUM.n RBRACK COLON expr.a {: return (Symbol) a; :};
 

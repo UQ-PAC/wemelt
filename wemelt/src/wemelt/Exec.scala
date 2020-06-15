@@ -898,50 +898,76 @@ object Exec {
       throw error.AssignGError(line, lhs, rhs, "L_G(" + lhs + ") && P ==> " + lhs + " doesn't hold for assignment")
     }
 
-    // calculate weaker
-    // to get c[e/x]
-    val toSubstC = Map(rhs -> lhs.toVar)
-    val PPrimeAnd = State.andPredicates(PRestrictU)
+    val PAnd = State.andPredicates(PRestrictU)
+    val PPlusR = State.andPredicates(st3.PPlusRUpdate(lhs, _rhs, t))
+    val knownU = st3.knownU
+    val knownW = st3.knownW
+    val knownR = st3.knownR
+
+    val toSubstC = Map(_rhs -> lhs.toVar)  // to get c[e/x]
+    if (st3.debug) {
+      println("checking weaker")
+    }
     var weaker: Set[Id] = Set()
     for (y <- st3.R_var.keySet) {
       // check !(P && c ==> c[e/x])
       val weakerCheck: List[Expression] = for ((c, r) <- st3.R_var(y) if c != Const._true)
-        yield PreOp("!", BinOp("==>", BinOp("&&", c, PPrimeAnd), c.subst(toSubstC)))
+        yield PreOp("!", BinOp("==>", BinOp("&&", c, PAnd), c.subst(toSubstC)))
       if (SMT.proveListOr(weakerCheck, st3.debug)) {
         weaker += y
       }
     }
-    val knownU = st3.knownU
+
+    if (st3.debug) {
+      println("weaker: " + weaker)
+      println("knownU " + knownU)
+    }
 
     if (!(weaker subsetOf knownU)) {
       throw error.AssignGError(line, lhs, rhs, "weaker set: " + weaker + " is not subset of knownU: " + knownU)
     }
 
-    val PPlusR = State.andPredicates(st3.PPlusRUpdate(lhs, rhs, t))
-    val PAnd = State.andPredicates(st3.P)
-
+    if (st3.debug) {
+      println("checking falling")
+    }
     val falling: Set[Id] = for (x <- st3.globals if (st3.written & st3.L(x).variables).nonEmpty &&
       SMT.proveExpression(BinOp("&&", PreOp("!", BinOp("==>", PAnd, st3.L_G(x))), PreOp("!", BinOp("==>", PPlusR, PreOp("!", st3.L_G(x))))), st3.debug))
       yield x
 
-    val knownW = st3.knownW
+    if (st3.debug) {
+      println("fallling: " + falling)
+    }
 
     val fallingCompare: Set[Id] = for (y <- knownW & st3.gamma.keySet if SMT.proveImplies(PRestrictU, st3.gamma(y), st3.debug))
       yield y
+
+    if (st3.debug) {
+      println("fallingCompare: " + fallingCompare)
+    }
 
     if (!(falling subsetOf fallingCompare)) {
       throw error.AssignGError(line, lhs, rhs, "falling set: " + falling + " is not subset of: " + fallingCompare)
     }
 
+    if (st3.debug) {
+      println("checking rising")
+    }
     val rising: Set[Id] = for (x <- st3.globals if (st3.written & st3.L(x).variables).nonEmpty &&
       SMT.proveExpression(BinOp("&&", PreOp("!", BinOp("==>", PAnd, PreOp("!", st3.L(x)))), PreOp("!", BinOp("==>", PPlusR, st3.L(x)))), st3.debug))
       yield x
 
-    val knownR = st3.knownR
+    if (st3.debug) {
+      println("rising: " + rising)
+      println("knownR " + knownR)
+    }
+
     if (!(rising subsetOf knownR)) {
       throw error.AssignGError(line, lhs, rhs, "rising set: " + rising + " is not subset of knownR: " + knownR)
     }
 
+    if (st3.debug) {
+      println("checking shrink")
+    }
     var shrink: Set[Id] = Set()
     for (x <- st3.globals) {
       val cIdentities: List[Expression] = if (st3.R_var.contains(x)) {
@@ -957,8 +983,35 @@ object Exec {
       }
     }
 
+    if (st3.debug) {
+      println("shrink: " + shrink)
+      println("knownR " + knownR)
+    }
+
     if (!(shrink subsetOf knownR)) {
       throw error.AssignGError(line, lhs, rhs, "shrink set: " + shrink + " is not subset of knownR: " + knownR)
+    }
+
+    if (st3.debug) {
+      println("checking stronger")
+    }
+    var stronger: Set[Id] = Set()
+    for (x <- st3.G_var.keySet) {
+      // check !(P ==> c) && !(P + R ==> !c)
+      val strongerCheck: List[Expression] = for ((c, r) <- st3.G_var(x) if (st3.written & c.variables).nonEmpty)
+        yield BinOp("&&", PreOp("!", BinOp("==>", PAnd, c)), PreOp("!", BinOp("==>", PPlusR, PreOp("!", c))))
+      if (SMT.proveListOr(strongerCheck, st3.debug)) {
+        stronger += x
+      }
+    }
+
+    if (st3.debug) {
+      println("stronger: " + stronger)
+      println("knownW " + knownW)
+    }
+
+    if (!(stronger subsetOf knownW)) {
+      throw error.AssignGError(line, lhs, rhs, "stronger set: " + stronger + " is not subset of knownW: " + knownW)
     }
 
     val st4 = st3.assignUpdate(lhs, _rhs, t)

@@ -103,7 +103,8 @@ WS = {NL} | [ \t\f]
     "_invariant"   {return newToken(Terminals.INVARIANT);}
     "_P_inv"    {return newToken(Terminals.P_INV);}
     "_R_var"    {return newToken(Terminals.R_VAR);}
-    "_G"        {return newToken(Terminals.GUARANTEE);}
+    "_G_var"    {return newToken(Terminals.G_VAR);}
+    //"_G"        {return newToken(Terminals.GUARANTEE);}
     "_Gamma"    {return newToken(Terminals.GAMMA);}
     "_Gamma_0"  {return newToken(Terminals.GAMMA_0);}
     "_P_0"      {return newToken(Terminals.P_0);}

@@ -4,9 +4,10 @@
 -test everything!!!
 
 new weak memory model:
--convert G to being Gvar
+
 -AssignG rule changes - stronger
--update test files
+-update test files + write new test files
+-fix/figure out D'/D'' error
 done:
 -I and U updates
 -P restrict ind
@@ -15,7 +16,8 @@ done:
 -P restrict u checks
 -u and i calculations
 -D fixed point calculation
--weaker, rising, falling, shrink checks in AssignG
+-all assignG checks
+-convert G to being Gvar
 -modified P + (R, i) update
 -modified gamma update
 

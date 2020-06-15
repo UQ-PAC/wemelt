@@ -1,11 +1,11 @@
 package wemelt
 
 // highest level parsed data structure
-case class Parsed(variables: Set[Definition], P_inv: List[Expression], guarantee: List[Expression],P_0: Option[List[Expression]], gamma_0: Option[List[GammaMapping]], statements: List[Statement]) extends beaver.Symbol {
-  def this(variables: Array[Definition], P_inv: Array[Expression], guarantee: Array[Expression], P_0: Array[Expression], gamma_0: Array[GammaMapping], statements: Array[Statement]) = this(variables.toSet, P_inv.toList, guarantee.toList, Some(P_0.toList), Some(gamma_0.toList), statements.toList)
-  def this(variables: Array[Definition], P_inv: Array[Expression], guarantee: Array[Expression], P_0: Array[Expression], statements: Array[Statement]) = this(variables.toSet, P_inv.toList, guarantee.toList, Some(P_0.toList), None, statements.toList)
-  def this(variables: Array[Definition], P_inv: Array[Expression], guarantee: Array[Expression], gamma_0: Array[GammaMapping], statements: Array[Statement]) = this(variables.toSet, P_inv.toList, guarantee.toList, None, Some(gamma_0.toList), statements.toList)
-  def this(variables: Array[Definition], P_inv: Array[Expression], guarantee: Array[Expression], statements: Array[Statement]) = this(variables.toSet, P_inv.toList, guarantee.toList, None, None, statements.toList)
+case class Parsed(variables: Set[Definition], P_inv: List[Expression], P_0: Option[List[Expression]], gamma_0: Option[List[GammaMapping]], statements: List[Statement]) extends beaver.Symbol {
+  def this(variables: Array[Definition], P_inv: Array[Expression],  P_0: Array[Expression], gamma_0: Array[GammaMapping], statements: Array[Statement]) = this(variables.toSet, P_inv.toList,  Some(P_0.toList), Some(gamma_0.toList), statements.toList)
+  def this(variables: Array[Definition], P_inv: Array[Expression],  P_0: Array[Expression], statements: Array[Statement]) = this(variables.toSet, P_inv.toList, Some(P_0.toList), None, statements.toList)
+  def this(variables: Array[Definition], P_inv: Array[Expression],  gamma_0: Array[GammaMapping], statements: Array[Statement]) = this(variables.toSet, P_inv.toList, None, Some(gamma_0.toList), statements.toList)
+  def this(variables: Array[Definition], P_inv: Array[Expression],  statements: Array[Statement]) = this(variables.toSet, P_inv.toList, None, None, statements.toList)
 }
 
 sealed trait Security extends beaver.Symbol {
@@ -43,7 +43,7 @@ case class GammaMapping(variable: Id, security: Expression) extends beaver.Symbo
   } */
 }
 
-case class RVar(condition: Expression, relation: Expression) extends beaver.Symbol
+case class Relation(condition: Expression, relation: Expression) extends beaver.Symbol
 
 sealed trait Definition extends beaver.Symbol
 
@@ -51,11 +51,15 @@ case class LocalVarDef(name: Id) extends Definition {
   def this(name: String) = this(Id(name))
 }
 
-case class GlobalVarDef(name: Id, lpredr: Expression, lpredg: Expression, rvar: Option[List[RVar]]) extends Definition {
-  def this(name: String, lpred: Expression) = this(Id(name), lpred, lpred, None)
-  def this(name: String, lpredr: Expression, lpredg: Expression) = this(Id(name), lpredr, lpredg, None)
-  def this(name: String, lpred: Expression, rvar: Array[RVar]) = this(Id(name), lpred, lpred, Some(rvar.toList))
-  def this(name: String, lpredr: Expression, lpredg: Expression, rvar: Array[RVar]) = this(Id(name), lpredr, lpredg, Some(rvar.toList))
+case class GlobalVarDef(name: Id, lpredr: Expression, lpredg: Expression, rvar: Option[List[Relation]], gvar: Option[List[Relation]]) extends Definition {
+  def this(name: String, lpred: Expression) = this(Id(name), lpred, lpred, None, None)
+  def this(name: String, lpredr: Expression, lpredg: Expression) = this(Id(name), lpredr, lpredg, None, None)
+  def this(name: String, lpred: Expression, rvar: Array[Relation]) = this(Id(name), lpred, lpred, Some(rvar.toList), None)
+  def this(name: String, lpredr: Expression, lpredg: Expression, rvar: Array[Relation]) = this(Id(name), lpredr, lpredg, Some(rvar.toList), None)
+  def this(name: String, lpred: Expression, rvar: Array[Relation], gvar: Array[Relation]) = this(Id(name), lpred, lpred, Some(rvar.toList), Some(gvar.toList))
+  def this(name: String, lpredr: Expression, lpredg: Expression, rvar: Array[Relation], gvar: Array[Relation]) = this(Id(name), lpredr, lpredg, Some(rvar.toList), Some(gvar.toList))
+  def this(name: String, gvar: Array[Relation], lpred: Expression) = this(Id(name), lpred, lpred, None, Some(gvar.toList))
+  def this(name: String, gvar: Array[Relation], lpredr: Expression, lpredg: Expression) = this(Id(name), lpredr, lpredg, None, Some(gvar.toList))
 }
 
 /*

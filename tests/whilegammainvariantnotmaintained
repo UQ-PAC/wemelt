@@ -1,6 +1,7 @@
 _global var z:
 _L: TRUE
 _R_var: (TRUE, z' == z)
+_G_var: (TRUE, z' >= z)
 
 _local var secret
 
@@ -9,7 +10,6 @@ _L: FALSE
 _R_var: (TRUE, q' == q)
 
 _P_inv: TRUE
-_G: z' >= z
 _P_0: z == 0
 _Gamma_0: secret -> FALSE, q -> TRUE
 
