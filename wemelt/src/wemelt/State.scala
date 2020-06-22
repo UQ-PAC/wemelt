@@ -604,7 +604,10 @@ case class State(
     } else {
       DPrime
     }
-
+    /*
+    if (toLog) {
+      println("D: " + DPrimePrime.DStr)
+    } */
     copy(D = DPrimePrime, read = Set(), written = Set(), indirect = Set(), used = Set())
   }
 
@@ -951,10 +954,12 @@ case class State(
 
   // update u and i
   def calculateIndirectUsed: State = {
-    // all fresh variables in P - may need to consider bound variables too at some point?
+    // all fresh variables in P
     val PVar: Set[Id] = {for (p <- P) yield p.variables}.flatten.toSet
-    val indirectPrime = variables -- (PVar -- (knownW & knownR))
-    val usedPrime = PVar & knownW & knownR
+    val known_W = knownW
+    val known_R = knownR
+    val indirectPrime = variables -- (PVar -- (known_W & known_R))
+    val usedPrime = PVar & known_W & known_R
 
     copy(indirect = indirectPrime, used = usedPrime)
   }
@@ -1101,7 +1106,7 @@ object State {
       }
     }.flatten.toList
 
-    val G = G_var_pred
+    val G = BinOp("==>", P_invAnd, P_invAnd.subst(primed)) :: G_var_pred
 
     //val G = guarantee map {i => i.subst(idToVar)}
 
@@ -1149,16 +1154,6 @@ object State {
 
 
 
-    // init Gamma
-    val gamma: Map[Id, Expression] = gamma_0 match {
-      // empty gamma by default if user hasn't provided
-      case None => Map()
-      // user provided
-      case Some(gs) => {
-        //gs flatMap {g => g.toPair(arrays)}
-        gs map {g => g.variable -> g.security.subst(idToVar)}
-      }.toMap
-    }
     val PAnd = andPredicates(P)
     val PPlusRAnd = andPredicates(P ++ R)
     val lowOrEqTest = for (g <- globals)
@@ -1168,10 +1163,21 @@ object State {
       yield g
     val low_or_eq: Set[Id] = locals ++ globalLowOrEq
 
-    // check gamma domain only contains any variables in low_or_eq
+    // init Gamma
+    val gamma: Map[Id, Expression] = gamma_0 match {
+      // all locals low by default
+      case None => (locals map {l => l -> Const._false}).toMap
+      // user provided
+      case Some(gs) => {
+        //gs flatMap {g => g.toPair(arrays)}
+        gs map {g => g.variable -> g.security.subst(idToVar)}
+      }.toMap
+    }
+
+    // check gamma domain is correct
     if (!(gamma.keySet subsetOf low_or_eq))
       throw error.InvalidProgram("provided gamma has invalid domain (" + gamma.keySet.mkString(", ")
-        + "), as domain is not a subset of " + low_or_eq.mkString(", "))
+        + "), as domain is not " + low_or_eq.mkString(", "))
 
     val gammaEqualsGammaPrime: List[Expression] = {for (g <- globals if gamma.contains(g))
       yield BinOp("==", gamma(g), gamma(g).subst(primed))

@@ -1,0 +1,18 @@
+_global var data:
+_L: inmode == 0
+
+_global var inmode:
+_L: TRUE
+_R_var: (TRUE, inmode' == inmode)
+
+_local var high
+
+_P_inv: TRUE
+_P_0: TRUE
+_Gamma_0: high -> FALSE
+
+inmode = 1;
+fence;
+data = high;
+fence;
+inmode = 0; // should fail for falling data

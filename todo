@@ -4,10 +4,11 @@
 -test everything!!!
 
 new weak memory model:
-
 -AssignG rule changes - stronger
 -update test files + write new test files
--fix/figure out D'/D'' error
+-figure out how to calculate D Fixed Point now that it is dependent on P
+-optimise by only testing those variables not in the sets to compare to in AssignG
+-fix gamma initialising domain issue?
 done:
 -I and U updates
 -P restrict ind

@@ -182,30 +182,31 @@ object Exec {
       dfixedloops = dfixedloops + 1
       // update rd for the guard
       val st1 = DFixedPoint(test, st0)
-      //val st2 = st1.updateDGuard(test)
-      val st3 = DFixedPoint(body, st1)
+      val st2 = st1.calculateIndirectUsed
+      val st3 = st2.updateDGuard(test)
+      val st4 = DFixedPoint(body, st3)
       // intersect with original D after loop body
-      val st4 = st3.copy(D = st3.mergeD(state))
+      val st5 = st3.copy(D = st4.mergeD(state))
 
       if (st0.debug) {
         println("DFixed" + (dfixedloops - 1) + ": " + st0.D.DStr)
-        println("DFixed" + dfixedloops + ": " + st4.D.DStr)
+        println("DFixed" + dfixedloops + ": " + st5.D.DStr)
       }
       // compare st4.D to st0.D
       val it = st0.variables.toIterator
       DFixed = true
       while (it.hasNext && DFixed) {
         val v = it.next
-        DFixed = (st0.W_r(v) == st4.W_r(v)) && (st0.W_w(v) == st4.W_w(v)) &&
-          (st0.R_r(v) == st4.R_r(v)) && (st0.R_w(v) == st4.R_w(v)) &&
-          (st0.I_r(v) == st4.I_r(v)) && (st0.I_w(v) == st4.I_w(v)) &&
-          (st0.U_r(v) == st4.U_r(v)) && (st0.U_w(v) == st4.U_w(v))
+        DFixed = (st0.W_r(v) == st5.W_r(v)) && (st0.W_w(v) == st5.W_w(v)) &&
+          (st0.R_r(v) == st5.R_r(v)) && (st0.R_w(v) == st5.R_w(v)) &&
+          (st0.I_r(v) == st5.I_r(v)) && (st0.I_w(v) == st5.I_w(v)) &&
+          (st0.U_r(v) == st5.U_r(v)) && (st0.U_w(v) == st5.U_w(v))
       }
       // if D has changed, repeat
       if (DFixed) {
-        DPrime = st4.D
+        DPrime = st5.D
       } else {
-        st0 = st4
+        st0 = st5
         DFixed = false
       }
     }
@@ -255,8 +256,8 @@ object Exec {
     case If(test, left, None) =>
       // evaluate test which updates D
       val st1 = DFixedPoint(test, st0)
-      val st2 = st1.updateDGuard(test)
-      val st3 = st2.calculateIndirectUsed
+      val st2 = st1.calculateIndirectUsed
+      val st3 = st2.updateDGuard(test)
 
       // right branch is empty
       val _left = DFixedPoint(left, st3)
@@ -265,8 +266,8 @@ object Exec {
     case If(test, left, Some(right)) =>
       // evaluate test which updates D
       val st1 = DFixedPoint(test, st0)
-      val st2 = st1.updateDGuard(test)
-      val st3 = st2.calculateIndirectUsed
+      val st2 = st1.calculateIndirectUsed
+      val st3 = st2.updateDGuard(test)
 
       val _left = DFixedPoint(left, st3)
       val _right = DFixedPoint(right, st3)
@@ -547,7 +548,29 @@ object Exec {
       throw error.WhileError(line, guard, "provided Gamma': " + gammaPrime.gammaStr + " is not stable")
     }
 
-    val state1 = state0.copy(P = PPrime, gamma = gammaPrime)
+    // D' will always be a subset of D as it equals D intersect DFixed
+
+    // calculating DFixed will always terminate, as whether variables are added or removed from D is dependent on
+    // laterW and laterR, which will always be the same for each loop iteration as they are dependent on the type of
+    // statement, so variables will always be added or removed from each part of D on each loop iteration, causing it
+    // to terminate.
+
+    // D' will also always be a subset of D'', as for it not to be, D' would have to contain an element that is
+    // not in D''. for an element to be in D' it must be in both D and DFixed. D'' is the result of calculating D on
+    // a single loop iteration starting with D'. for D' to contain an element that is not in D'', it must be in both
+    // D and DFixed, but not D''. this is impossible as if an element is in D and D_fixed, it will not be removed after
+    // the single loop iteration that produces D''
+
+    val DPrime = DFixedPoint(guard, body, state0)
+    if (state0.debug)
+      println("D': " + DPrime.DStr)
+
+    val state1 = state0.copy(P = PPrime, gamma = gammaPrime, D = DPrime)
+
+    // check D' is subset of D
+    if (!state1.DSubsetOf(state0)) {
+      throw error.ProgramError("line " + line + ": D' is not a subset of D." + newline + "D': " +  state1.D.DStr + newline + "D: " + state0.D.DStr)
+    }
 
     // check gamma' is greater or equal than gamma for all variables
     if (state0.debug) {
@@ -568,30 +591,7 @@ object Exec {
         }
     }.toList
     if (!SMT.proveListAnd(gammaGreaterCheckStart, state0.debug)) {
-      throw error.WhileError(line, guard, "gamma is not greater to or equal than than gamma' ")
-    }
-
-    // D' will always be a subset of D as it equals D intersect DFixed
-
-    // calculating DFixed will always terminate, as whether variables are added or removed from D is dependent on
-    // laterW and laterR, which will always be the same for each loop iteration as they are dependent on the type of
-    // statement, so variables will always be added or removed from each part of D on each loop iteration, causing it
-    // to terminate.
-
-    // D' will also always be a subset of D'', as for it not to be, D' would have to contain an element that is
-    // not in D''. for an element to be in D' it must be in both D and DFixed. D'' is the result of calculating D on
-    // a single loop iteration starting with D'. for D' to contain an element that is not in D'', it must be in both
-    // D and DFixed, but not D''. this is impossible as if an element is in D and D_fixed, it will not be removed after
-    // the single loop iteration that produces D''
-
-
-    val DPrime = DFixedPoint(guard, body, state0)
-    if (state0.debug)
-      println("D': " + DPrime.DStr)
-
-    // check D' is subset of D
-    if (!state1.DSubsetOf(state0)) {
-      throw error.ProgramError("line " + line + ": D' is not a subset of D." + newline + "D': " +  state1.D.DStr + newline + "D: " + state0.D.DStr)
+      throw error.WhileError(line, guard, "Gamma is not greater to or equal than than Gamma' ")
     }
 
     // evaluate guard
@@ -666,7 +666,7 @@ object Exec {
         }
     }.toList
     if (!SMT.proveListAnd(gammaGreaterCheck, state6.debug)) {
-      throw error.WhileError(line, guard, "gamma'' is not greater to or equal than than gamma' ")
+      throw error.WhileError(line, guard, "Gamma'' is not greater to or equal than than Gamma' ")
     }
 
     // check P'' is stronger than P' - tested
@@ -899,7 +899,8 @@ object Exec {
     }
 
     val PAnd = State.andPredicates(PRestrictU)
-    val PPlusR = State.andPredicates(st3.PPlusRUpdate(lhs, _rhs, t))
+    val PRestrictUState = st3.copy(P = PRestrictU)
+    val PPlusR = PRestrictUState.PPlusRUpdate(lhs, _rhs, t)
     val knownU = st3.knownU
     val knownW = st3.knownW
     val knownR = st3.knownR
@@ -931,11 +932,12 @@ object Exec {
       println("checking falling")
     }
     val falling: Set[Id] = for (x <- st3.globals if (st3.written & st3.L(x).variables).nonEmpty &&
-      SMT.proveExpression(BinOp("&&", PreOp("!", BinOp("==>", PAnd, st3.L_G(x))), PreOp("!", BinOp("==>", PPlusR, PreOp("!", st3.L_G(x))))), st3.debug))
+      !SMT.proveImplies(PRestrictU, st3.L_G(x), st3.debug) &&
+      !SMT.proveImplies(PPlusR, PreOp("!", st3.L_G(x)), st3.debug))
       yield x
 
     if (st3.debug) {
-      println("fallling: " + falling)
+      println("falling: " + falling)
     }
 
     val fallingCompare: Set[Id] = for (y <- knownW & st3.gamma.keySet if SMT.proveImplies(PRestrictU, st3.gamma(y), st3.debug))
@@ -953,7 +955,8 @@ object Exec {
       println("checking rising")
     }
     val rising: Set[Id] = for (x <- st3.globals if (st3.written & st3.L(x).variables).nonEmpty &&
-      SMT.proveExpression(BinOp("&&", PreOp("!", BinOp("==>", PAnd, PreOp("!", st3.L(x)))), PreOp("!", BinOp("==>", PPlusR, st3.L(x)))), st3.debug))
+      !SMT.proveImplies(PRestrictU, PreOp("!", st3.L(x)), st3.debug) &&
+      !SMT.proveImplies(PPlusR, st3.L(x), st3.debug))
       yield x
 
     if (st3.debug) {
@@ -978,7 +981,8 @@ object Exec {
       }
       val low_or_eq_exp = State.orPredicates(st3.L_R(x) :: cIdentities)
       if ((st3.written & low_or_eq_exp.variables).nonEmpty &&
-        SMT.proveExpression(BinOp("&&", PreOp("!", BinOp("==>", PAnd, low_or_eq_exp)), PreOp("!", BinOp("==>", PPlusR, low_or_eq_exp))), st3.debug)) {
+        !SMT.proveImplies(PRestrictU, PreOp("!", low_or_eq_exp), st3.debug) &&
+        !SMT.proveImplies(PPlusR, low_or_eq_exp, st3.debug)) {
         shrink += x
       }
     }
@@ -998,10 +1002,14 @@ object Exec {
     var stronger: Set[Id] = Set()
     for (x <- st3.G_var.keySet) {
       // check !(P ==> c) && !(P + R ==> !c)
-      val strongerCheck: List[Expression] = for ((c, r) <- st3.G_var(x) if (st3.written & c.variables).nonEmpty)
-        yield BinOp("&&", PreOp("!", BinOp("==>", PAnd, c)), PreOp("!", BinOp("==>", PPlusR, PreOp("!", c))))
-      if (SMT.proveListOr(strongerCheck, st3.debug)) {
-        stronger += x
+      var xAdded = false
+      for ((c, r) <- st3.G_var(x)) {
+        if (!xAdded && (st3.written & c.variables).nonEmpty &&
+          !SMT.proveImplies(PRestrictU, c, st3.debug) &&
+          !SMT.proveImplies(PPlusR, PreOp("!", c), st3.debug)) {
+          stronger += x
+          xAdded = true
+        }
       }
     }
 
