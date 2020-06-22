@@ -1,0 +1,16 @@
+_global var c:
+_L: TRUE
+_R_var: (TRUE, c' == c)
+
+_global var x:
+_L: c == 0
+
+_local var low
+
+_P_inv: TRUE
+_P_0: c == 0
+
+c = 0;
+fence;
+low = x;
+c = 1; // should fail with rising variable x
