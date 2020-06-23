@@ -1,0 +1,19 @@
+_global var x:
+_L: FALSE
+_R_var: (z == 0, x == x')
+
+_global var z:
+_L: TRUE
+_R_var: (TRUE, z == z')
+
+_global var y:
+_L: TRUE
+
+_P_inv: TRUE
+
+z = 0;
+fence;
+x = 0;
+fence;
+y = x;
+z = 1;

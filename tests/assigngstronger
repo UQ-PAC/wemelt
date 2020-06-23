@@ -1,0 +1,14 @@
+_global var c:
+_L: TRUE
+_R_var: (TRUE, c == c')
+
+_global var x:
+_L: TRUE
+_G_var: (c == 0, x == x')
+
+_P_inv: TRUE
+
+c = 1;
+fence;
+x = 1;
+c = 0;

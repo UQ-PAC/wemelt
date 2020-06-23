@@ -1,0 +1,23 @@
+_global var x:
+_L: c == 0
+
+_global var z:
+_L: TRUE
+_R_var: (TRUE, z == z')
+
+_global var c:
+_L: TRUE
+_R_var: (z == 0, c == c')
+
+_local var high
+
+_P_inv: TRUE
+_P_0: TRUE
+_Gamma_0: high -> FALSE
+
+z = 0;
+fence;
+c = 1;
+fence;
+x = high;
+z = 1;
