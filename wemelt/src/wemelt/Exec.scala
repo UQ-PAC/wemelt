@@ -905,10 +905,11 @@ object Exec {
     val knownW = st3.knownW
     val knownR = st3.knownR
 
-    val toSubstC = Map(_rhs -> lhs.toVar)  // to get c[e/x]
+    val toSubstC: Subst = Map(lhs.toVar -> _rhs)  // to get c[e/x]
     if (st3.debug) {
       println("checking weaker")
     }
+    /*
     var weaker: Set[Id] = Set()
     for (y <- st3.R_var.keySet) {
       // check !(P && c ==> c[e/x])
@@ -916,6 +917,19 @@ object Exec {
         yield PreOp("!", BinOp("==>", BinOp("&&", c, PAnd), c.subst(toSubstC)))
       if (SMT.proveListOr(weakerCheck, st3.debug)) {
         weaker += y
+      }
+    }
+     */
+
+    var weaker: Set[Id] = Set()
+    for (y <- st3.R_var.keySet) {
+      // check !(P && c ==> c[e/x])
+      var yAdded = false
+      for ((c, r) <- st3.R_var(y) if !yAdded && c != Const._true) {
+        if (!SMT.proveImplies(c :: PRestrictU, c.subst(toSubstC), st3.debug)) {
+          weaker +=y
+          yAdded = true
+        }
       }
     }
 

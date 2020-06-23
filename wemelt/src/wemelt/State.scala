@@ -80,16 +80,16 @@ case class State(
 
 
     // calculate weaker
-    val toSubstC = Map(arg -> v) // for c[e/x]
-    val PPrimeAnd = State.andPredicates(PPrime ::: P_inv)
+    val toSubstC: Subst = Map(v -> arg) // for c[e/x]
     var weaker: Set[Id] = Set()
-
     for (y <- R_var.keySet) {
       // check !(P && c ==> c[e/x])
-      val weakerCheck: List[Expression] = for ((c, r) <- R_var(y) if c != Const._true)
-        yield PreOp("!", BinOp("==>", BinOp("&&", c, PPrimeAnd), c.subst(toSubstC)))
-      if (SMT.proveListOr(weakerCheck, debug)) {
-        weaker += y
+      var yAdded = false
+      for ((c, r) <- R_var(y) if !yAdded && c != Const._true) {
+        if (!SMT.proveImplies(c :: PPrime, c.subst(toSubstC), debug)) {
+          weaker +=y
+          yAdded = true
+        }
       }
     }
 
@@ -264,16 +264,17 @@ case class State(
     val new_var: Set[Id] = Set(id) ++ varE ++ varLY
 
     // calculate weaker
-    val toSubstC = Map(arg -> v) // for c[e/x]
-    val PPrimeAnd = State.andPredicates(PPrime ::: P_inv)
-    var weaker: Set[Id] = Set()
+    val toSubstC: Subst = Map(v -> arg) // for c[e/x]
 
+    var weaker: Set[Id] = Set()
     for (y <- R_var.keySet) {
       // check !(P && c ==> c[e/x])
-      val weakerCheck: List[Expression] = for ((c, r) <- R_var(y) if c != Const._true)
-        yield PreOp("!", BinOp("==>", BinOp("&&", c, PPrimeAnd), c.subst(toSubstC)))
-      if (SMT.proveListOr(weakerCheck, debug)) {
-        weaker += y
+      var yAdded = false
+      for ((c, r) <- R_var(y) if !yAdded && c != Const._true) {
+        if (!SMT.proveImplies(c :: PPrime, c.subst(toSubstC), debug)) {
+          weaker +=y
+          yAdded = true
+        }
       }
     }
 

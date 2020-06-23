@@ -4,7 +4,6 @@
 -test everything!!!
 
 new weak memory model:
--fix weaker calculations
 -figure out how to calculate D Fixed Point now that it is dependent on P
 -optimise by only testing those variables not in the sets to compare to in AssignG
 -fix gamma initialising domain issue?
