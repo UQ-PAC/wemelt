@@ -69,18 +69,17 @@ case class State(
     }.flatten
     val new_var: Set[Id] = Set(id) ++ varE ++ varLY
 
-    val toSubstC = Map(arg -> v)
-    // calculate weaker - this can definitely be improved
-    // OR each of the implies to do them all in one go per y
-    val PPrimeAnd = State.andPredicates(PPrime ::: P_inv)
+    // calculate weaker
+    val toSubstC: Subst = Map(v -> arg) // for c[e/x]
     var weaker: Set[Id] = Set()
-
     for (y <- R_var.keySet) {
       // check !(P && c ==> c[e/x])
-      val weakerCheck: List[Expression] = for ((c, r) <- R_var(y) if c != Const._true)
-        yield PreOp("!", BinOp("==>", BinOp("&&", c, PPrimeAnd), c.subst(toSubstC)))
-      if (SMT.proveListOr(weakerCheck, debug)) {
-        weaker += y
+      var yAdded = false
+      for ((c, r) <- R_var(y) if !yAdded && c != Const._true) {
+        if (!SMT.proveImplies(c :: PPrime, c.subst(toSubstC), debug)) {
+          weaker +=y
+          yAdded = true
+        }
       }
     }
 
