@@ -171,9 +171,9 @@ object Exec {
 
 
   // compute fixed point of D
-  def DFixedPoint(test: Expression, body: Statement, state: State): DType = {
+  def DFixedPoint(guard: Expression, body: Statement, state: State, invariant: List[Expression]): DType = {
     var DFixed = false
-    var st0 = state
+    var st0 = state.copy(P = invariant)
     var DPrime: DType = Map()
     var dfixedloops = 0
     if (st0.debug)
@@ -181,9 +181,9 @@ object Exec {
     while (!DFixed) {
       dfixedloops = dfixedloops + 1
       // update rd for the guard
-      val st1 = DFixedPoint(test, st0)
+      val (_guard, st1) = eval(guard, st0)
       val st2 = st1.calculateIndirectUsed
-      val st3 = st2.updateDGuard(test)
+      val st3 = st2.updateDGuard(_guard)
       val st4 = DFixedPoint(body, st3)
       // intersect with original D after loop body
       val st5 = st3.copy(D = st4.mergeD(state))
@@ -206,7 +206,7 @@ object Exec {
       if (DFixed) {
         DPrime = st5.D
       } else {
-        st0 = st5
+        st0 = st5.copy(P = invariant)
         DFixed = false
       }
     }
@@ -231,10 +231,11 @@ object Exec {
       DFixedPoint(block.statements, st0)
 
     case Assignment(lhs, rhs) =>
-      val st1 = DFixedPoint(rhs, st0)
+      val (_rhs, st1) = eval(rhs, st0)
       val st2 = st1.updateWritten(lhs)
       val st3 = st2.calculateIndirectUsed
-      st3.updateDAssign(lhs, rhs)
+      val (st4, _) = st3.assignUpdateP(lhs, _rhs)
+      st4.updateDAssign(lhs, _rhs)
 
       /*
     case ArrayAssignment(name, index, rhs) =>
@@ -253,32 +254,44 @@ object Exec {
       val st1 = st0.updateWritten(CFence)
       st1.updateDCFence
 
-    case If(test, left, None) =>
+    case If(guard, left, None) =>
       // evaluate test which updates D
-      val st1 = DFixedPoint(test, st0)
+      val (_guard, st1) = eval(guard, st0)
       val st2 = st1.calculateIndirectUsed
-      val st3 = st2.updateDGuard(test)
+      val (st3, _) = st2.guardUpdateP(_guard)
+      val st4 = st3.updateDGuard(_guard)
 
       // right branch is empty
-      val _left = DFixedPoint(left, st3)
-      st3.copy(D = _left.mergeD(st3))
+      val _left = DFixedPoint(left, st4)
+      st4.copy(D = _left.mergeD(st4), P = State.mergeP(_left.P, st4.P))
 
-    case If(test, left, Some(right)) =>
+    case If(guard, left, Some(right)) =>
       // evaluate test which updates D
-      val st1 = DFixedPoint(test, st0)
+      val (_guard, st1) = eval(guard, st0)
       val st2 = st1.calculateIndirectUsed
-      val st3 = st2.updateDGuard(test)
+      val (st3, _) = st2.guardUpdateP(_guard)
+      val st4 = st3.updateDGuard(_guard)
 
-      val _left = DFixedPoint(left, st3)
-      val _right = DFixedPoint(right, st3)
-      st3.copy(D =_left.mergeD(_right))
+      val _left = DFixedPoint(left, st4)
+      val _right = DFixedPoint(right, st4)
+      st4.copy(D =_left.mergeD(_right), P = State.mergeP(_left.P, _right.P))
 
     case While(test, invariants, gamma, body) =>
-      st0.copy(D = DFixedPoint(test, body, st0))
+      val idToVar: Subst = {
+        for (v <- st0.variables)
+          yield v -> v.toVar
+      }.toMap
+      val PPrime = invariants map {i => i.subst(idToVar)}
+      st0.copy(D = DFixedPoint(test, body, st0, PPrime), P = PPrime)
 
     case DoWhile(test, invariants, gamma, body) =>
       val st1 = DFixedPoint(body, st0)
-      st1.copy(D = DFixedPoint(test, body, st0))
+      val idToVar: Subst = {
+        for (v <- st0.variables)
+          yield v -> v.toVar
+      }.toMap
+      val PPrime = invariants map {i => i.subst(idToVar)}
+      st1.copy(D = DFixedPoint(test, body, st0, PPrime), P = PPrime)
 
       /*
     case CompareAndSwap(r3, x, r1, r2) =>
@@ -292,33 +305,6 @@ object Exec {
 
     case _ =>
       throw error.InvalidProgram("unimplemented statement at line " + statement.line + ": " + statement)
-  }
-
-  def DFixedPoint(expr: Expression, st0: State): State = expr match {
-    case id: Id =>
-      st0.updateRead(id)
-
-    case res: Lit =>
-      st0
-
-    case res: Const =>
-      st0
-
-      /*
-    case Access(name, index) =>
-      val st1 = DFixedPoint(index, st0)
-      st1.updateRead(st1.arrays(name))
-       */
-
-    case BinOp(_, arg1, arg2) =>
-      val st1 = DFixedPoint(arg1, st0)
-      DFixedPoint(arg2, st1)
-
-    case PreOp(_, arg) =>
-      DFixedPoint(arg, st0)
-
-    case _ =>
-      throw error.InvalidProgram("unimplemented expression: " + expr)
   }
 
   def eval(expr: Expression, st0: State): (Expression, State) = expr match {
@@ -452,12 +438,6 @@ object Exec {
       throw error.IfError(line, guard, "guard expression is HIGH")
     }
 
-    /*
-    val PRestrict = state2.restrictP(state2.knownW) // calculate P_b
-    if (state0.debug)
-      println("P_b: " + PRestrict.PStr)
-     */
-
     // check any array indices in test are low
     /*
     for (i <- _test.arrays) {
@@ -468,46 +448,49 @@ object Exec {
      */
 
     // execute both sides of if statement
-    val _left = state2.guardUpdate(_guard)
-    val _left1 = _left.updateDGuard(_guard)
+    val (_left, m) = state2.guardUpdateP(_guard)
+    val _left1 = _left.guardUpdateGamma(m)
+    val _left2 = _left1.updateDGuard(_guard)
     if (state0.toLog)
-      println("D[b]: " + _left1.D.DStr)
-    val _left2 = if (_left1.noInfeasible) {
+      println("D[b]: " + _left2.D.DStr)
+    val _left3 = if (_left2.noInfeasible) {
       // don't check infeasible paths
-      if (SMT.proveP(_left1.P, _left1.debug)) {
-        execute(left, _left1).st
+      if (SMT.proveP(_left2.P, _left2.debug)) {
+        execute(left, _left2).st
       } else {
-        _left1
+        _left2
       }
     } else {
-      execute(left, _left1).st
+      execute(left, _left2).st
     }
 
     val notGuard = PreOp("!", _guard)
-    val _right2: State = right match {
+    val _right3: State = right match {
       case Some(r) =>
         if (state0.toLog)
           println("} else {")
 
-        val _right = state2.guardUpdate(notGuard)
-        val _right1 = _right.updateDGuard(_guard)
-        if (_right1.noInfeasible) {
+        val (_right, m) = state2.guardUpdateP(notGuard)
+        val _right1 = _right.guardUpdateGamma(m)
+        val _right2 = _right1.updateDGuard(_guard)
+        if (_right2.noInfeasible) {
           // don't check infeasible paths
-          if (SMT.proveP(_right1.P, _right1.debug)) {
-            execute(r, _right1).st
+          if (SMT.proveP(_right2.P, _right2.debug)) {
+            execute(r, _right2).st
           } else {
-            _right1
+            _right2
           }
         } else {
-          execute(r, _right1).st
+          execute(r, _right2).st
         }
       case None =>
-        val state3 = state2.guardUpdate(notGuard)
-        state3.updateDGuard(_guard)
+        val (state3, m) = state2.guardUpdateP(notGuard)
+        val state4 = state3.guardUpdateGamma(m)
+        state4.updateDGuard(_guard)
     }
 
     // merge states
-    _left2.mergeIf(_right2)
+    _left3.mergeIf(_right3)
   }
 
   def whileRule(guard: Expression, PPrime: List[Expression], gammaPrime: Map[Id, Expression], body: Statement, state0: State, line: Int): State = {
@@ -561,7 +544,7 @@ object Exec {
     // D and DFixed, but not D''. this is impossible as if an element is in D and D_fixed, it will not be removed after
     // the single loop iteration that produces D''
 
-    val DPrime = DFixedPoint(guard, body, state0)
+    val DPrime = DFixedPoint(guard, body, state0, PPrime)
     if (state0.debug)
       println("D': " + DPrime.DStr)
 
@@ -618,45 +601,46 @@ object Exec {
     }
 
     // update P, Gamma and D with guard
-    val state4 = state3.guardUpdate(_guard)
-    val state5 = state4.updateDGuard(_guard)
+    val (state4, m4) = state3.guardUpdateP(_guard)
+    val state5 = state4.guardUpdateGamma(m4)
+    val state6 = state5.updateDGuard(_guard)
 
     if (state0.debug) {
       println("while rule after test, before loop body:")
-      println("gamma':" + state5.gamma.gammaStr)
-      println("P and [e]_M:" + state5.P.PStr)
+      println("gamma':" + state6.gamma.gammaStr)
+      println("P and [e]_M:" + state6.P.PStr)
     }
 
     // evaluate body
     val _body = execute(body, state4)
-    val state6 = _body.st
+    val state7 = _body.st
 
     if (state0.debug) {
       println("while rule after loop body:")
       println("gamma': " + gammaPrime.gammaStr)
       println("P' :" + PPrime.PStr)
 
-      println("gamma'': " + state6.gamma.gammaStr)
-      println("P'' :" + state6.P.PStr)
+      println("gamma'': " + state7.gamma.gammaStr)
+      println("P'' :" + state7.P.PStr)
     }
 
     // this shouldn't be able to happen if D' is calculated correctly
     // check D' is subset of D''
 
-    if (!state1.DSubsetOf(state6)) {
-      throw error.ProgramError("line " + line + ": D' is not a subset of D''." + newline + "D': " +  state1.D.DStr + newline + "D'': " + state6.D.DStr)
+    if (!state1.DSubsetOf(state7)) {
+      throw error.ProgramError("line " + line + ": D' is not a subset of D''." + newline + "D': " +  state1.D.DStr + newline + "D'': " + state7.D.DStr)
     }
 
     // check gamma' is greater or equal than gamma'' for all in gamma domain
     if (state0.debug) {
       println("checking Gamma'' >= Gamma'")
     }
-    val PPrimePrimePred = State.andPredicates(state6.P)
+    val PPrimePrimePred = State.andPredicates(state7.P)
     val gammaGreaterCheck: List[Expression] = {
-      for (v <- state6.variables)
+      for (v <- state7.variables)
         yield {
           val gammaInvSec = state1.security(v)
-          val gammaNewSec = state6.security(v)
+          val gammaNewSec = state7.security(v)
           if (state0.debug) {
             println("Gamma''<" + v + ">: " + gammaNewSec)
             println("Gamma'<" + v + ">: " + gammaInvSec)
@@ -665,7 +649,7 @@ object Exec {
           BinOp("==>", BinOp("&&", gammaInvSec, PPrimePrimePred), gammaNewSec)
         }
     }.toList
-    if (!SMT.proveListAnd(gammaGreaterCheck, state6.debug)) {
+    if (!SMT.proveListAnd(gammaGreaterCheck, state7.debug)) {
       throw error.WhileError(line, guard, "Gamma'' is not greater to or equal than than Gamma' ")
     }
 
@@ -673,15 +657,16 @@ object Exec {
     if (state0.debug) {
       println("checking P'' ==> P'")
     }
-    if (!SMT.proveImplies(state6.P, PPrime, state0.debug)) {
-      throw error.WhileError(line, guard, "provided P' " + PPrime.PStr + " does not hold after loop body. P'': " + state6.P.PStr)
+    if (!SMT.proveImplies(state7.P, PPrime, state0.debug)) {
+      throw error.WhileError(line, guard, "provided P' " + PPrime.PStr + " does not hold after loop body. P'': " + state7.P.PStr)
     }
 
     // state1 used here as do not keep gamma'', P'', D'' from after loop body execution
     // remove test from P'
     val notGuard = PreOp("!", _guard)
-    val state7 = state1.guardUpdate(notGuard)
-    state7.updateDGuard(notGuard)
+    val (state8, m8) = state1.guardUpdateP(notGuard)
+    val state9 = state8.guardUpdateGamma(m8)
+    state9.updateDGuard(notGuard)
   }
 
 
@@ -861,8 +846,9 @@ object Exec {
     val st3 = st2.updateWritten(lhs)
     val t = st3.security(_rhs)
 
-    val st4 = st3.assignUpdate(lhs, _rhs, t)
-    st4.updateDAssign(lhs, _rhs)
+    val (st4, m) = st3.assignUpdateP(lhs, _rhs)
+    val st5 = st4.assignUpdateGamma(lhs, t, m)
+    st5.updateDAssign(lhs, _rhs)
   }
 
   def assignGRule(lhs: Id, rhs: Expression, st0: State, line: Int): State = {
@@ -1036,8 +1022,9 @@ object Exec {
       throw error.AssignGError(line, lhs, rhs, "stronger set: " + stronger + " is not subset of knownW: " + knownW)
     }
 
-    val st4 = st3.assignUpdate(lhs, _rhs, t)
-    st4.updateDAssign(lhs, _rhs)
+    val (st4, m) = st3.assignUpdateP(lhs, _rhs)
+    val st5 = st4.assignUpdateGamma(lhs, t, m)
+    st5.updateDAssign(lhs, _rhs)
   }
 
   /*

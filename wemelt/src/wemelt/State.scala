@@ -53,7 +53,7 @@ case class State(
   }
 
   // update P and Gamma after assignment
-  def assignUpdate(id: Id, arg: Expression, t: Expression): State = {
+  def assignUpdateP(id: Id, arg: Expression): (State, Subst) = {
     val vars = arg.variables + id // variables in assignment
     val PRestrictInd = restrictPInd(vars)
 
@@ -142,7 +142,17 @@ case class State(
 
     val PPlusR = PPlus ++ RPlus
 
-    val domGamma = low_or_eq(PPlusR)
+    if (debug) {
+      println("assigning " + arg + " to " + id + ":")
+      println("P: " + P.PStr)
+      println("P': " + PPrime.PStr)
+      println("P + R: " + PPlusR.PStr)
+    }
+    (copy(P = PPlusR), m)
+  }
+
+  def assignUpdateGamma(id: Id, t: Expression, m: Subst): State = {
+    val domGamma = low_or_eq(P)
     val gammaPrime = if (domGamma.contains(id)) {
       gamma + (id -> ForAll(indirect map (i => i.toVar), t))
     } else {
@@ -154,19 +164,14 @@ case class State(
       for (g <- gammaPrimeRestrict.keySet)
         yield g -> gammaPrimeRestrict(g).subst(m)
     }.toMap
-
     if (debug) {
-      println("assigning " + arg + " to " + id + ":")
-      println("P: " + P.PStr)
-      println("P': " + PPrime.PStr)
-      println("P + R: " + PPlusR.PStr)
       println("Gamma + R: " + gammaPlusR.gammaStr)
     }
-    copy(P = PPlusR, gamma = gammaPlusR)
+    copy(gamma = gammaPlusR)
   }
 
   // update P and Gamma with loop/if guard
-  def guardUpdate(guard: Expression): State = {
+  def guardUpdateP(guard: Expression): (State, Subst) = {
     val vars = guard.variables
     val PRestrictInd = restrictPInd(vars)
 
@@ -224,7 +229,18 @@ case class State(
 
     val PPlusR = PPlus ++ RPlus
 
-    val domGamma = low_or_eq(PPlusR)
+    if (debug) {
+      println("updating P and Gamma with guard " + guard)
+      println("P: " + P.PStr)
+      println("P': " + PPrime.PStr)
+      println("P + R: " + PPlusR.PStr)
+
+    }
+    (copy(P = PPlusR), m)
+  }
+
+  def guardUpdateGamma(m: Subst): State = {
+    val domGamma = low_or_eq(P)
     val gammaPrimeRestrict = gamma -- (gamma.keySet -- domGamma)
     val gammaPlusR: Map[Id, Expression] = {
       for (g <- gammaPrimeRestrict.keySet)
@@ -232,13 +248,9 @@ case class State(
     }.toMap
 
     if (debug) {
-      println("updating P and Gamma with guard " + guard)
-      println("P: " + P.PStr)
-      println("P': " + PPrime.PStr)
-      println("P + R: " + PPlusR.PStr)
       println("Gamma + R: " + gammaPlusR.gammaStr)
     }
-    copy(P = PPlusR, gamma = gammaPlusR)
+    copy(gamma = gammaPlusR)
   }
 
   def PPlusRUpdate(id: Id, arg: Expression, t: Expression): List[Expression] = {
@@ -826,7 +838,7 @@ case class State(
     val DPrime = this.mergeD(state2)
 
     // P1 OR P2 converted to CNF
-    val PPrime = mergeP(state1.P, state2.P)
+    val PPrime = State.mergeP(state1.P, state2.P)
 
     copy(gamma = gammaPrime, P = PPrime, D = DPrime)
   }
@@ -837,25 +849,7 @@ case class State(
     State.mergeD(this.D, state2.D)
   }
 
-  // https://www.cs.jhu.edu/~jason/tutorials/convert-to-CNF.html
-  // P1 OR P2 converted to CNF, using switching variable to keep converted formula small
-  def mergeP(P1: List[Expression], P2: List[Expression]): List[Expression] = {
-    if (P1.isEmpty) {
-      return P2
-    }
-    if (P2.isEmpty) {
-      return P1
-    }
-    val common = P1.intersect(P2) // common elements don't need switching variable
-    val switch = Switch.fresh
-    val p1List: List[Expression] = for (p1 <- P1 if !common.contains(p1)) yield {
-      BinOp("||", PreOp("!", switch), p1)
-    }
-    val p2List: List[Expression] = for (p2 <- P2 if !common.contains(p2)) yield {
-      BinOp("||", switch, p2)
-    }
-    common ++ p1List ++ p2List
-  }
+
 
     /*
   def mergePs(ps: List[List[Expression]]): List[Expression] = {
@@ -1283,4 +1277,23 @@ object State {
     }
     }.toMap
 
+  // https://www.cs.jhu.edu/~jason/tutorials/convert-to-CNF.html
+  // P1 OR P2 converted to CNF, using switching variable to keep converted formula small
+  def mergeP(P1: List[Expression], P2: List[Expression]): List[Expression] = {
+    if (P1.isEmpty) {
+      return P2
+    }
+    if (P2.isEmpty) {
+      return P1
+    }
+    val common = P1.intersect(P2) // common elements don't need switching variable
+    val switch = Switch.fresh
+    val p1List: List[Expression] = for (p1 <- P1 if !common.contains(p1)) yield {
+      BinOp("||", PreOp("!", switch), p1)
+    }
+    val p2List: List[Expression] = for (p2 <- P2 if !common.contains(p2)) yield {
+      BinOp("||", switch, p2)
+    }
+    common ++ p1List ++ p2List
+  }
 }
