@@ -502,7 +502,7 @@ object Exec {
     _left1.mergeIf(_right1)
   }
 
-  def whileRule(guard: Expression, PPrime: List[Expression], gammaPrime: Map[Id, Expression], body: Statement, state0: State, line: Int): State = {
+  def whileRule(guard: Expression, PPrime: Predicate, gammaPrime: Map[Id, Expression], body: Statement, state0: State, line: Int): State = {
     // WHILE rule
 
     if (state0.toLog)
@@ -513,7 +513,7 @@ object Exec {
       println("checking P' is stable")
     }
     if (!state0.PStable(PPrime)) {
-      throw error.WhileError(line, guard, "provided P': " + PPrime.PStr + " is not stable")
+      throw error.WhileError(line, guard, "provided P': " + PPrime + " is not stable")
     }
 
     // check P' is weaker than previous P
@@ -521,7 +521,7 @@ object Exec {
       println("checking previous P ==> P'")
     }
     if (!SMT.proveImplies(state0.P, PPrime, state0.debug)) {
-      throw error.WhileError(line, guard, "provided P' " + PPrime.PStr + " is not weaker than P " + state0.P.PStr)
+      throw error.WhileError(line, guard, "provided P' " + PPrime + " is not weaker than P " + state0.P)
     }
 
     // check gamma prime has valid domain
@@ -622,7 +622,7 @@ object Exec {
     if (state0.debug) {
       println("while rule after test, before loop body:")
       println("gamma':" + state4.gamma.gammaStr)
-      println("P and [e]_M:" + state4.P.PStr)
+      println("P and [e]_M:" + state4.P)
     }
 
     // evaluate body
@@ -632,10 +632,10 @@ object Exec {
     if (state0.debug) {
       println("while rule after loop body:")
       println("gamma': " + gammaPrime.gammaStr)
-      println("P' :" + PPrime.PStr)
+      println("P' :" + PPrime)
 
       println("gamma'': " + state5.gamma.gammaStr)
-      println("P'' :" + state5.P.PStr)
+      println("P'' :" + state5.P)
     }
 
     // this shouldn't be able to happen if D' is calculated correctly
@@ -674,7 +674,7 @@ object Exec {
       println("checking P'' ==> P'")
     }
     if (!SMT.proveImplies(state5.P, PPrime, state0.debug)) {
-      throw error.WhileError(line, guard, "provided P' " + PPrime.PStr + " does not hold after loop body. P'': " + state5.P.PStr)
+      throw error.WhileError(line, guard, "provided P' " + PPrime + " does not hold after loop body. P'': " + state5.P)
     }
 
     // state1 used here as do not keep gamma'', P'', D'' from after loop body execution
@@ -872,7 +872,7 @@ object Exec {
     // check guar P(x := e)
     val guarUnchanged: List[Expression] = {for (g <- st1.globals - lhs)
       yield BinOp("==", g.toVar, g.toVar.prime)}.toList
-    val guarP: List[Expression] = (BinOp("==", lhs.toVar.prime, _rhs) :: guarUnchanged) ++ st1.P ++ st1.P_inv
+    val guarP: Predicate = st1.P.add(BinOp("==", lhs.toVar.prime, _rhs) :: guarUnchanged) ++ st1.P_inv
 
     if (st1.debug) {
       println("checking assignment conforms to guarantee")
@@ -887,7 +887,7 @@ object Exec {
       println("checking L_G(x) && P ==> t holds")
     }
 
-    if (t != Const._true && !SMT.proveImplies(st1.L_G(lhs) :: st1.P_inv ++ st1.P , t, st1.debug)) {
+    if (t != Const._true && !SMT.proveImplies(st1.P_inv.add(st1.L_G(lhs)) ++ st1.P , t, st1.debug)) {
       throw error.AssignGError(line, lhs, rhs, "L_G(" + lhs + ") && P ==> " + lhs + " doesn't hold for assignment")
     }
 
@@ -901,7 +901,7 @@ object Exec {
         if (st1.debug) {
           println("checking fall: P && L(y)[e/x] ==> (Gamma<y> || L(y)) for y == " + y)
         }
-        if (!SMT.proveImplies(st1.L(y).subst(toSubst) :: st1.P ++ st1.P_inv, BinOp("||", st1.security(y.toVar) , st1.L(y)), st1.debug)) {
+        if (!SMT.proveImplies(st1.P.add(st1.L(y).subst(toSubst)) ++ st1.P_inv, BinOp("||", st1.security(y.toVar) , st1.L(y)), st1.debug)) {
           throw error.AssignGError(line, lhs, rhs, "falling error for variable " + y)
         }
       }
