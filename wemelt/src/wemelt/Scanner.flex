@@ -70,7 +70,7 @@ WS = {NL} | [ \t\f]
     "<="        { return newToken(Terminals.LE);       }
     ">="        { return newToken(Terminals.GE);       }
     ">"         { return newToken(Terminals.GT);       }
-    "=="        { return newToken(Terminals.EQ);       }
+    "="        { return newToken(Terminals.EQ);       }
     "!="        { return newToken(Terminals.NEQ);      }
     "&"         { return newToken(Terminals.AMP);      }
     "^"         { return newToken(Terminals.CARET);    }
@@ -78,7 +78,7 @@ WS = {NL} | [ \t\f]
     "&&"        { return newToken(Terminals.AND);      }
     "||"        { return newToken(Terminals.OR);       }
     ":"         { return newToken(Terminals.COLON);    }
-    "="         { return newToken(Terminals.ASG);      }
+    ":="         { return newToken(Terminals.ASG);      }
 
 
     //"<=>"       { return newToken(Terminals.EQV);      }
@@ -116,6 +116,24 @@ WS = {NL} | [ \t\f]
     "FALSE"     { return newToken(Terminals.FALSE);    }
 
     "->"        { return newToken(Terminals.MAPSTO);    }
+
+    "with" { return newToken(Terminals.WITH);    }
+    "<-" { return newToken(Terminals.LARROW);    }
+    "extract" { return newToken(Terminals.extract);    }
+    "el" { return newToken(Terminals.EL);    }
+    "be" { return newToken(Terminals.BE);    }
+    "low" { return newToken(Terminals.LOW);    }
+    "high" { return newToken(Terminals.HIGH);    }
+    "signed" { return newToken(Terminals.SIGNED);    }
+    "unsigned" { return newToken(Terminals.UNSIGNED);    }
+    "u32" { return newToken(Terminals.U32);    }
+    "u64" { return newToken(Terminals.U64);    }
+    "s32" { return newToken(Terminals.S32);    }
+    "s64" { return newToken(Terminals.S64);    }
+    "special" { return newToken(Terminals.SPECIAL);    }
+    "ish" { return newToken(Terminals.ISH);    }
+    "ret" { return newToken(Terminals.RET);    }
+    "mem" { return newToken(Terminals.MEM);    }
 
     //"exists"    { return newToken(Terminals.EXISTS);   }
     //"forall"    { return newToken(Terminals.FORALL);   }

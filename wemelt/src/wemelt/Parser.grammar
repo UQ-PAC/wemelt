@@ -123,6 +123,7 @@ statement1
     | ID.n ASG    expr.b SEMICOLON              {: return new Assignment(n, b); :}
     | ID.n ASG CAS LPAREN ID.x COMMA expr.y COMMA expr.z RPAREN SEMICOLON {: return new CompareAndSwap(n, x, y, z); :}
     | ID.n LBRACK expr.i RBRACK ASG    expr.b SEMICOLON        {: return new ArrayAssignment(n, i, b); :}
+    | MEM ASG MEM WITH LBRACK expr.e2 COMMA ENDIAN RBRACK COLON NAT LARROW expr.e3
     | FENCE SEMICOLON                   {: return Fence.self();  :}
     | CFENCE SEMICOLON                   {: return ControlFence.self();  :}
     | IF LPAREN expr.a RPAREN statement.b   {: return new If(a, b);  :}
@@ -217,3 +218,9 @@ gamma_mapping
     //| ID.n LBRACK NUM.i RBRACK MAPSTO expr.e {: return new GammaMapping(n, i, s); :}
     //| ID.n LBRACK STAR RBRACK MAPSTO expr.e {: return new GammaMapping(n, s); :}
     ;
+
+endian = EL | BE;
+
+cast = LOW | HIGH | SIGNED | UNSIGNED;
+
+nat = U32 | U64 | S32 | S64;
