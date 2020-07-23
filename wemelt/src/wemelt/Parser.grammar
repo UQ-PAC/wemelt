@@ -75,6 +75,8 @@
 %typeof gamma_mapping = "GammaMapping";
 //%typeof lpredindex = "Expression";
 
+%typeof cast = "Cast"
+
 %goal unit;
 
 unit = defs.v P_INV COLON exprs.r statements.s {: return new Parsed(v, r, s); :}
@@ -120,12 +122,9 @@ defs = definition *;
 
 statement1
     = LBRACE statements2.ss RBRACE          {: return new Block(ss); :}
-    | ID.n ASG    expr.b SEMICOLON              {: return new Assignment(n, b); :}
-    | ID.n ASG CAS LPAREN ID.x COMMA expr.y COMMA expr.z RPAREN SEMICOLON {: return new CompareAndSwap(n, x, y, z); :}
-    | ID.n LBRACK expr.i RBRACK ASG    expr.b SEMICOLON        {: return new ArrayAssignment(n, i, b); :}
-    | MEM ASG MEM WITH LBRACK expr.e2 COMMA ENDIAN RBRACK COLON NAT LARROW expr.e3
-    | FENCE SEMICOLON                   {: return Fence.self();  :}
-    | CFENCE SEMICOLON                   {: return ControlFence.self();  :}
+    | REG.n ASG    expr.b              {: return new Assignment(n, b); :}
+    | MEM ASG MEM WITH LBRACK expr.e2 COMMA ENDIAN RBRACK COLON NAT LARROW expr.e3 {: return new Store(e2, e2); :}
+    | SPECIAL LPAREN FENCE ISH RPAREN                 {: return Fence.self();  :}
     | IF LPAREN expr.a RPAREN statement.b   {: return new If(a, b);  :}
     | IF LPAREN expr.a RPAREN statement.b ELSE statement.c     {: return new If(a, b, c);   :}
     | WHILE LPAREN expr.a RPAREN INVARIANT COLON exprs.i GAMMA COLON gamma_mappings.g statement.b      {: return new While(a, i, g, b);   :}
@@ -135,8 +134,9 @@ statement1
 
 expr
     = PREFIX | POSTFIX /* unused */
-    | ID.n                              {: return new Id(n);  :}
-    //| ID.n LBRACK expr.i RBRACK       {: return new Access(n, i); :}
+    | REG.n                             {: return new Reg(n);  :}
+    | ID.n                              {: return new Label(n);  :}
+    | MEM LBRACK expr.i COMMA ENDIAN RBRACK COLON NAT      {: return new Access(n, i); :}
     | NUM.n                             {: return new Lit(n); :}
     | PLUS  expr.a @ PREFIX             {: return new PreOp("+", a);    :}
     | MINUS expr.a @ PREFIX             {: return new PreOp("-", a);    :}
@@ -164,6 +164,9 @@ expr
     | LPAREN expr.e RPAREN              {: return (Symbol) e;           :}
     | TRUE                              {: return new Const("True");  :}
     | FALSE                             {: return new Const("False");  :}
+    | CAST.c COLON NUM.n LBRACK expr.e RBRACK {: return new Ext(c, n, e); :}
+    | IF expr.e1 THEN expr.e2 ELSE expr.e3 {: return new Question(e1, e2, e3); :}
+    |
     ;
 
 rgexpr = ID.n                              {: return new Id(n);  :}
@@ -221,6 +224,10 @@ gamma_mapping
 
 endian = EL | BE;
 
-cast = LOW | HIGH | SIGNED | UNSIGNED;
+cast = LOW {: return Low.instance(); :}
+    | HIGH {: return High.instance(); :}
+    | SIGNED {: return Signed.instance(); :}
+    | UNSIGNED {: return Unsigned.instance(); :}
+    ;
 
 nat = U32 | U64 | S32 | S64;

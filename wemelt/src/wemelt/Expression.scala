@@ -259,3 +259,8 @@ case class Const(name: String) extends Expression {
   override def toString: String = this.name
   //override def arrays = Set()
 }
+
+case class Ext(cast: Cast, n: Int, e: Expression) extends Expression {
+  override def subst(su: Subst): Ext = Ext(cast, n, e.subst(su))
+  override def variables: Set[Id] = e.variables
+}

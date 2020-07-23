@@ -134,6 +134,17 @@ WS = {NL} | [ \t\f]
     "ish" { return newToken(Terminals.ISH);    }
     "ret" { return newToken(Terminals.RET);    }
     "mem" { return newToken(Terminals.MEM);    }
+    "xzr" { return newToken(Terminals.REG, "xzr");    }
+    "wzr" { return newToken(Terminals.REG, "wzr");    }
+    "sp"  { return newToken(Terminals.REG, "sp");    }
+    "wsp" { return newToken(Terminals.REG, "wsp");    }
+    Temp[0-9]* {return newToken(Terminals.REG, yytext());}
+    "Z" {return newToken(Terminals.REG, "Z"}
+    "C" {return newToken(Terminals.REG, "C"}
+    "N" {return newToken(Terminals.REG, "N"}
+    "V" {return newToken(Terminals.REG, "V"}
+
+    (w|x)(30|[12][0-9]|[0-9]) {return newToken(Terminals.REG, yytext());}
 
     //"exists"    { return newToken(Terminals.EXISTS);   }
     //"forall"    { return newToken(Terminals.FORALL);   }

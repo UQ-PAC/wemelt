@@ -8,25 +8,18 @@ case class Parsed(variables: Set[Definition], P_inv: List[Expression], P_0: Opti
   def this(variables: Array[Definition], P_inv: Array[Expression],  statements: Array[Statement]) = this(variables.toSet, P_inv.toList, None, None, statements.toList)
 }
 
-sealed trait Security extends beaver.Symbol {
-  def >(security: Security): Boolean
-  def <(security: Security): Boolean
-  def >=(security: Security): Boolean
-  def <=(security: Security): Boolean
-}
-case object High extends Security {
+sealed trait Cast extends beaver.Symbol
+case object Low extends Cast {
   def instance = this
-  def >(security: Security): Boolean = if (security == Low) { true } else { false }
-  def <(security: Security): Boolean = false
-  def >=(security: Security): Boolean = true
-  def <=(security: Security): Boolean = if (security == Low) { false } else { true }
 }
-case object Low extends Security {
+case object High extends Cast {
   def instance = this
-  def >(security: Security): Boolean = false
-  def <(security: Security): Boolean = if (security == High) { true } else { false }
-  def >=(security: Security): Boolean = if (security == High) { false } else { true }
-  def <=(security: Security): Boolean = true
+}
+case object Signed extends Cast {
+  def instance = this
+}
+case object Unsigned extends Cast {
+  def instance = this
 }
 
 case class GammaMapping(variable: Id, security: Expression) extends beaver.Symbol {

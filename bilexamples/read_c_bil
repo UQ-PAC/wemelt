@@ -1,0 +1,40 @@
+            sp := sp - 16
+            mem := mem with [sp + 8, el]:u32 <- wzr
+            mem := mem with [sp + 12, el]:u32 <- wzr
+do {
+do {
+            x0 := :got:z - low:12[:got:z]
+            x0 := mem[x0 + low:12[:got:z], el]:u64
+            w0 := mem[x0, el]:u32
+            mem := mem with [sp + 8, el]:u32 <- w0
+            w0 := mem[sp + 8, el]:u32 
+            w0 := w0 & 1
+            Temp1 := w0
+            Temp2 := 0
+            Result := w0 - 0
+            Z := Result = 0
+            N := high:1[Result]
+            C := Temp2 <= Temp1
+            V := high:1[(Temp1 ^ Temp2) & (Temp1 ^ Result)]
+} while (~Z)
+            special(fence ish)
+            x0 := :got:x - low:12[:got:x]
+            x0 := mem[x0 + low:12[:got:x], el]:u64
+            w0 := mem[x0, el]:u32
+            mem := mem with [sp + 12, el]:u32 <- w0
+            special(fence ish)
+            x0 := :got:z - low:12[:got:z]
+            x0 := mem[x0 + low:12[:got:z], el]:u64
+            w0 := mem[x0, el]:u32
+            w1 := mem[sp + 8, el]:u32
+            Temp1 := w1
+            Temp2 := w0
+            Result := w1 - w0
+            Z := Result = 0
+            N := high:1[Result]
+            C := Temp2 <= Temp1
+            V := high:1[(Temp1 ^ Temp2) & (Temp1 ^ Result)]
+} while (~Z)          
+            w0 := mem[sp + 12, el]:u32
+            sp := sp + 16
+            special(ret)
