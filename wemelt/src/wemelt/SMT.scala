@@ -268,14 +268,11 @@ object SMT {
     case Const._true => ctx.mkTrue
     case Const._false => ctx.mkFalse
 
-    case Lit(n: Int) => ctx.mkInt(n)
+    case Lit(n: Int) => ctx.mkBV(n, 32)
 
     case Switch(n: Int) => ctx.mkBoolConst("Switch" + n)
 
     case MultiSwitch(n: Int) => ctx.mkConst("MultiSwitch" + n, ctx.getIntSort)
-
-    case x: Id =>
-      throw error.InvalidProgram("unresolved program variable", x)
 
     case BinOp("==", arg1, arg2) => ctx.mkEq(translate(arg1), translate(arg2))
 
@@ -284,17 +281,17 @@ object SMT {
     case BinOp("||", arg1, arg2) => ctx.mkOr(formula(arg1), formula(arg2))
     case BinOp("==>", arg1, arg2) => ctx.mkImplies(formula(arg1), formula(arg2))
 
-    case PreOp("-", arg) => ctx.mkUnaryMinus(arith(arg))
-    case BinOp("+", arg1, arg2) => ctx.mkAdd(arith(arg1), arith(arg2))
-    case BinOp("-", arg1, arg2) => ctx.mkSub(arith(arg1), arith(arg2))
-    case BinOp("*", arg1, arg2) => ctx.mkMul(arith(arg1), arith(arg2))
-    case BinOp("/", arg1, arg2) => ctx.mkDiv(arith(arg1), arith(arg2))
-    case BinOp("%", arg1, arg2) => ctx.mkMod(arith(arg1), arith(arg2))
+    case PreOp("-", arg) => ctx.mkBVNeg(bitwise(arg))
+    case BinOp("+", arg1, arg2) => ctx.mkBVAdd(bitwise(arg1), bitwise(arg2))
+    case BinOp("-", arg1, arg2) => ctx.mkBVSub(bitwise(arg1), bitwise(arg2))
+    case BinOp("*", arg1, arg2) => ctx.mkBVMul(bitwise(arg1), bitwise(arg2))
+    case BinOp("/", arg1, arg2) => ctx.mkBVUDiv(bitwise(arg1), bitwise(arg2))
+    case BinOp("%", arg1, arg2) => ctx.mkBVURem(bitwise(arg1), bitwise(arg2))
 
-    case BinOp("<=", arg1, arg2) => ctx.mkLe(arith(arg1), arith(arg2))
-    case BinOp("<", arg1, arg2) => ctx.mkLt(arith(arg1), arith(arg2))
-    case BinOp(">=", arg1, arg2) => ctx.mkGe(arith(arg1), arith(arg2))
-    case BinOp(">", arg1, arg2) => ctx.mkGt(arith(arg1), arith(arg2))
+    case BinOp("<=", arg1, arg2) => ctx.mkBVULE(bitwise(arg1), bitwise(arg2))
+    case BinOp("<", arg1, arg2) => ctx.mkBVULT(bitwise(arg1), bitwise(arg2))
+    case BinOp(">=", arg1, arg2) => ctx.mkBVUGE(bitwise(arg1), bitwise(arg2))
+    case BinOp(">", arg1, arg2) => ctx.mkBVUGT(bitwise(arg1), bitwise(arg2))
 
     case BinOp("|", arg1, arg2) => ctx.mkBVOR(bitwise(arg1), bitwise(arg2))
     case BinOp("&", arg1, arg2) => ctx.mkBVAND(bitwise(arg1), bitwise(arg2))

@@ -112,20 +112,17 @@ object Exec {
     case While(test, invariants, gamma, body) =>
       if (state0.toLog)
         println("line " + statement.line + ": While(" + test + ") {")
-      // replace Ids in invariant with vars
-      val idToVar: Subst = {
-        for (v <- state0.variables)
-          yield v -> v.toVar
-        }.toMap /* ++ {
-        for (v <- state0.arrays.keySet)
-          yield v -> v.toVar
-      }.toMap */
 
-      val PPrime = invariants map {i => i.subst(idToVar)}
+      val toSubst: Subst = {
+        for (g <- state0.globals)
+          yield Label(g.name) -> g
+      }.toMap
+
+      val PPrime = invariants map {p => p.subst(toSubst)}
 
       // convert gammaPrime to map
-      val gammaPrime: Map[Id, Expression] = (gamma map {g => g.variable -> g.security.subst(idToVar)}).toMap
-      //val gammaPrime: Map[Id, Security] = (gamma flatMap {g => g.toPair(state0.arrays)}).toMap
+      val gammaPrime: Map[Var, Expression] = (gamma map {g => Var(g.label.name, state0.labels(g.label)) -> g.security.subst(toSubst)}).toMap
+      //val gammaPrime: Map[Var, Security] = (gamma flatMap {g => g.toPair(state0.arrays)}).toMap
 
       val state1 = whileRule(test, PPrime, gammaPrime, body, state0, statement.line)
       if (state0.toLog)
@@ -138,20 +135,17 @@ object Exec {
     case DoWhile(test, invariants, gamma, body) =>
       if (state0.toLog)
         println("line " + statement.line + ": While(" + test + ") {")
-      // replace Ids in invariant with vars
-      val idToVar: Subst = {
-        for (v <- state0.variables)
-          yield v -> v.toVar
-        }.toMap /* ++ {
-        for (v <- state0.arrays.keySet)
-          yield v -> v.toVar
-        }.toMap */
 
-      val PPrime = invariants map {i => i.subst(idToVar)}
+      val toSubst: Subst = {
+        for (g <- state0.globals)
+          yield Label(g.name) -> g
+      }.toMap
+
+      val PPrime = invariants map {p => p.subst(toSubst)}
 
       // convert gammaPrime to map
-      val gammaPrime: Map[Id, Expression] = (gamma map {g => g.variable -> g.security.subst(idToVar)}).toMap
-      //val gammaPrime: Map[Id, Security] = (gamma flatMap {g => g.toPair(state0.arrays)}).toMap
+      val gammaPrime: Map[Var, Expression] = (gamma map {g => Var(g.label.name, state0.labels(g.label)) -> g.security.subst(toSubst)}).toMap
+      //val gammaPrime: Map[Var, Security] = (gamma flatMap {g => g.toPair(state0.arrays)}).toMap
 
       // execute loop body once at start
       val state1 = execute(body, state0).st
@@ -277,21 +271,11 @@ object Exec {
       st4.copy(D =_left.mergeD(_right), P = State.mergeP(_left.P, _right.P))
 
     case While(test, invariants, gamma, body) =>
-      val idToVar: Subst = {
-        for (v <- st0.variables)
-          yield v -> v.toVar
-      }.toMap
-      val PPrime = invariants map {i => i.subst(idToVar)}
-      st0.copy(D = DFixedPoint(test, body, st0, PPrime), P = PPrime)
+      st0.copy(D = DFixedPoint(test, body, st0, invariants), P = invariants)
 
     case DoWhile(test, invariants, gamma, body) =>
       val st1 = DFixedPoint(body, st0)
-      val idToVar: Subst = {
-        for (v <- st0.variables)
-          yield v -> v.toVar
-      }.toMap
-      val PPrime = invariants map {i => i.subst(idToVar)}
-      st1.copy(D = DFixedPoint(test, body, st0, PPrime), P = PPrime)
+      st1.copy(D = DFixedPoint(test, body, st0, invariants), P = invariants)
 
       /*
     case CompareAndSwap(r3, x, r1, r2) =>
@@ -308,10 +292,10 @@ object Exec {
   }
 
   def eval(expr: Expression, st0: State): (Expression, State) = expr match {
-    case id: Id =>
+    case id: Var =>
       // value has been READ
       val st1 = st0.updateRead(id)
-      (id.toVar, st1)
+      (id, st1)
 
     case res: Lit =>
       (res, st0)
@@ -323,7 +307,7 @@ object Exec {
     case Access(name, index) =>
       val (_index, st1) = eval(index, st0)
       val st2 = st1.updateRead(st1.arrays(name))
-      (VarAccess(name.toVar, _index), st2)
+      (VarAccess(name., _index), st2)
        */
 
     case BinOp("==", arg1, arg2) =>
@@ -493,7 +477,7 @@ object Exec {
     _left3.mergeIf(_right3)
   }
 
-  def whileRule(guard: Expression, PPrime: List[Expression], gammaPrime: Map[Id, Expression], body: Statement, state0: State, line: Int): State = {
+  def whileRule(guard: Expression, PPrime: List[Expression], gammaPrime: Map[Var, Expression], body: Statement, state0: State, line: Int): State = {
     // WHILE rule
 
     if (state0.toLog)
@@ -671,7 +655,7 @@ object Exec {
 
 
   /*
-  def arrayAssignRule(a: Id, index: Expression, rhs: Expression, st0: State, line: Int): State = {
+  def arrayAssignRule(a: Var, index: Expression, rhs: Expression, st0: State, line: Int): State = {
     val array = st0.arrays(a)
     // ARRAY ASSIGN rule
     if (st0.toLog)
@@ -738,7 +722,7 @@ object Exec {
     st5.updateDArrayAssign(a, _rhs)
   }
 
-  def arrayAssignCRule(a: Id, index: Expression, rhs: Expression, st0: State, line: Int): State = {
+  def arrayAssignCRule(a: Var, index: Expression, rhs: Expression, st0: State, line: Int): State = {
     val array = st0.arrays(a)
     // ARRAY ASSIGNC rule
     if (st0.toLog)
@@ -836,7 +820,7 @@ object Exec {
   }
    */
 
-  def assignLRule(lhs: Id, rhs: Expression, st0: State, line: Int): State = {
+  def assignLRule(lhs: Var, rhs: Expression, st0: State, line: Int): State = {
     // ASSIGNL rule
     if (st0.toLog)
       println("ASSIGNL applying")
@@ -851,7 +835,7 @@ object Exec {
     st5.updateDAssign(lhs, _rhs)
   }
 
-  def assignGRule(lhs: Id, rhs: Expression, st0: State, line: Int): State = {
+  def assignGRule(lhs: Var, rhs: Expression, st0: State, line: Int): State = {
     // ASSIGNG rule
     if (st0.toLog)
       println("ASSIGNG applying")
@@ -865,8 +849,8 @@ object Exec {
 
     // check guar P(x := e)
     val guarUnchanged: List[Expression] = {for (g <- st3.globals - lhs)
-      yield BinOp("==", g.toVar, g.toVar.prime)}.toList
-    val guarP: List[Expression] = (BinOp("==", lhs.toVar.prime, _rhs) :: guarUnchanged) ::: PRestrictU
+      yield BinOp("==", g, g.prime)}.toList
+    val guarP: List[Expression] = (BinOp("==", lhs.prime, _rhs) :: guarUnchanged) ::: PRestrictU
 
     if (st3.debug) {
       println("checking assignment conforms to guarantee")
@@ -891,12 +875,12 @@ object Exec {
     val knownW = st3.knownW
     val knownR = st3.knownR
 
-    val toSubstC: Subst = Map(lhs.toVar -> _rhs)  // to get c[e/x]
+    val toSubstC: Subst = Map(lhs -> _rhs)  // to get c[e/x]
     if (st3.debug) {
       println("checking weaker")
     }
     /*
-    var weaker: Set[Id] = Set()
+    var weaker: Set[Var] = Set()
     for (y <- st3.R_var.keySet) {
       // check !(P && c ==> c[e/x])
       val weakerCheck: List[Expression] = for ((c, r) <- st3.R_var(y) if c != Const._true)
@@ -907,7 +891,7 @@ object Exec {
     }
      */
 
-    var weaker: Set[Id] = Set()
+    var weaker: Set[Var] = Set()
     for (y <- st3.R_var.keySet) {
       // check !(P && c ==> c[e/x])
       var yAdded = false
@@ -931,7 +915,7 @@ object Exec {
     if (st3.debug) {
       println("checking falling")
     }
-    val falling: Set[Id] = for (x <- st3.globals if (st3.written & st3.L(x).variables).nonEmpty &&
+    val falling: Set[Var] = for (x <- st3.globals if (st3.written & st3.L(x).variables).nonEmpty &&
       !SMT.proveImplies(PRestrictU, st3.L_G(x), st3.debug) &&
       !SMT.proveImplies(PPlusR, PreOp("!", st3.L_G(x)), st3.debug))
       yield x
@@ -940,7 +924,7 @@ object Exec {
       println("falling: " + falling)
     }
 
-    val fallingCompare: Set[Id] = for (y <- knownW & st3.gamma.keySet if SMT.proveImplies(PRestrictU, st3.gamma(y), st3.debug))
+    val fallingCompare: Set[Var] = for (y <- knownW & st3.gamma.keySet if SMT.proveImplies(PRestrictU, st3.gamma(y), st3.debug))
       yield y
 
     if (st3.debug) {
@@ -954,7 +938,7 @@ object Exec {
     if (st3.debug) {
       println("checking rising")
     }
-    val rising: Set[Id] = for (x <- st3.globals if (st3.written & st3.L(x).variables).nonEmpty &&
+    val rising: Set[Var] = for (x <- st3.globals if (st3.written & st3.L(x).variables).nonEmpty &&
       !SMT.proveImplies(PRestrictU, PreOp("!", st3.L(x)), st3.debug) &&
       !SMT.proveImplies(PPlusR, st3.L(x), st3.debug))
       yield x
@@ -971,15 +955,15 @@ object Exec {
     if (st3.debug) {
       println("checking shrink")
     }
-    var shrink: Set[Id] = Set()
+    var shrink: Set[Var] = Set()
     for (x <- st3.globals) {
-      val cIdentities: List[Expression] = if (st3.R_var.contains(x)) {
-        for ((c, r) <- st3.R_var(x) if r == BinOp("==", x.toVar, x.toVar.prime) || r == BinOp("==", x.toVar.prime, x.toVar))
+      val cVarentities: List[Expression] = if (st3.R_var.contains(x)) {
+        for ((c, r) <- st3.R_var(x) if r == BinOp("==", x, x.prime) || r == BinOp("==", x.prime, x))
           yield c
       } else {
         List()
       }
-      val low_or_eq_exp = State.orPredicates(st3.L_R(x) :: cIdentities)
+      val low_or_eq_exp = State.orPredicates(st3.L_R(x) :: cVarentities)
       if ((st3.written & low_or_eq_exp.variables).nonEmpty &&
         !SMT.proveImplies(PRestrictU, PreOp("!", low_or_eq_exp), st3.debug) &&
         !SMT.proveImplies(PPlusR, low_or_eq_exp, st3.debug)) {
@@ -999,7 +983,7 @@ object Exec {
     if (st3.debug) {
       println("checking stronger")
     }
-    var stronger: Set[Id] = Set()
+    var stronger: Set[Var] = Set()
     for (x <- st3.G_var.keySet) {
       // check !(P ==> c) && !(P + R ==> !c)
       var xAdded = false
@@ -1028,7 +1012,7 @@ object Exec {
   }
 
   /*
-  def compareAndSwapRule(lhs: Id, x: Id, r1: Expression, r2: Expression, st0: State, line: Int): State = {
+  def compareAndSwapRule(lhs: Var, x: Var, r1: Expression, r2: Expression, st0: State, line: Int): State = {
     // CAS rule
     if (st0.toLog)
       println("CAS applying")
@@ -1073,7 +1057,7 @@ object Exec {
       throw error.CASError(line, lhs, x, r1, r2, "HIGH expression in second parameter of CAS")
     }
 
-    val PRestrictAssign = BinOp("==", x.toVar, _r1) :: PRestrict
+    val PRestrictAssign = BinOp("==", x., _r1) :: PRestrict
     if (st0.debug) {
       println("PRestrictAssign: " + PRestrictAssign.PStr)
     }
@@ -1100,7 +1084,7 @@ object Exec {
     st8.updateDCAS(lhs, x, _r1, _r2)
   }
 
-  def compareAndSwapCRule(lhs: Id, x: Id, r1: Expression, r2: Expression, st0: State, line: Int): State = {
+  def compareAndSwapCRule(lhs: Var, x: Var, r1: Expression, r2: Expression, st0: State, line: Int): State = {
     // CASC rule
     if (st0.toLog)
       println("CASC applying")
@@ -1142,7 +1126,7 @@ object Exec {
       throw error.CASCError(line, lhs, x, r1, r2, "HIGH expression in second parameter of CAS compared to control variable in first parameter")
     }
 
-    val PRestrictAssign = BinOp("==", x.toVar, _r1) :: PRestrict
+    val PRestrictAssign = BinOp("==", x., _r1) :: PRestrict
     if (st0.debug) {
       println("PRestrictAssign: " + PRestrictAssign.PStr)
     }
@@ -1153,7 +1137,7 @@ object Exec {
     }
 
     // secure_update
-    val PPrime = st5.addToP(BinOp("==", x.toVar, _r1)).assign(x, _r2) // calculate PPrime
+    val PPrime = st5.addToP(BinOp("==", x., _r1)).assign(x, _r2) // calculate PPrime
     val PPrimeRestrict = PPrime.restrictP(knownw)
 
     val falling = for (i <- st5.controlledBy(x) if (!st5.lowP(i, PRestrictAssign)) && !st5.highP(i, PPrimeRestrict))

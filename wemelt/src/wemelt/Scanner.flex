@@ -119,7 +119,7 @@ WS = {NL} | [ \t\f]
 
     "with" { return newToken(Terminals.WITH);    }
     "<-" { return newToken(Terminals.LARROW);    }
-    "extract" { return newToken(Terminals.extract);    }
+    "extract" { return newToken(Terminals.EXTRACT);    }
     "el" { return newToken(Terminals.EL);    }
     "be" { return newToken(Terminals.BE);    }
     "low" { return newToken(Terminals.LOW);    }
@@ -134,17 +134,22 @@ WS = {NL} | [ \t\f]
     "ish" { return newToken(Terminals.ISH);    }
     "ret" { return newToken(Terminals.RET);    }
     "mem" { return newToken(Terminals.MEM);    }
-    "xzr" { return newToken(Terminals.REG, "xzr");    }
-    "wzr" { return newToken(Terminals.REG, "wzr");    }
-    "sp"  { return newToken(Terminals.REG, "sp");    }
-    "wsp" { return newToken(Terminals.REG, "wsp");    }
-    Temp[0-9]* {return newToken(Terminals.REG, yytext());}
-    "Z" {return newToken(Terminals.REG, "Z"}
-    "C" {return newToken(Terminals.REG, "C"}
-    "N" {return newToken(Terminals.REG, "N"}
-    "V" {return newToken(Terminals.REG, "V"}
+    "xzr" { return newToken(Terminals.BV64, "xzr");    }
+    "wzr" { return newToken(Terminals.BV32, "wzr");    }
+    "sp"  { return newToken(Terminals.BV64, "sp");    }
+    "wsp" { return newToken(Terminals.BV32, "wsp");    }
+    Temp[0-9]* {return newToken(Terminals.TEMP, yytext());}
+    "Result" {return newToken(Terminals.TEMP, "Result");}
+    "Z" {return newToken(Terminals.BV1, "Z");}
+    "C" {return newToken(Terminals.BV1, "C");}
+    "N" {return newToken(Terminals.BV1, "N");}
+    "V" {return newToken(Terminals.BV1, "V");}
+    ":got:" {return newToken(Terminals.GOT);}
+    ":got_lo12:" {return newToken(Terminals.GOTLO12);}
+    "size" {return newToken(Terminals.SIZE);}
 
-    (w|x)(30|[12][0-9]|[0-9]) {return newToken(Terminals.REG, yytext());}
+    x(30|[12][0-9]|[0-9]) {return newToken(Terminals.REG64, yytext());}
+    w(30|[12][0-9]|[0-9]) {return newToken(Terminals.REG32, yytext());}
 
     //"exists"    { return newToken(Terminals.EXISTS);   }
     //"forall"    { return newToken(Terminals.FORALL);   }

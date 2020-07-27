@@ -1,3 +1,9 @@
+BIL stuff
+-use mapping of labels to size of their contents in State to convert labels into vars in predicates
+-need to determine type of any expression assigned to a Temp
+
+
+
 -make P_inv optional in parsing
 -remove unnecessary SMT calls in R-var part of P + R ?? - check this ??
 -SMT optimisations to reduce calls in a few places

@@ -100,15 +100,14 @@ statements  = statement *;
 statements2 = statement2 *;
 
 definition
-    =     LOCAL ID.n {: return new LocalVarDef(n); :}
-          | GLOBAL ID.n COLON lpred.l {: return new GlobalVarDef(n, l); :}
-          | GLOBAL ID.n COLON lpredr.r lpredg.g {: return new GlobalVarDef(n, r, g); :}
-          | GLOBAL ID.n COLON lpred.l R_VAR COLON rvars.rv {: return new GlobalVarDef(n, l, rv); :}
-          | GLOBAL ID.n COLON lpredr.r lpredg.g R_VAR COLON rvars.rv {: return new GlobalVarDef(n, r, g, rv); :}
-          | GLOBAL ID.n COLON lpred.l G_VAR COLON rvars.gv {: return new GlobalVarDef(n, gv, l); :}
-          | GLOBAL ID.n COLON lpredr.r lpredg.g G_VAR COLON rvars.gv {: return new GlobalVarDef(n, gv, r, g); :}
-          | GLOBAL ID.n COLON lpred.l R_VAR COLON rvars.rv G_VAR COLON rvars.gv {: return new GlobalVarDef(n, l, rv, gv); :}
-          | GLOBAL ID.n COLON lpredr.r lpredg.g R_VAR COLON rvars.rv G_VAR COLON rvars.gv {: return new GlobalVarDef(n, r, g, rv, gv); :}
+    =     GLOBAL ID.n COLON SIZE COLON NUM.s lpred.l {: return new GlobalVarDef(n, s, l); :}
+          | GLOBAL ID.n COLON SIZE COLON NUM.s lpredr.r lpredg.g {: return new GlobalVarDef(n, s, r, g); :}
+          | GLOBAL ID.n COLON SIZE COLON NUM.s lpred.l R_VAR COLON rvars.rv {: return new GlobalVarDef(n, s, l, rv); :}
+          | GLOBAL ID.n COLON SIZE COLON NUM.s lpredr.r lpredg.g R_VAR COLON rvars.rv {: return new GlobalVarDef(n, s, r, g, rv); :}
+          | GLOBAL ID.n COLON SIZE COLON NUM.s lpred.l G_VAR COLON rvars.gv {: return new GlobalVarDef(n, s, gv, l); :}
+          | GLOBAL ID.n COLON SIZE COLON NUM.s lpredr.r lpredg.g G_VAR COLON rvars.gv {: return new GlobalVarDef(n, s, gv, r, g); :}
+          | GLOBAL ID.n COLON SIZE COLON NUM.s lpred.l R_VAR COLON rvars.rv G_VAR COLON rvars.gv {: return new GlobalVarDef(n, s, l, rv, gv); :}
+          | GLOBAL ID.n COLON SIZE COLON NUM.s lpredr.r lpredg.g R_VAR COLON rvars.rv G_VAR COLON rvars.gv {: return new GlobalVarDef(n, s, r, g, rv, gv); :}
           /*
           | ARRAY ID.n LBRACK NUM.s RBRACK COLON lpred.l mode.m {: return new ArrayDef(n, s, l, m); :}
           | ARRAY ID.n LBRACK NUM.s RBRACK COLON lpredindexes.l mode.m {: return new ArrayDef(n, s, l, m); :}
@@ -122,7 +121,10 @@ defs = definition *;
 
 statement1
     = LBRACE statements2.ss RBRACE          {: return new Block(ss); :}
-    | REG.n ASG    expr.b              {: return new Assignment(n, b); :}
+    | BV32.n ASG    expr.b                             {: return new Assignment(n, 32, b);  :}
+    | BV64.n ASG    expr.b                             {: return new Assignment(n, 64, b);  :}
+    | BV1.n  ASG    expr.b                            {: return new Assignment(n, 1, b);  :}
+    | TEMP.n ASG    expr.b                            {: return new Assignment(n, 0, b);  :}
     | MEM ASG MEM WITH LBRACK expr.e2 COMMA ENDIAN RBRACK COLON NAT LARROW expr.e3 {: return new Store(e2, e2); :}
     | SPECIAL LPAREN FENCE ISH RPAREN                 {: return Fence.self();  :}
     | IF LPAREN expr.a RPAREN statement.b   {: return new If(a, b);  :}
@@ -134,7 +136,10 @@ statement1
 
 expr
     = PREFIX | POSTFIX /* unused */
-    | REG.n                             {: return new Reg(n);  :}
+    | BV32.n                             {: return new Var(n, 32);  :}
+    | BV64.n                             {: return new Var(n, 64);  :}
+    | BV1.n                             {: return new Var(n, 1);  :}
+    | TEMP.n                            {: return new Var(n, 0);  :}
     | ID.n                              {: return new Label(n);  :}
     | MEM LBRACK expr.i COMMA ENDIAN RBRACK COLON NAT      {: return new Access(n, i); :}
     | NUM.n                             {: return new Lit(n); :}

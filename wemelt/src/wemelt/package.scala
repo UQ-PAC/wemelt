@@ -14,17 +14,17 @@ package object wemelt {
     case class WhileError(line: Int, test: Expression, message: String) extends Exception {
       override def toString: String = "line " + line + ": WHILE rule not valid for while(" + test + ") {...} as " + message
     }
-    case class AssignLError(line: Int, lhs: Id, rhs: Expression, message: String)  extends Exception {
+    case class AssignLError(line: Int, lhs: Var, rhs: Expression, message: String)  extends Exception {
       override def toString: String = "line " + line + ": ASSIGNL rule not valid for " + lhs + " = " + rhs + " as " + message
     }
-    case class AssignGError(line: Int, lhs: Id, rhs: Expression, message: String)  extends Exception {
+    case class AssignGError(line: Int, lhs: Var, rhs: Expression, message: String)  extends Exception {
       override def toString: String = "line " + line + ": ASSIGNG rule not valid for " + lhs + " = " + rhs + " as " + message
     }
     /*
-    case class CASError(line: Int, lhs: Id, x: Id, r1: Expression, r2: Expression, message: String)  extends Exception {
+    case class CASError(line: Int, lhs: Var, x: Var, r1: Expression, r2: Expression, message: String)  extends Exception {
       override def toString = "line " + line + ": CAS rule not valid for " + lhs + " = " + "CAS(" + x + ", " + r1 + ", " + r2 + ") as " + message
     }
-    case class CASCError(line: Int, lhs: Id, x: Id, r1: Expression, r2: Expression, message: String)  extends Exception {
+    case class CASCError(line: Int, lhs: Var, x: Var, r1: Expression, r2: Expression, message: String)  extends Exception {
       override def toString = "line " + line + ": CASC rule not valid for " + lhs + " = " + "CAS(" + x + ", " + r1 + ", " + r2 + ") as " + message
     }
      */
@@ -32,10 +32,10 @@ package object wemelt {
       override def toString: String = "line " + line + ": IF rule not valid for if(" + test + ") {...} as " + message
     }
     /*
-    case class ArrayError(line: Int, a: Id, index: Expression, rhs: Expression, message: String) extends Exception {
+    case class ArrayError(line: Int, a: Var, index: Expression, rhs: Expression, message: String) extends Exception {
       override def toString = "line " + line + ": ARRAY ASSIGN rule not valid for " + a + "[" + index + "] = " + rhs + " as " + message
     }
-    case class ArrayCError(line: Int, a: Id, index: Expression, rhs: Expression, message: String) extends Exception {
+    case class ArrayCError(line: Int, a: Var, index: Expression, rhs: Expression, message: String) extends Exception {
       override def toString = "line " + line + ": ARRAY ASSIGNC rule not valid for " + a + "[" + index + "] = " + rhs + " as " + message
     }
      */
@@ -43,7 +43,7 @@ package object wemelt {
   }
 
   type Subst = Map[Expression, Expression]
-  type DType = Map[Id, (Set[Id], Set[Id], Set[Id], Set[Id], Set[Id], Set[Id], Set[Id], Set[Id])]
+  type DType = Map[Var, (Set[Var], Set[Var], Set[Var], Set[Var], Set[Var], Set[Var], Set[Var], Set[Var])]
 
   val sub = "₀₁₂₃₄₅₆₇₈₉"
   implicit class StringOps(self: String) {
@@ -88,7 +88,7 @@ package object wemelt {
     def OrStr: String = exprs.mkString(" ||" + newline + "   ")
   }
 
-  implicit class GammaToString(gamma: Map[Id, Expression]) {
+  implicit class GammaToString(gamma: Map[Var, Expression]) {
     def gammaStr: String = gamma.mkString(", ")
   }
 }

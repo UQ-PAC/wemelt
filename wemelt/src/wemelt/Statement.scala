@@ -16,20 +16,22 @@ case class Block(statements: List[Statement]) extends Statement {
   def this(statements: Array[Statement]) = this(statements.toList)
 }
 
-case class Assignment(lhs: Id, expression: Expression) extends Statement {
-  def this(lhs: String, expression: Expression) = this(Id(lhs), expression)
+case class Assignment(lhs: Var, expression: Expression) extends Statement {
+  def this(name: String, size: Int, expression: Expression) = this(Var(name, size, None), expression)
   override def toString: String = lhs + " = " + expression
 }
 
-case class ArrayAssignment(name: Id, index: Expression, expression: Expression) extends Statement {
-  def this(name: String, index: Expression, expression: Expression) = this(Id(name), index, expression)
+/*
+case class ArrayAssignment(name: Var, index: Expression, expression: Expression) extends Statement {
+  def this(name: String, index: Expression, expression: Expression) = this(Var(name, None, size), index, expression)
   override def toString: String = name + "[" + index + "]" + " = " + expression
 }
 
-case class CompareAndSwap(result: Id, toCompare: Id, oldValue: Expression, newValue: Expression) extends Statement {
-  def this(result: String, toCompare: String, oldValue: Expression, newValue: Expression) = this(Id(result), Id(toCompare), oldValue, newValue)
+case class CompareAndSwap(result: Var, toCompare: Var, oldValue: Expression, newValue: Expression) extends Statement {
+  def this(result: String, toCompare: String, oldValue: Expression, newValue: Expression) = this(Var(result), Var(toCompare), oldValue, newValue)
   override def toString: String = result + " = " + "CAS(" + toCompare + ", " + oldValue + ", " + newValue + ")"
 }
+ */
 
 /*
 case object Break extends Statement {

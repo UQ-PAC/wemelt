@@ -1,48 +1,49 @@
 package wemelt
 
 case class State(
-  gamma: Map[Id, Expression],
+  gamma: Map[Var, Expression],
   D: DType, // W_w, W_r, R_w, R_r
   P: List[Expression],
   P_inv: List[Expression],
-  R_var: Map[Id, List[(Expression, Expression)]],
+  R_var: Map[Var, List[(Expression, Expression)]],
   R: List[Expression],
   G: List[Expression],
-  G_var: Map[Id, List[(Expression, Expression)]],
+  G_var: Map[Var, List[(Expression, Expression)]],
 
-  L_R: Map[Id, Expression],
-  L_G: Map[Id, Expression],
-  L: Map[Id, Expression],
+  L_R: Map[Var, Expression],
+  L_G: Map[Var, Expression],
+  L: Map[Var, Expression],
 
-  globals: Set[Id],
-  locals: Set[Id],
+  globals: Set[Var],
+  locals: Set[Var],
+  labels: Map[Label, Int],
 
-  controls: Set[Id],
-  controlled: Set[Id],
-  controlledBy: Map[Id, Set[Id]], // CLed(name)
+  controls: Set[Var],
+  controlled: Set[Var],
+  controlledBy: Map[Var, Set[Var]], // CLed(name)
 
-  variables: Set[Id],
+  variables: Set[Var],
   primed: Subst,
 
-  read: Set[Id],
-  written: Set[Id],
-  indirect: Set[Id],
-  used: Set[Id],
-  //arrayIndices: Set[Id],
-  //arrays: Map[Id, IdArray],
+  read: Set[Var],
+  written: Set[Var],
+  indirect: Set[Var],
+  used: Set[Var],
+  //arrayIndices: Set[Var],
+  //arrays: Map[Var, VarArray],
 
   toLog: Boolean,
   debug: Boolean,
   noInfeasible: Boolean) {
 
-  def W_w(v: Id): Set[Id] = D(v)._1
-  def W_r(v: Id): Set[Id] = D(v)._2
-  def R_w(v: Id): Set[Id] = D(v)._3
-  def R_r(v: Id): Set[Id] = D(v)._4
-  def I_w(v: Id): Set[Id] = D(v)._5
-  def I_r(v: Id): Set[Id] = D(v)._6
-  def U_w(v: Id): Set[Id] = D(v)._7
-  def U_r(v: Id): Set[Id] = D(v)._8
+  def W_w(v: Var): Set[Var] = D(v)._1
+  def W_r(v: Var): Set[Var] = D(v)._2
+  def R_w(v: Var): Set[Var] = D(v)._3
+  def R_r(v: Var): Set[Var] = D(v)._4
+  def I_w(v: Var): Set[Var] = D(v)._5
+  def I_r(v: Var): Set[Var] = D(v)._6
+  def U_w(v: Var): Set[Var] = D(v)._7
+  def U_r(v: Var): Set[Var] = D(v)._8
 
   def log(): Unit = {
     if (toLog) {
@@ -53,13 +54,12 @@ case class State(
   }
 
   // update P and Gamma after assignment
-  def assignUpdateP(id: Id, arg: Expression): (State, Subst) = {
-    val vars = arg.variables + id // variables in assignment
+  def assignUpdateP(v: Var, arg: Expression): (State, Subst) = {
+    val vars = arg.variables + v // variables in assignment
     val PRestrictInd = restrictPInd(vars)
-
-    val v = id.toVar
+    
     // create mapping from variable to fresh variable
-    val toSubst: Subst = Map(v -> Var.fresh(id.name))
+    val toSubst: Subst = Map(v -> Var.fresh(v.name, v.size))
 
     // substitute variable in P for fresh variable
     val PReplace = PRestrictInd map (p => p.subst(toSubst))
@@ -72,16 +72,16 @@ case class State(
 
     // calculate new_var
     val varE = arg.variables
-    val varLY: Set[Id] = {
+    val varLY: Set[Var] = {
       for (y <- varE -- gamma.keySet)
         yield L(y).variables
     }.flatten
-    val new_var: Set[Id] = Set(id) ++ varE ++ varLY
+    val new_var: Set[Var] = Set(v) ++ varE ++ varLY
 
 
     // calculate weaker
     val toSubstC: Subst = Map(v -> arg) // for c[e/x]
-    var weaker: Set[Id] = Set()
+    var weaker: Set[Var] = Set()
     for (y <- R_var.keySet) {
       // check !(P && c ==> c[e/x])
       var yAdded = false
@@ -96,11 +96,11 @@ case class State(
     // calculate equals
     // possible improvement:
     // separate method for identity relation? check all identity relations at the start?
-    val equals: Set[Id] = {
+    val equals: Set[Var] = {
       for (y <- R_var.keySet)
         yield {
           // check P ==> c && r is identity relation
-          for ((c, r) <- R_var(y) if (r == BinOp("==", y.toVar, y.toVar.prime) || r == BinOp("==", y.toVar.prime, y.toVar))
+          for ((c, r) <- R_var(y) if (r == BinOp("==", y, y.prime) || r == BinOp("==", y.prime, y))
             && (c == Const._true || SMT.proveImplies(PPrime ::: P_inv, c, debug)))
             yield y
         }
@@ -111,12 +111,12 @@ case class State(
     // map all of domM to fresh temporary variables - probably change to different fresh allocator
     val m: Subst = {
       for (v <- domM)
-        yield v.toVar -> v.toVar.fresh
+        yield v -> v.fresh
     }.toMap
 
     val mPlusMPrime: Subst = m ++ {
       for (v <- domM)
-        yield v.toVar.prime -> v.toVar
+        yield v.prime -> v
     }.toMap
 
     val PPlus = PPrime map {p: Expression => p.subst(m)}
@@ -130,7 +130,7 @@ case class State(
         yield if (c == Const._true) {
           r.subst(mPlusMPrime)
         } else {
-          BinOp("==>", ForAll(indirect map (i => i.toVar), c), r.subst(mPlusMPrime))
+          BinOp("==>", ForAll(indirect, c), r.subst(mPlusMPrime))
         }
     }
     }.flatten.toList
@@ -143,7 +143,7 @@ case class State(
     val PPlusR = PPlus ++ RPlus
 
     if (debug) {
-      println("assigning " + arg + " to " + id + ":")
+      println("assigning " + arg + " to " + v + ":")
       println("P: " + P.PStr)
       println("P': " + PPrime.PStr)
       println("P + R: " + PPlusR.PStr)
@@ -151,16 +151,16 @@ case class State(
     (copy(P = PPlusR), m)
   }
 
-  def assignUpdateGamma(id: Id, t: Expression, m: Subst): State = {
+  def assignUpdateGamma(id: Var, t: Expression, m: Subst): State = {
     val domGamma = low_or_eq(P)
     val gammaPrime = if (domGamma.contains(id)) {
-      gamma + (id -> ForAll(indirect map (i => i.toVar), t))
+      gamma + (id -> ForAll(indirect, t))
     } else {
       gamma
     }
 
     val gammaPrimeRestrict = gammaPrime -- (gammaPrime.keySet -- domGamma)
-    val gammaPlusR: Map[Id, Expression] = {
+    val gammaPlusR: Map[Var, Expression] = {
       for (g <- gammaPrimeRestrict.keySet)
         yield g -> gammaPrimeRestrict(g).subst(m)
     }.toMap
@@ -179,15 +179,15 @@ case class State(
     val PPrime = guard :: PRestrictInd
 
     // calculate new_var
-    val new_var: Set[Id] = vars
+    val new_var: Set[Var] = vars
 
     // calculate equals - this can be improved too
     // separate method for identity relation? check all identity relations at the start?
-    val equals: Set[Id] = {
+    val equals: Set[Var] = {
       for (y <- R_var.keySet)
         yield {
           // check P ==> c && r is identity relation
-          for ((c, r) <- R_var(y) if (r == BinOp("==", y.toVar, y.toVar.prime) || r == BinOp("==", y.toVar.prime, y.toVar))
+          for ((c, r) <- R_var(y) if (r == BinOp("==", y, y.prime) || r == BinOp("==", y.prime, y))
             && (c == Const._true || SMT.proveImplies(PPrime ::: P_inv, c, debug)))
             yield y
         }
@@ -198,12 +198,12 @@ case class State(
     // map all of domM to fresh temporary variables - probably change to different fresh allocator
     val m: Subst = {
       for (v <- domM)
-        yield v.toVar -> v.toVar.fresh
+        yield v -> v.fresh
     }.toMap
 
     val mPlusMPrime: Subst = m ++ {
       for (v <- domM)
-        yield v.toVar.prime -> v.toVar
+        yield v.prime -> v
     }.toMap
 
     val PPlus = PPrime map {p : Expression => p.subst(m)}
@@ -217,7 +217,7 @@ case class State(
         yield if (c == Const._true) {
           r.subst(mPlusMPrime)
         } else {
-          BinOp("==>", ForAll(indirect map (i => i.toVar), c), r.subst(mPlusMPrime))
+          BinOp("==>", ForAll(indirect map (i => i), c), r.subst(mPlusMPrime))
         }
     }
     }.flatten.toList
@@ -242,7 +242,7 @@ case class State(
   def guardUpdateGamma(m: Subst): State = {
     val domGamma = low_or_eq(P)
     val gammaPrimeRestrict = gamma -- (gamma.keySet -- domGamma)
-    val gammaPlusR: Map[Id, Expression] = {
+    val gammaPlusR: Map[Var, Expression] = {
       for (g <- gammaPrimeRestrict.keySet)
         yield g -> gammaPrimeRestrict(g).subst(m)
     }.toMap
@@ -253,10 +253,9 @@ case class State(
     copy(gamma = gammaPlusR)
   }
 
-  def PPlusRUpdate(id: Id, arg: Expression, t: Expression): List[Expression] = {
-    val v = id.toVar
+  def PPlusRUpdate(v: Var, arg: Expression, t: Expression): List[Expression] = {
     // create mapping from variable to fresh variable
-    val toSubst: Subst = Map(v -> Var.fresh(id.name))
+    val toSubst: Subst = Map(v -> Var.fresh(v.name, v.size))
 
     // substitute variable in P for fresh variable
     val PReplace = P map (p => p.subst(toSubst))
@@ -269,16 +268,16 @@ case class State(
 
     // calculate new_var
     val varE = arg.variables
-    val varLY: Set[Id] = {
+    val varLY: Set[Var] = {
       for (y <- varE -- gamma.keySet)
         yield L(y).variables
     }.flatten
-    val new_var: Set[Id] = Set(id) ++ varE ++ varLY
+    val new_var: Set[Var] = Set(v) ++ varE ++ varLY
 
     // calculate weaker
     val toSubstC: Subst = Map(v -> arg) // for c[e/x]
 
-    var weaker: Set[Id] = Set()
+    var weaker: Set[Var] = Set()
     for (y <- R_var.keySet) {
       // check !(P && c ==> c[e/x])
       var yAdded = false
@@ -293,11 +292,11 @@ case class State(
     // calculate equals
     // possible improvement:
     // separate method for identity relation? check all identity relations at the start?
-    val equals: Set[Id] = {
+    val equals: Set[Var] = {
       for (y <- R_var.keySet)
         yield {
           // check P ==> c && r is identity relation
-          for ((c, r) <- R_var(y) if (r == BinOp("==", y.toVar, y.toVar.prime) || r == BinOp("==", y.toVar.prime, y.toVar))
+          for ((c, r) <- R_var(y) if (r == BinOp("==", y, y.prime) || r == BinOp("==", y.prime, y))
             && (c == Const._true || SMT.proveImplies(PPrime ::: P_inv, c, debug)))
             yield y
         }
@@ -308,12 +307,12 @@ case class State(
     // map all of domM to fresh temporary variables - probably change to different fresh allocator
     val m: Subst = {
       for (v <- domM)
-        yield v.toVar -> v.toVar.fresh
+        yield v -> v.fresh
     }.toMap
 
     val mPlusMPrime: Subst = m ++ {
       for (v <- domM)
-        yield v.toVar.prime -> v.toVar
+        yield v.prime -> v
     }.toMap
 
     val PPlus = PPrime map {p: Expression => p.subst(m)}
@@ -340,9 +339,9 @@ case class State(
   }
 
   /*
-  def assignCAS(lhs: Id, x: Id, r1: Expression, r2: Expression): State = {
-    val _lhs = lhs.toVar
-    val _x = x.toVar
+  def assignCAS(lhs: Var, x: Var, r1: Expression, r2: Expression): State = {
+    val _lhs = lhs
+    val _x = x
 
     // create mapping from variables to fresh variables
     val toSubst: Subst = Map(_lhs -> Var.fresh(_lhs.name), _x -> Var.fresh(_x.name))
@@ -371,8 +370,8 @@ case class State(
   }
 
   // update P with strongest post-condition after array assignment
-  def arrayAssign(a: Id, index: Expression, arg: Expression, possible: Seq[Int]): State = {
-    val v = a.toVar
+  def arrayAssign(a: Var, index: Expression, arg: Expression, possible: Seq[Int]): State = {
+    val v = a
     // create mapping from variable to fresh variable
     val toSubst: Subst = Map(v -> Var.fresh(a.name))
 
@@ -384,7 +383,7 @@ case class State(
 
       val indexToSubst: Subst = {
         for (j <- index.variables)
-          yield j -> j.toVar
+          yield j -> j
         }.toMap ++ toSubst
 
       val indexSubst = index.subst(indexToSubst, possible.head)
@@ -403,7 +402,7 @@ case class State(
 
         val indexToSubst: Subst = {
           for (j <- index.variables)
-            yield j -> j.toVar
+            yield j -> j
           }.toMap ++ toSubst
 
         val indexSubst = index.subst(indexToSubst, i)
@@ -430,41 +429,41 @@ case class State(
     copy(read = Set(), written = Set(), indirect = Set(), used = Set())
   }
 
-  def updateRead(id: Id): State = {
+  def updateRead(id: Var): State = {
     if (debug)
       println("updating read (" + read + ") with " + id)
     copy(read = read + id)
   }
 
-  def updateRead(id: Set[Id]): State = {
+  def updateRead(id: Set[Var]): State = {
     if (debug)
       println("updating read (" + read + ") with " + id)
     copy(read = read ++ id)
   }
 
-  def updateWritten(id: Id): State = {
+  def updateWritten(id: Var): State = {
     if (debug)
       println("updating written (" + written + ") with " + id)
     copy(written = written + id)
   }
 
-  def updateWritten(id: Set[Id]): State = {
+  def updateWritten(id: Set[Var]): State = {
     if (debug)
       println("updating written (" + written + ") with " + id)
     copy(written = written ++ id)
   }
 
   /*
-  def updateWritten(array: IdArray): State = {
-    val ids: Set[Id] = {for (i <- array.array.indices)
+  def updateWritten(array: VarArray): State = {
+    val ids: Set[Var] = {for (i <- array.array.indices)
       yield array.array(i)}.toSet
     if (debug)
       println("updating written (" + written + ") with " + ids)
     copy(written = written ++ ids)
   }
 
-  def updateRead(array: IdArray): State = {
-    val ids: Set[Id] = {for (i <- array.array.indices)
+  def updateRead(array: VarArray): State = {
+    val ids: Set[Var] = {for (i <- array.array.indices)
       yield array.array(i)}.toSet
     if (debug)
       println("updating read (" + read + ") with " + ids)
@@ -472,7 +471,7 @@ case class State(
   } */
 
 
-  def knownW: Set[Id] = {
+  def knownW: Set[Var] = {
     if (debug) {
       println("calculating knownW")
       println("wr: " + written)
@@ -487,7 +486,7 @@ case class State(
     w.flatten ++ r.flatten
   }
 
-  def knownR: Set[Id] = {
+  def knownR: Set[Var] = {
     if (debug) {
       println("calculating knownR")
       println("wr: " + written)
@@ -502,7 +501,7 @@ case class State(
     r.flatten ++ w.flatten
   }
 
-  def knownI: Set[Id] = {
+  def knownI: Set[Var] = {
     if (debug) {
       println("calculating knownI")
       println("wr: " + written)
@@ -517,7 +516,7 @@ case class State(
     r.flatten ++ w.flatten
   }
 
-  def knownU: Set[Id] = {
+  def knownU: Set[Var] = {
     if (debug) {
       println("calculating knownU")
       println("wr: " + written)
@@ -532,7 +531,7 @@ case class State(
     r.flatten ++ w.flatten
   }
 
-  def updateD(laterW: Set[Id], laterR: Set[Id]): DType = {
+  def updateD(laterW: Set[Var], laterR: Set[Var]): DType = {
     val knownw = knownW
     val knownr = knownR
     val knowni = knownI
@@ -588,11 +587,11 @@ case class State(
     }
   }.toMap
 
-  def updateDAssign(x: Id, e: Expression) : State = {
+  def updateDAssign(x: Var, e: Expression) : State = {
     val varE = e.variables // var(e)
     val canForward = varE.intersect(globals).isEmpty
-    val laterW: Set[Id] = Set(x) ++ varE
-    val laterR: Set[Id] = if (!canForward) {
+    val laterW: Set[Var] = Set(x) ++ varE
+    val laterR: Set[Var] = if (!canForward) {
       Set(x) ++ varE.intersect(globals)
     } else {
       Set()
@@ -626,10 +625,10 @@ case class State(
 
 
   /*
-  def updateDArrayAssign(x: Id, e: Expression) : State = {
+  def updateDArrayAssign(x: Var, e: Expression) : State = {
     val varE = e.variables // var(e)
-    val laterW: Set[Id] = varE
-    val laterR: Set[Id] = varE.intersect(globals)
+    val laterW: Set[Var] = varE
+    val laterR: Set[Var] = varE.intersect(globals)
     if (debug) {
       println("laterW: " + laterW)
       println("laterR: " + laterR)
@@ -659,11 +658,11 @@ case class State(
    */
 
   /*
-  def updateDCAS(r3: Id, x: Id, r1: Expression, r2: Expression) : State = {
+  def updateDCAS(r3: Var, x: Var, r1: Expression, r2: Expression) : State = {
     val varR1 = r1.variables
     val varR2 = r2.variables
-    val laterW: Set[Id] = Set(x, r3) ++ varR1 ++ varR2
-    val laterR: Set[Id] = Set(r3, x) ++ ((varR1 ++ varR2) & globals)
+    val laterW: Set[Var] = Set(x, r3) ++ varR1 ++ varR2
+    val laterR: Set[Var] = Set(r3, x) ++ ((varR1 ++ varR2) & globals)
     if (debug) {
       println("laterW: " + laterW)
       println("laterR: " + laterR)
@@ -678,8 +677,8 @@ case class State(
 
   def updateDGuard(b: Expression) : State = {
     val varB = b.variables // var(b)
-    val laterW: Set[Id] = globals ++ varB + CFence
-    val laterR: Set[Id] = globals & varB
+    val laterW: Set[Var] = globals ++ varB + CFence
+    val laterR: Set[Var] = globals & varB
 
     val DPrime: DType = updateD(laterW, laterR)
 
@@ -696,15 +695,15 @@ case class State(
   }
 
   def updateDCFence: State = {
-    val laterW: Set[Id] = Set()
-    val laterR: Set[Id] = globals
+    val laterW: Set[Var] = Set()
+    val laterR: Set[Var] = globals
     val DPrime: DType = updateD(laterW, laterR)
     copy(D = DPrime, read = Set(), written = Set(), indirect = Set(), used = Set())
   }
 
   /*
   // !L(A[0]) || !L(A[1]) || ... to array.size
-  def multiHighP(array: IdArray, indices: Seq[Int], p: List[Expression]): Boolean = {
+  def multiHighP(array: VarArray, indices: Seq[Int], p: List[Expression]): Boolean = {
     val list = {for (i <- indices)
       yield PreOp("!", L(array.array(i)))}.toList
     val Ls = orPredicates(list)
@@ -713,7 +712,7 @@ case class State(
   }
 
   // security for array access
-  def security(a: Id, index: Expression, p: List[Expression]): Security = {
+  def security(a: Var, index: Expression, p: List[Expression]): Security = {
     if (debug)
       println("checking array security for " + a + "[" + index + "]")
 
@@ -724,10 +723,10 @@ case class State(
       case Lit(n) =>
         if (debug)
           println("array access is unambiguous")
-        val arrayId = array.array(n)
-        if (gamma.contains(arrayId)) {
-          gamma(arrayId)
-        } else if (lowP(arrayId, p)) {
+        val arrayVar = array.array(n)
+        if (gamma.contains(arrayVar)) {
+          gamma(arrayVar)
+        } else if (lowP(arrayVar, p)) {
           Low
         } else {
           High
@@ -783,7 +782,7 @@ case class State(
   }
 
   // ((index == 0) && (L(A[0]))) || ((index == 1) && (L(A[1]))) || ... to array.size
-  def arrayAccessCheck(array: IdArray, indices: Seq[Int], index: Expression): Expression = {
+  def arrayAccessCheck(array: VarArray, indices: Seq[Int], index: Expression): Expression = {
     val list: List[Expression] = {for (i <- indices)
       yield BinOp("&&", BinOp("==", index, Lit(i)), L(array.array(i)))}.toList
     orPredicates(list)
@@ -791,7 +790,7 @@ case class State(
    */
 
   // gamma mapping
-  def security(x: Id): Expression = {
+  def security(x: Var): Expression = {
     if (debug)
       println("checking Gamma<> of " + x)
     var gammaOut: Expression = Const._true
@@ -825,7 +824,7 @@ case class State(
     val state1 = this
 
     // gamma'(x) = gamma_1(x) && gamma_2(x)
-    val gammaPrime: Map[Id, Expression] = {
+    val gammaPrime: Map[Var, Expression] = {
       for (v <- state1.gamma.keySet & state2.gamma.keySet)
         yield v -> BinOp("&&", state1.gamma(v), state2.gamma(v))
     }.toMap ++ {
@@ -903,7 +902,7 @@ case class State(
 
   // for all x in dom gamma,
   //  P && R ==> Gamma(x) == Gamma'(x)
-  def gammaStable(gamma: Map[Id, Expression], P: List[Expression]): Boolean = {
+  def gammaStable(gamma: Map[Var, Expression], P: List[Expression]): Boolean = {
     val gammaEqualsGammaPrime: List[Expression] = {
       for (g <- globals if gamma.contains(g))
         yield BinOp("==", gamma(g), gamma(g).subst(primed))
@@ -914,11 +913,11 @@ case class State(
     SMT.proveImplies(P ++ R, gammaEqualsGammaPrime, debug)
   }
 
-  def low_or_eq(P: List[Expression]): Set[Id] = {
+  def low_or_eq(P: List[Expression]): Set[Var] = {
     val PAnd = State.andPredicates(P)
     val PPlusRAnd = State.andPredicates(P ++ R)
     val lowOrEqTest = for (g <- globals)
-      yield g -> BinOp("||", BinOp("==>", PAnd, L_R(g)), BinOp("==>", PPlusRAnd, BinOp("==", g.toVar, g.toVar.prime)))
+      yield g -> BinOp("||", BinOp("==>", PAnd, L_R(g)), BinOp("==>", PPlusRAnd, BinOp("==", g, g.prime)))
 
     val globalLowOrEq = for ((g, pred) <- lowOrEqTest if SMT.proveExpression(pred, debug))
       yield g
@@ -926,11 +925,11 @@ case class State(
     locals ++ globalLowOrEq
   }
 
-  def restrictP(restricted: Set[Id]): List[Expression] = {
+  def restrictP(restricted: Set[Var]): List[Expression] = {
     State.restrictP(P ::: P_inv, restricted)
   }
 
-  def restrictPInd(vars: Set[Id]): List[Expression] = {
+  def restrictPInd(vars: Set[Var]): List[Expression] = {
     val toRestrict = variables -- (vars -- knownI)
     State.restrictP(P, toRestrict)
   }
@@ -950,7 +949,7 @@ case class State(
   // update u and i
   def calculateIndirectUsed: State = {
     // all fresh variables in P
-    val PVar: Set[Id] = {for (p <- P) yield p.variables}.flatten.toSet
+    val PVar: Set[Var] = {for (p <- P) yield p.variables}.flatten.toSet
     val known_W = knownW
     val known_R = knownR
     val indirectPrime = variables -- (PVar -- (known_W & known_R))
@@ -963,25 +962,32 @@ case class State(
 
 object State {
   def init(definitions: Set[Definition], P_0: Option[List[Expression]], gamma_0: Option[List[GammaMapping]],
-           P_invIn: List[Expression], toLog: Boolean, debug: Boolean, noInfeasible: Boolean): State = {
+           P_inv: List[Expression], toLog: Boolean, debug: Boolean, noInfeasible: Boolean): State = {
     val globalDefs: Set[GlobalVarDef] = definitions collect {case g: GlobalVarDef => g}
-    val localDefs: Set[LocalVarDef] = definitions collect {case l: LocalVarDef => l}
 
-    val globals: Set[Id] = globalDefs map {g => g.name}
-    val locals: Set[Id] = localDefs map {l => l.name}
+    val globals: Set[Var] = globalDefs map {g => g.variable}
+    val labels: Map[Label, Int] = (globals map {g => (Label(g.name), g.size)}).toMap
+    val locals: Set[Var] = {{
+      for (i <- 0 to 30)
+        yield Var("w" + i, 32)
+    } ++ {
+      for (i <- 0 to 30)
+        yield Var("x" + i, 64)
+    }}.toSet ++ Set(Var("sp", 64),Var("wsp", 32), Var("wzr", 32), Var("xzr", 64),
+      Var("Z", 1), Var("N", 1), Var("C", 1), Var("V", 1))
 
-    var controls: Set[Id] = Set()
-    var controlled: Set[Id] = Set()
-    var controlledBy: Map[Id, Set[Id]] = Map()
+    var controls: Set[Var] = Set()
+    var controlled: Set[Var] = Set()
+    var controlledBy: Map[Var, Set[Var]] = Map()
 
     if (debug) {
       //println(variables)
     }
 
-    val ids: Set[Id] = globals ++ locals // ++ Set(CFence)
+    val ids: Set[Var] = globals ++ locals // ++ Set(CFence)
 
       /*
-      val controllingArrays: Set[Id] = {
+      val controllingArrays: Set[Var] = {
         for (i <- v.pred.arrays) yield {
           i.index match {
             case Lit(n) =>
@@ -992,16 +998,16 @@ object State {
         }
         }.flatten */
     for (g <- globalDefs) {
-      val controlling: Set[Id] = g.lpredr.variables ++ g.lpredg.variables //++ controllingArrays
+      val controlling: Set[Var] = g.lpredr.variables ++ g.lpredg.variables //++ controllingArrays
 
       if (controlling.nonEmpty) {
-        controlled += g.name
+        controlled += g.variable
       }
       for (i <- controlling) {
         if (controlledBy.contains(i))
-          controlledBy += (i -> (controlledBy(i) + g.name))
+          controlledBy += (i -> (controlledBy(i) + g.variable))
         else
-          controlledBy += (i -> Set(g.name))
+          controlledBy += (i -> Set(g.variable))
         controls += i
       }
     }
@@ -1031,31 +1037,16 @@ object State {
       println("controlled by: " + controlledBy)
     }
 
-    // for replacing Ids in predicates with Vars
-    val idToVar: Subst = {
-      for (v <- ids)
-        yield v -> v.toVar
-      }.toMap ++ {
-      for (v <- ids)
-        yield v.prime -> v.toVar.prime
-      }.toMap
-    /* ++ {
-      for (v <- arrays.keySet)
-        yield v -> v.toVar
-      }.toMap */
-
     val primed: Subst = {for (v <- ids)
-      yield v.toVar -> v.toVar.prime
+      yield v -> v.prime
     }.toMap
 
     // initialise R & G
-    val P_inv = P_invIn map {i => i.subst(idToVar)}
-
-    var R_var: Map[Id, List[(Expression, Expression)]] = Map()
+    var R_var: Map[Var, List[(Expression, Expression)]] = Map()
     for (g <- globalDefs) {
       g.rvar match {
         case Some(rvars) =>
-          R_var += (g.name -> (rvars map {rvar => (rvar.condition.subst(idToVar), rvar.relation.subst(idToVar))}))
+          R_var += (g.variable -> (rvars map {rvar => (rvar.condition, rvar.relation)}))
         case None =>
 
       }
@@ -1075,17 +1066,17 @@ object State {
 
     val R_loc: List[Expression] = {
       for (l <- locals) yield
-        BinOp("==", l.toVar, l.toVar.prime)
+        BinOp("==", l, l.prime)
     }.toList
 
     // R == P_inv ==> primed(P_inv) && R_var
     val R = BinOp("==>", P_invAnd, P_invAnd.subst(primed)) :: R_var_pred ++ R_loc
 
-    var G_var: Map[Id, List[(Expression, Expression)]] = Map()
+    var G_var: Map[Var, List[(Expression, Expression)]] = Map()
     for (g <- globalDefs) {
       g.gvar match {
         case Some(gvars) =>
-          G_var += (g.name -> (gvars map {gvar => (gvar.condition.subst(idToVar), gvar.relation.subst(idToVar))}))
+          G_var += (g.variable -> (gvars map {gvar => (gvar.condition, gvar.relation)}))
         case None =>
       }
     }
@@ -1111,7 +1102,7 @@ object State {
         List(Const._true)
 
       case Some(p) =>
-        p map {i => i.subst(idToVar)}
+        p
     }
 
     // check P_0 is stable
@@ -1121,21 +1112,19 @@ object State {
     }
 
     // init L - map variables to their L predicates
-    val L_R: Map[Id, Expression] = {
+    val L_R: Map[Var, Expression] = {
       for (v <- globalDefs) yield {
-        val lpredVar = v.lpredr.subst(idToVar)
-        v.name -> lpredVar
+        v.variable -> v.lpredr
       }
     }.toMap
-    val L_G: Map[Id, Expression] = {
+    val L_G: Map[Var, Expression] = {
       for (v <- globalDefs) yield {
-        val lpredVar = v.lpredg.subst(idToVar)
-        v.name -> lpredVar
+        v.variable -> v.lpredg
       }
     }.toMap
 
     // L == L_R && L_G
-    val L: Map[Id, Expression] = {
+    val L: Map[Var, Expression] = {
       for (g <- globals) yield {
         val lR = L_R(g)
         val lG = L_G(g)
@@ -1152,20 +1141,20 @@ object State {
     val PAnd = andPredicates(P)
     val PPlusRAnd = andPredicates(P ++ R)
     val lowOrEqTest = for (g <- globals)
-      yield g -> BinOp("||", BinOp("==>", PAnd, L_R(g)), BinOp("==>", PPlusRAnd, BinOp("==", g.toVar, g.toVar.prime)))
+      yield g -> BinOp("||", BinOp("==>", PAnd, L_R(g)), BinOp("==>", PPlusRAnd, BinOp("==", g, g.prime)))
 
     val globalLowOrEq = for ((g, pred) <- lowOrEqTest if SMT.proveExpression(pred, debug))
       yield g
-    val low_or_eq: Set[Id] = locals ++ globalLowOrEq
+    val low_or_eq: Set[Var] = locals ++ globalLowOrEq
 
     // init Gamma
-    val gamma: Map[Id, Expression] = gamma_0 match {
+    val gamma: Map[Var, Expression] = gamma_0 match {
       // all locals low by default
       case None => (locals map {l => l -> Const._false}).toMap
       // user provided
       case Some(gs) => {
         //gs flatMap {g => g.toPair(arrays)}
-        gs map {g => g.variable -> g.security.subst(idToVar)}
+        gs map {g => Var(g.label.name, labels(g.label)) -> g.security}
       }.toMap
     }
 
@@ -1259,7 +1248,7 @@ object State {
   }
 
   // calculate P|_known_W(a) etc. with known_W(a) being the input set in that example
-  def restrictP(P: List[Expression], restricted: Set[Id]): List[Expression] = {
+  def restrictP(P: List[Expression], restricted: Set[Var]): List[Expression] = {
     P map (p => p.restrict(restricted))
   }
 
