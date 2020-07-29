@@ -107,6 +107,11 @@ case class Label(name: String) extends Expression {
   override def variables: Set[Var] = Set()
 }
 
+case class Temp(id: String) extends Var(id, 0, None) {
+  override def subst(su: Subst): Expression = su.getOrElse(this, this)
+  override def variables: Set[Var] = Set()
+}
+
 // logical variable for use in predicates
 case class Var(name: String, size: Int, index: Option[Int] = None) extends Expression {
   def this(name: String, size: Int) = this(name, size, None)

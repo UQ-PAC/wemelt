@@ -1,5 +1,5 @@
 BIL stuff
--use mapping of labels to size of their contents in State to convert labels into vars in predicates
+-use mapping of labels to size of their contents in State to convert symbols into vars in predicates
 -need to determine type of any expression assigned to a Temp
 
 

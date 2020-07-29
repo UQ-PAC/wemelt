@@ -16,7 +16,7 @@ case class State(
 
   globals: Set[Var],
   locals: Set[Var],
-  labels: Map[Label, Int],
+  symbols: Map[Label, Int],
 
   controls: Set[Var],
   controlled: Set[Var],
@@ -962,11 +962,11 @@ case class State(
 
 object State {
   def init(definitions: Set[Definition], P_0: Option[List[Expression]], gamma_0: Option[List[GammaMapping]],
-           P_inv: List[Expression], toLog: Boolean, debug: Boolean, noInfeasible: Boolean): State = {
+           P_invIn: List[Expression], toLog: Boolean, debug: Boolean, noInfeasible: Boolean): State = {
     val globalDefs: Set[GlobalVarDef] = definitions collect {case g: GlobalVarDef => g}
 
     val globals: Set[Var] = globalDefs map {g => g.variable}
-    val labels: Map[Label, Int] = (globals map {g => (Label(g.name), g.size)}).toMap
+    val symbols: Map[Symbol, Int] = (globals map {g => (Symbol(g.name), g.size)}).toMap
     val locals: Set[Var] = {{
       for (i <- 0 to 30)
         yield Var("w" + i, 32)
@@ -1037,8 +1037,15 @@ object State {
       println("controlled by: " + controlledBy)
     }
 
-    val primed: Subst = {for (v <- ids)
-      yield v -> v.prime
+    // for replacing symbols in predicates with variables
+    val toSubst: Subst = {
+      for (g <- globals)
+        yield Symbol(g.name) -> g
+    }.toMap
+
+    val primed: Subst = {
+      for (v <- ids)
+        yield v -> v.prime
     }.toMap
 
     // initialise R & G
@@ -1046,11 +1053,13 @@ object State {
     for (g <- globalDefs) {
       g.rvar match {
         case Some(rvars) =>
-          R_var += (g.variable -> (rvars map {rvar => (rvar.condition, rvar.relation)}))
+          R_var += (g.variable -> (rvars map {rvar => (rvar.condition.subst(toSubst), rvar.relation.subst(toSubst))}))
         case None =>
 
       }
     }
+
+    val P_inv = P_invIn map {p => p.subst(toSubst)}
 
     val R_var_pred: List[Expression] = {
       for (g <- R_var.keys) yield {
@@ -1076,7 +1085,7 @@ object State {
     for (g <- globalDefs) {
       g.gvar match {
         case Some(gvars) =>
-          G_var += (g.variable -> (gvars map {gvar => (gvar.condition, gvar.relation)}))
+          G_var += (g.variable -> (gvars map {gvar => (gvar.condition.subst(toSubst), gvar.relation.subst(toSubst))}))
         case None =>
       }
     }
@@ -1102,7 +1111,7 @@ object State {
         List(Const._true)
 
       case Some(p) =>
-        p
+        p map {p => p.subst(toSubst)}
     }
 
     // check P_0 is stable
@@ -1114,12 +1123,12 @@ object State {
     // init L - map variables to their L predicates
     val L_R: Map[Var, Expression] = {
       for (v <- globalDefs) yield {
-        v.variable -> v.lpredr
+        v.variable -> v.lpredr.subst(toSubst)
       }
     }.toMap
     val L_G: Map[Var, Expression] = {
       for (v <- globalDefs) yield {
-        v.variable -> v.lpredg
+        v.variable -> v.lpredg.subst(toSubst)
       }
     }.toMap
 
@@ -1154,7 +1163,7 @@ object State {
       // user provided
       case Some(gs) => {
         //gs flatMap {g => g.toPair(arrays)}
-        gs map {g => Var(g.label.name, labels(g.label)) -> g.security}
+        gs map {g => Var(g.symbol.name, symbols(g.symbol))  -> g.security.subst(toSubst)}
       }.toMap
     }
 
@@ -1199,6 +1208,7 @@ object State {
       L = L,
       globals = globals,
       locals = locals,
+      symbols = symbols,
       controls = controls,
       controlled = controlled,
       controlledBy = controlledBy,

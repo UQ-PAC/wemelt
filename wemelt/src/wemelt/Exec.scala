@@ -30,11 +30,14 @@ object Exec {
       if (state0.toLog)
         println("line " + statement.line + ": " + lhs + " = " + rhs + ":")
       //check if lhs is a local variable
-      val state1 = if (state0.locals.contains(lhs)) {
-        assignLRule(lhs, rhs, state0, statement.line)
-      } else {
-        assignGRule(lhs, rhs, state0, statement.line)
+      val state1 = lhs match {
+        case t: Temp =>
+          // maybe need to do type inference to convert temps?
+          assignLRule(t, rhs, state0, statement.line)
+        case l: _ =>
+          assignLRule(l, rhs, state0, statement.line)
       }
+
       state1.log()
       Cont.next(state1)
 
@@ -121,7 +124,7 @@ object Exec {
       val PPrime = invariants map {p => p.subst(toSubst)}
 
       // convert gammaPrime to map
-      val gammaPrime: Map[Var, Expression] = (gamma map {g => Var(g.label.name, state0.labels(g.label)) -> g.security.subst(toSubst)}).toMap
+      val gammaPrime: Map[Var, Expression] = (gamma map {g => Var(g.symbol.name, state0.symbols(g.symbol)) -> g.security.subst(toSubst)}).toMap
       //val gammaPrime: Map[Var, Security] = (gamma flatMap {g => g.toPair(state0.arrays)}).toMap
 
       val state1 = whileRule(test, PPrime, gammaPrime, body, state0, statement.line)
@@ -144,7 +147,7 @@ object Exec {
       val PPrime = invariants map {p => p.subst(toSubst)}
 
       // convert gammaPrime to map
-      val gammaPrime: Map[Var, Expression] = (gamma map {g => Var(g.label.name, state0.labels(g.label)) -> g.security.subst(toSubst)}).toMap
+      val gammaPrime: Map[Var, Expression] = (gamma map {g => Var(g.symbol.name, state0.symbols(g.symbol)) -> g.security.subst(toSubst)}).toMap
       //val gammaPrime: Map[Var, Security] = (gamma flatMap {g => g.toPair(state0.arrays)}).toMap
 
       // execute loop body once at start
@@ -271,11 +274,21 @@ object Exec {
       st4.copy(D =_left.mergeD(_right), P = State.mergeP(_left.P, _right.P))
 
     case While(test, invariants, gamma, body) =>
-      st0.copy(D = DFixedPoint(test, body, st0, invariants), P = invariants)
+      val toSubst: Subst = {
+        for (g <- st0.globals)
+          yield Label(g.name) -> g
+      }.toMap
+      val PPrime = invariants map {p => p.subst(toSubst)}
+      st0.copy(D = DFixedPoint(test, body, st0, invariants), P = PPrime)
 
     case DoWhile(test, invariants, gamma, body) =>
       val st1 = DFixedPoint(body, st0)
-      st1.copy(D = DFixedPoint(test, body, st0, invariants), P = invariants)
+      val toSubst: Subst = {
+        for (g <- st0.globals)
+          yield Label(g.name) -> g
+      }.toMap
+      val PPrime = invariants map {p => p.subst(toSubst)}
+      st0.copy(D = DFixedPoint(test, body, st0, invariants), P = PPrime)
 
       /*
     case CompareAndSwap(r3, x, r1, r2) =>
@@ -292,10 +305,16 @@ object Exec {
   }
 
   def eval(expr: Expression, st0: State): (Expression, State) = expr match {
-    case id: Var =>
+    case t: Temp =>
+      (t, st0)
+
+    case v: Var =>
       // value has been READ
-      val st1 = st0.updateRead(id)
-      (id, st1)
+      val st1 = st0.updateRead(v)
+      (v, st1)
+
+    case l: Label =>
+      (l, st0)
 
     case res: Lit =>
       (res, st0)
@@ -868,7 +887,6 @@ object Exec {
       throw error.AssignGError(line, lhs, rhs, "L_G(" + lhs + ") && P ==> " + lhs + " doesn't hold for assignment")
     }
 
-    val PAnd = State.andPredicates(PRestrictU)
     val PRestrictUState = st3.copy(P = PRestrictU)
     val PPlusR = PRestrictUState.PPlusRUpdate(lhs, _rhs, t)
     val knownU = st3.knownU
@@ -957,13 +975,13 @@ object Exec {
     }
     var shrink: Set[Var] = Set()
     for (x <- st3.globals) {
-      val cVarentities: List[Expression] = if (st3.R_var.contains(x)) {
+      val cIdentities: List[Expression] = if (st3.R_var.contains(x)) {
         for ((c, r) <- st3.R_var(x) if r == BinOp("==", x, x.prime) || r == BinOp("==", x.prime, x))
           yield c
       } else {
         List()
       }
-      val low_or_eq_exp = State.orPredicates(st3.L_R(x) :: cVarentities)
+      val low_or_eq_exp = State.orPredicates(st3.L_R(x) :: cIdentities)
       if ((st3.written & low_or_eq_exp.variables).nonEmpty &&
         !SMT.proveImplies(PRestrictU, PreOp("!", low_or_eq_exp), st3.debug) &&
         !SMT.proveImplies(PPlusR, low_or_eq_exp, st3.debug)) {

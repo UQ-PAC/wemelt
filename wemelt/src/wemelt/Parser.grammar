@@ -139,7 +139,7 @@ expr
     | BV32.n                             {: return new Var(n, 32);  :}
     | BV64.n                             {: return new Var(n, 64);  :}
     | BV1.n                             {: return new Var(n, 1);  :}
-    | TEMP.n                            {: return new Var(n, 0);  :}
+    | TEMP.n                            {: return new Temp(n);  :}
     | ID.n                              {: return new Label(n);  :}
     | MEM LBRACK expr.i COMMA ENDIAN RBRACK COLON NAT      {: return new Access(n, i); :}
     | NUM.n                             {: return new Lit(n); :}

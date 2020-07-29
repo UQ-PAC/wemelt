@@ -21,6 +21,10 @@ case class Assignment(lhs: Var, expression: Expression) extends Statement {
   override def toString: String = lhs + " = " + expression
 }
 
+case class Store() extends Statement {
+
+}
+
 /*
 case class ArrayAssignment(name: Var, index: Expression, expression: Expression) extends Statement {
   def this(name: String, index: Expression, expression: Expression) = this(Var(name, None, size), index, expression)
