@@ -124,7 +124,7 @@ object Exec {
       val PPrime = invariants map {p => p.subst(toSubst)}
 
       // convert gammaPrime to map
-      val gammaPrime: Map[Var, Expression] = (gamma map {g => Var(g.symbol.name, state0.symbols(g.symbol)) -> g.security.subst(toSubst)}).toMap
+      val gammaPrime: Map[Var, Expression] = (gamma map {g => Var(g.label.name, state0.labels(g.label)) -> g.security.subst(toSubst)}).toMap
       //val gammaPrime: Map[Var, Security] = (gamma flatMap {g => g.toPair(state0.arrays)}).toMap
 
       val state1 = whileRule(test, PPrime, gammaPrime, body, state0, statement.line)
@@ -147,7 +147,7 @@ object Exec {
       val PPrime = invariants map {p => p.subst(toSubst)}
 
       // convert gammaPrime to map
-      val gammaPrime: Map[Var, Expression] = (gamma map {g => Var(g.symbol.name, state0.symbols(g.symbol)) -> g.security.subst(toSubst)}).toMap
+      val gammaPrime: Map[Var, Expression] = (gamma map {g => Var(g.label.name, state0.labels(g.label)) -> g.security.subst(toSubst)}).toMap
       //val gammaPrime: Map[Var, Security] = (gamma flatMap {g => g.toPair(state0.arrays)}).toMap
 
       // execute loop body once at start

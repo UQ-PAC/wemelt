@@ -16,7 +16,7 @@ case class State(
 
   globals: Set[Var],
   locals: Set[Var],
-  symbols: Map[Label, Int],
+  labels: Map[Label, Int],
 
   controls: Set[Var],
   controlled: Set[Var],
@@ -966,7 +966,7 @@ object State {
     val globalDefs: Set[GlobalVarDef] = definitions collect {case g: GlobalVarDef => g}
 
     val globals: Set[Var] = globalDefs map {g => g.variable}
-    val symbols: Map[Symbol, Int] = (globals map {g => (Symbol(g.name), g.size)}).toMap
+    val labels: Map[Label, Int] = (globals map {g => (Label(g.name), g.size)}).toMap
     val locals: Set[Var] = {{
       for (i <- 0 to 30)
         yield Var("w" + i, 32)
@@ -1037,10 +1037,10 @@ object State {
       println("controlled by: " + controlledBy)
     }
 
-    // for replacing symbols in predicates with variables
+    // for replacing labels in predicates with variables
     val toSubst: Subst = {
       for (g <- globals)
-        yield Symbol(g.name) -> g
+        yield Label(g.name) -> g
     }.toMap
 
     val primed: Subst = {
@@ -1163,7 +1163,7 @@ object State {
       // user provided
       case Some(gs) => {
         //gs flatMap {g => g.toPair(arrays)}
-        gs map {g => Var(g.symbol.name, symbols(g.symbol))  -> g.security.subst(toSubst)}
+        gs map {g => Var(g.label.name, labels(g.label))  -> g.security.subst(toSubst)}
       }.toMap
     }
 
@@ -1208,7 +1208,7 @@ object State {
       L = L,
       globals = globals,
       locals = locals,
-      symbols = symbols,
+      labels = labels,
       controls = controls,
       controlled = controlled,
       controlledBy = controlledBy,
