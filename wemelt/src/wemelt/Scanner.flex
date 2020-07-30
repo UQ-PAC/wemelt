@@ -138,8 +138,6 @@ WS = {NL} | [ \t\f]
     "wzr" { return newToken(Terminals.BV32, "wzr");    }
     "sp"  { return newToken(Terminals.BV64, "sp");    }
     "wsp" { return newToken(Terminals.BV32, "wsp");    }
-    Temp[0-9]* {return newToken(Terminals.TEMP, yytext());}
-    "Result" {return newToken(Terminals.TEMP, "Result");}
     "Z" {return newToken(Terminals.BV1, "Z");}
     "C" {return newToken(Terminals.BV1, "C");}
     "N" {return newToken(Terminals.BV1, "N");}

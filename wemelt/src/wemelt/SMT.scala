@@ -263,7 +263,7 @@ object SMT {
    and bitwise arithmetic operations for better simulation of the assembly semantics if this ends up being important
   https://z3prover.github.io/api/html/classcom_1_1microsoft_1_1z3_1_1_context.html */
   def translate(prop: Expression): z3.Expr = prop match {
-    case x: Var => ctx.mkConst(x.toString, ctx.getIntSort)
+    case x: Var => ctx.mkBVConst(x.name, x.size)
 
     case Const._true => ctx.mkTrue
     case Const._false => ctx.mkFalse

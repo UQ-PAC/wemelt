@@ -1,6 +1,15 @@
 BIL stuff
--use mapping of labels to size of their contents in State to convert symbols into vars in predicates
--need to determine type of any expression assigned to a Temp
+-rules for stores
+-initialising memory layout
+-handling global offset table stuff
+-what order to calculate read/written sets and possible indices for memory writes?
+-handle memory reads
+
+to check
+-index is low
+-index in bounds
+-rules hold for all possible indices
+-for gamma update, use if then else to handle branches?
 
 
 

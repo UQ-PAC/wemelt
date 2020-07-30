@@ -102,12 +102,7 @@ case class VarAccess(name: Var, index: Expression) extends Expression {
 }
  */
 
-case class Label(name: String) extends Expression {
-  override def subst(su: Subst): Expression = su.getOrElse(this, this)
-  override def variables: Set[Var] = Set()
-}
-
-case class Temp(id: String) extends Var(id, 0, None) {
+case class Id(id: String) extends Var(id, 0, None) {
   override def subst(su: Subst): Expression = su.getOrElse(this, this)
   override def variables: Set[Var] = Set()
 }

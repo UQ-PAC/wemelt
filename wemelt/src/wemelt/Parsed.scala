@@ -22,9 +22,9 @@ case object Unsigned extends Cast {
   def instance = this
 }
 
-case class GammaMapping(label: Label, security: Expression) extends beaver.Symbol {
+case class GammaMapping(label: Id, security: Expression) extends beaver.Symbol {
   //def this(variable: Var, index: Int, security: Expression) = this(Var(variable.name + "[" + index + "]"), security)
-  def this(name: String, security: Expression) = this(Label(name), security)
+  def this(name: String, security: Expression) = this(Id(name), security)
   /*
   def toPair(arrays: Map[Var, VarArray] ): Seq[(Var, Security)] = this match {
     // array wildcard case
@@ -39,6 +39,10 @@ case class GammaMapping(label: Label, security: Expression) extends beaver.Symbo
 case class Relation(condition: Expression, relation: Expression) extends beaver.Symbol
 
 sealed trait Definition extends beaver.Symbol
+
+case class LocalVarDef(variable: Var) extends Definition {
+  def this(name: String, size: Int) = this(Var(name, size))
+}
 
 case class GlobalVarDef(variable: Var, lpredr: Expression, lpredg: Expression, rvar: Option[List[Relation]], gvar: Option[List[Relation]]) extends Definition {
   def this(name: String, size: Int, lpred: Expression) = this(Var(name, size, None), lpred, lpred, None, None)

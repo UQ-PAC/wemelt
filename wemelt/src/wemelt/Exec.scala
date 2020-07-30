@@ -29,11 +29,14 @@ object Exec {
 
       if (state0.toLog)
         println("line " + statement.line + ": " + lhs + " = " + rhs + ":")
-      //check if lhs is a local variable
-      val state1 = lhs match {
-        case t: Temp =>
-          // maybe need to do type inference to convert temps?
-          assignLRule(t, rhs, state0, statement.line)
+      val state1: State = lhs match {
+        //check if lhs is a local variable
+        case i: Id =>
+          if (state0.definedLocals.keySet.contains(i)) {
+            assignLRule(state0.definedLocals(i), rhs, state0, statement.line)
+          } else {
+            throw error.InvalidProgram("assignment to " + i + " when " + i + "is not a local variable")
+          }
         case l: _ =>
           assignLRule(l, rhs, state0, statement.line)
       }
@@ -42,23 +45,19 @@ object Exec {
       Cont.next(state1)
 
 
-      /*
-    case ArrayAssignment(array, index, rhs) =>
+    case Store(index, rhs) =>
       if (state0.toLog)
-        println("line " + statement.line + ": " + array + "[" + index + "] = " + rhs + ":")
-      // check if array contains any control variables
-      val state1 = if (state0.controls.intersect(state0.arrays(array).array.toSet).nonEmpty) {
-         arrayAssignCRule(array, index, rhs, state0, statement.line)
+        println("line " + statement.line + " " + statement.toString + ":")
+      // stack accesses are local, other memory accesses are global - heuristic that should work for now
+      val state1 = if (index.variables.contains(Var("wsp", 32)) || index.variables.contains(Var("sp", 64))) {
+        storeLRule(index, rhs, state0, statement.line)
       } else {
-        arrayAssignRule(array, index, rhs, state0, statement.line)
-      }
-      // check nonblocking rule if necessary
-      if (state1.nonblocking && state1.globals.contains(array)) {
-        throw error.NonblockingError(statement.line, statement, "global variable " + array + " was written to within a nonblocking while loop")
+        storeGRule(index, rhs, state0, statement.line)
       }
       state1.log
       Cont.next(state1)
 
+      /*
     case CompareAndSwap(r3, x, r1, r2) =>
       if (state0.toLog)
         println("line " + statement.line + ": " + statement)
@@ -118,13 +117,13 @@ object Exec {
 
       val toSubst: Subst = {
         for (g <- state0.globals)
-          yield Label(g.name) -> g
+          yield Id(g.name) -> g
       }.toMap
 
       val PPrime = invariants map {p => p.subst(toSubst)}
 
       // convert gammaPrime to map
-      val gammaPrime: Map[Var, Expression] = (gamma map {g => Var(g.label.name, state0.labels(g.label)) -> g.security.subst(toSubst)}).toMap
+      val gammaPrime: Map[Var, Expression] = (gamma map {g => state0.labels(g.label) -> g.security.subst(toSubst)}).toMap
       //val gammaPrime: Map[Var, Security] = (gamma flatMap {g => g.toPair(state0.arrays)}).toMap
 
       val state1 = whileRule(test, PPrime, gammaPrime, body, state0, statement.line)
@@ -141,13 +140,13 @@ object Exec {
 
       val toSubst: Subst = {
         for (g <- state0.globals)
-          yield Label(g.name) -> g
+          yield Id(g.name) -> g
       }.toMap
 
       val PPrime = invariants map {p => p.subst(toSubst)}
 
       // convert gammaPrime to map
-      val gammaPrime: Map[Var, Expression] = (gamma map {g => Var(g.label.name, state0.labels(g.label)) -> g.security.subst(toSubst)}).toMap
+      val gammaPrime: Map[Var, Expression] = (gamma map {g => state0.labels(g.label) -> g.security.subst(toSubst)}).toMap
       //val gammaPrime: Map[Var, Security] = (gamma flatMap {g => g.toPair(state0.arrays)}).toMap
 
       // execute loop body once at start
@@ -276,7 +275,7 @@ object Exec {
     case While(test, invariants, gamma, body) =>
       val toSubst: Subst = {
         for (g <- st0.globals)
-          yield Label(g.name) -> g
+          yield Id(g.name) -> g
       }.toMap
       val PPrime = invariants map {p => p.subst(toSubst)}
       st0.copy(D = DFixedPoint(test, body, st0, invariants), P = PPrime)
@@ -285,7 +284,7 @@ object Exec {
       val st1 = DFixedPoint(body, st0)
       val toSubst: Subst = {
         for (g <- st0.globals)
-          yield Label(g.name) -> g
+          yield Id(g.name) -> g
       }.toMap
       val PPrime = invariants map {p => p.subst(toSubst)}
       st0.copy(D = DFixedPoint(test, body, st0, invariants), P = PPrime)
@@ -305,16 +304,13 @@ object Exec {
   }
 
   def eval(expr: Expression, st0: State): (Expression, State) = expr match {
-    case t: Temp =>
-      (t, st0)
-
     case v: Var =>
       // value has been READ
       val st1 = st0.updateRead(v)
       (v, st1)
 
-    case l: Label =>
-      (l, st0)
+    case i: Id =>
+      (i, st0)
 
     case res: Lit =>
       (res, st0)
@@ -672,13 +668,44 @@ object Exec {
     state9.updateDGuard(notGuard)
   }
 
+  def storeLRule(index: Expression, rhs: Expression, st0: State, line: Int): State = {
+    // STORE L rule
+    if (st0.toLog)
+      println("STOREL applying")
+    val (_rhs, st1) = eval(rhs, st0) // computes rd
+    val (_index, st2) = eval(index, st1)
+    val st3: State = st2.updateWritten()
+    val st4 = st3.calculateIndirectUsed
+    val t = st4.security(_rhs)
+    val PRestrictU = st4.restrictP(st4.used)
 
-  /*
-  def arrayAssignRule(a: Var, index: Expression, rhs: Expression, st0: State, line: Int): State = {
+    // check index is low
+    // check array index is low
+    if (st4.security(_index, PRestrictU) == High) {
+      throw error.ArrayCError(line, a, index, rhs, "array index to be written to is high")
+    }
+
+    // check index is in bounds
+    if (!SMT.prove(BinOp("&&", BinOp(">=", _index, Lit(0)), BinOp("<", _index, Lit(st4.memSize))), PRestrictU, st3.debug))
+      throw error.storeLError(line, index, rhs, "memory access not provably in bounds")
+
+    val possibleIndices: Seq[Int] = index match {
+      case Lit(value) =>
+        Seq(value / 4)
+      case _ =>
+        for (i <- 0 to st4.memSize if SMT.proveSat(BinOp("==", _index, Lit(i)), PRestrictU, st4.debug))
+          yield i
+    }
+
+    val (st5, m) = st4.storeUpdateP(possibleIndices, _rhs)
+    val st6 = st5.storeUpdateGamma(possibleIndices, t, m)
+    st6.updateDStore(possibleIndices, _rhs)
+
+
+    /*
     val array = st0.arrays(a)
     // ARRAY ASSIGN rule
-    if (st0.toLog)
-      println("ARRAY ASSIGN applying")
+
     val (_rhs, st1) = eval(rhs, st0) // computes rd
     val (_index, st2) = eval(index, st1)
     val st3 = st2.updateWritten(st2.arrays(a)) // computes wr
@@ -739,9 +766,52 @@ object Exec {
 
     val st5 = st4.arrayAssign(a, index, _rhs, possibleIndices) // update P
     st5.updateDArrayAssign(a, _rhs)
+    */
   }
 
-  def arrayAssignCRule(a: Var, index: Expression, rhs: Expression, st0: State, line: Int): State = {
+  def storeGRule(index: Expression, rhs: Expression, st0: State, line: Int): State = {
+
+    if (st0.toLog)
+      println("STOREG applying")
+    val (_rhs, st1) = eval(rhs, st0) // computes rd
+    val (_index, st2) = eval(index, st1)
+    val st3: State = st2.updateWritten()
+    val st4 = st3.calculateIndirectUsed
+    val t = st4.security(_rhs)
+    val index_t = st4.security(_index)
+    val PRestrictU = st4.restrictP(st4.used)
+
+    // check index is low
+    // check index_t <:_P L_G(x)
+    // L_G(x) && P ==> index_t
+    if (st3.debug) {
+      println("checking L_G(x) && P /restrict u ==> index_t holds")
+    }
+
+    // do this for every possible index ?
+    if (index_t != Const._true && !SMT.proveImplies(st3.L_G(lhs) :: PRestrictU, t, st3.debug)) {
+      throw error.storeLError(line, index, rhs, "L_G(" + lhs + ") && P ==> " + lhs + " doesn't hold for memory store")
+    }
+
+    // check index is in bounds
+    if (!SMT.prove(BinOp("&&", BinOp(">=", _index, Lit(0)), BinOp("<", _index, Lit(st4.memSize))), PRestrictU, st3.debug))
+      throw error.storeLError(line, index, rhs, "memory access not provably in bounds")
+
+    val possibleIndices: Seq[Int] = index match {
+      case Lit(value) =>
+        Seq(value)
+      case _ =>
+        // instead check only for global variables / global offset table ???
+        for (i <- 0 to st4.memSize if SMT.proveSat(BinOp("==", _index, Lit(i)), PRestrictU, st4.debug))
+          yield i
+    }
+
+    // rest of assignG goes here
+
+    val (st5, m) = st4.storeUpdateP(possibleIndices, _rhs)
+    val st6 = st5.storeUpdateGamma(possibleIndices, t, m)
+    st6.updateDStore(possibleIndices, _rhs)
+    /*
     val array = st0.arrays(a)
     // ARRAY ASSIGNC rule
     if (st0.toLog)
@@ -836,8 +906,9 @@ object Exec {
 
     val st4 = st3.arrayAssign(a, index, _rhs, possibleIndices) // update P
     st4.updateDArrayAssign(a, _rhs)
+     */
   }
-   */
+
 
   def assignLRule(lhs: Var, rhs: Expression, st0: State, line: Int): State = {
     // ASSIGNL rule
@@ -845,8 +916,8 @@ object Exec {
       println("ASSIGNL applying")
 
     val (_rhs, st1) = eval(rhs, st0)
-    val st2 = st1.calculateIndirectUsed
-    val st3 = st2.updateWritten(lhs)
+    val st2 = st1.updateWritten(lhs)
+    val st3 = st2.calculateIndirectUsed
     val t = st3.security(_rhs)
 
     val (st4, m) = st3.assignUpdateP(lhs, _rhs)
@@ -884,7 +955,7 @@ object Exec {
       println("checking L_G(x) && P /restrict u ==> t holds")
     }
     if (t != Const._true && !SMT.proveImplies(st3.L_G(lhs) :: PRestrictU, t, st3.debug)) {
-      throw error.AssignGError(line, lhs, rhs, "L_G(" + lhs + ") && P ==> " + lhs + " doesn't hold for assignment")
+      throw error.AssignGError(line, lhs, rhs, "L_G(" + lhs + ") && P ==> " + t + " doesn't hold for assignment")
     }
 
     val PRestrictUState = st3.copy(P = PRestrictU)

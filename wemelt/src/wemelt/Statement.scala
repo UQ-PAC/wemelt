@@ -17,12 +17,13 @@ case class Block(statements: List[Statement]) extends Statement {
 }
 
 case class Assignment(lhs: Var, expression: Expression) extends Statement {
+  def this(name: String, expression: Expression) = this(Id(name), expression)
   def this(name: String, size: Int, expression: Expression) = this(Var(name, size, None), expression)
   override def toString: String = lhs + " = " + expression
 }
 
-case class Store() extends Statement {
-
+case class Store(index: Expression, rhs: Expression) extends Statement {
+  override def toString: String = "mem[" + index + "] = " + rhs
 }
 
 /*

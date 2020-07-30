@@ -16,7 +16,8 @@ case class State(
 
   globals: Set[Var],
   locals: Set[Var],
-  labels: Map[Label, Int],
+  labels: Map[Id, Var],
+  definedLocals: Map[Id, Var],
 
   controls: Set[Var],
   controlled: Set[Var],
@@ -964,10 +965,10 @@ object State {
   def init(definitions: Set[Definition], P_0: Option[List[Expression]], gamma_0: Option[List[GammaMapping]],
            P_invIn: List[Expression], toLog: Boolean, debug: Boolean, noInfeasible: Boolean): State = {
     val globalDefs: Set[GlobalVarDef] = definitions collect {case g: GlobalVarDef => g}
-
+    val localDefs: Set[LocalVarDef] = definitions collect {case l: LocalVarDef => l}
     val globals: Set[Var] = globalDefs map {g => g.variable}
-    val labels: Map[Label, Int] = (globals map {g => (Label(g.name), g.size)}).toMap
-    val locals: Set[Var] = {{
+    val labels: Map[Id, Var] = (globals map {g => (Id(g.name), g)}).toMap
+    val locals: Set[Var] = (localDefs map {l => l.variable}) ++ {{
       for (i <- 0 to 30)
         yield Var("w" + i, 32)
     } ++ {
@@ -975,6 +976,7 @@ object State {
         yield Var("x" + i, 64)
     }}.toSet ++ Set(Var("sp", 64),Var("wsp", 32), Var("wzr", 32), Var("xzr", 64),
       Var("Z", 1), Var("N", 1), Var("C", 1), Var("V", 1))
+    val definedLocals: Map[Id, Var] = {localDefs map {l => Id(l.variable.name) -> l.variable}}.toMap
 
     var controls: Set[Var] = Set()
     var controlled: Set[Var] = Set()
@@ -1040,7 +1042,7 @@ object State {
     // for replacing labels in predicates with variables
     val toSubst: Subst = {
       for (g <- globals)
-        yield Label(g.name) -> g
+        yield Id(g.name) -> g
     }.toMap
 
     val primed: Subst = {
@@ -1163,7 +1165,7 @@ object State {
       // user provided
       case Some(gs) => {
         //gs flatMap {g => g.toPair(arrays)}
-        gs map {g => Var(g.label.name, labels(g.label))  -> g.security.subst(toSubst)}
+        gs map {g => labels(g.label) -> g.security.subst(toSubst)}
       }.toMap
     }
 
@@ -1209,6 +1211,7 @@ object State {
       globals = globals,
       locals = locals,
       labels = labels,
+      definedLocals = definedLocals,
       controls = controls,
       controlled = controlled,
       controlledBy = controlledBy,
