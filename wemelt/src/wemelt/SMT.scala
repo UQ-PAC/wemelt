@@ -311,6 +311,20 @@ object SMT {
     case Exists(bound, body) =>
       ctx.mkExists(bound.toArray map translate, translate(body), 0, scala.Array(), null, null, null)
 
+    case ExtHigh(arg1, arg2) =>
+      val bv = bitwise(arg2)
+      val size = bv.getSortSize
+      ctx.mkExtract(size - 1, size - arg1, bv)
+
+    case ExtLow(arg1, arg2) =>
+      ctx.mkExtract(arg1, 0, bitwise(arg2))
+
+    case ExtSigned(arg1, arg2) =>
+      ctx.mkSignExt(arg1, bitwise(arg2))
+
+    case ExtUnsigned(arg1, arg2) =>
+      ctx.mkZeroExt(arg1, bitwise(arg2))
+
       // array index
     //case VarAccess(name, index) => ctx.mkSelect(ctx.mkArrayConst(name.toString, ctx.getIntSort, ctx.getIntSort), translate(index))
 

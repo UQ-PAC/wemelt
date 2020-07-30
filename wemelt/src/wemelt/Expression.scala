@@ -265,7 +265,22 @@ case class Const(name: String) extends Expression {
   //override def arrays = Set()
 }
 
-case class Ext(cast: Cast, n: Int, e: Expression) extends Expression {
-  override def subst(su: Subst): Ext = Ext(cast, n, e.subst(su))
+case class ExtLow(n: Int, e: Expression) extends Expression {
+  override def subst(su: Subst): ExtLow = ExtLow(n, e.subst(su))
+  override def variables: Set[Var] = e.variables
+}
+
+case class ExtHigh(n: Int, e: Expression) extends Expression {
+  override def subst(su: Subst): ExtHigh = ExtHigh(n, e.subst(su))
+  override def variables: Set[Var] = e.variables
+}
+
+case class ExtSigned(n: Int, e: Expression) extends Expression {
+  override def subst(su: Subst): ExtSigned = ExtSigned(n, e.subst(su))
+  override def variables: Set[Var] = e.variables
+}
+
+case class ExtUnsigned(n: Int, e: Expression) extends Expression {
+  override def subst(su: Subst): ExtUnsigned = ExtUnsigned(n, e.subst(su))
   override def variables: Set[Var] = e.variables
 }

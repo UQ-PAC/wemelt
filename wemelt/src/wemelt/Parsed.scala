@@ -8,20 +8,6 @@ case class Parsed(variables: Set[Definition], P_inv: List[Expression], P_0: Opti
   def this(variables: Array[Definition], P_inv: Array[Expression],  statements: Array[Statement]) = this(variables.toSet, P_inv.toList, None, None, statements.toList)
 }
 
-sealed trait Cast extends beaver.Symbol
-case object Low extends Cast {
-  def instance = this
-}
-case object High extends Cast {
-  def instance = this
-}
-case object Signed extends Cast {
-  def instance = this
-}
-case object Unsigned extends Cast {
-  def instance = this
-}
-
 case class GammaMapping(label: Id, security: Expression) extends beaver.Symbol {
   //def this(variable: Var, index: Int, security: Expression) = this(Var(variable.name + "[" + index + "]"), security)
   def this(name: String, security: Expression) = this(Id(name), security)

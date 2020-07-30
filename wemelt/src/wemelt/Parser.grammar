@@ -169,7 +169,10 @@ expr
     | LPAREN expr.e RPAREN              {: return (Symbol) e;           :}
     | TRUE                              {: return new Const("True");  :}
     | FALSE                             {: return new Const("False");  :}
-    | CAST.c COLON NUM.n LBRACK expr.e RBRACK {: return new Ext(c, n, e); :}
+    | LOW COLON NUM.n LBRACK expr.e RBRACK {: return new ExtLow(n, e); :}
+    | HIGH COLON NUM.n LBRACK expr.e RBRACK {: return new ExtHigh(n, e); :}
+    | SIGNED COLON NUM.n LBRACK expr.e RBRACK {: return new ExtSigned(n, e); :}
+    | UNSIGNED COLON NUM.n LBRACK expr.e RBRACK {: return new ExtUnsigned(n, e); :}
     | IF expr.e1 THEN expr.e2 ELSE expr.e3 {: return new Question(e1, e2, e3); :}
     |
     ;
@@ -228,11 +231,5 @@ gamma_mapping
     ;
 
 endian = EL | BE;
-
-cast = LOW {: return Low.instance(); :}
-    | HIGH {: return High.instance(); :}
-    | SIGNED {: return Signed.instance(); :}
-    | UNSIGNED {: return Unsigned.instance(); :}
-    ;
 
 nat = U32 | U64 | S32 | S64;
