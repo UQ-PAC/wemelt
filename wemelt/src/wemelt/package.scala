@@ -82,7 +82,7 @@ package object wemelt {
     def OrStr: String = exprs.mkString(" ||" + newline + "   ")
   }
 
-  implicit class GammaToString(gamma: Map[Id, Expression]) {
+  implicit class GammaToString(gamma: Map[Id, Predicate]) {
     def gammaStr: String = gamma.mkString(", ")
   }
 }

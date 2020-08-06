@@ -167,9 +167,9 @@ object SMT {
     res == z3.Status.UNSATISFIABLE
   }
 
-  def proveImplies(strong: Predicate, weak: Expression, debug: Boolean): Boolean = proveImplies(strong, Predicate(List(weak), Set(), Set()), debug)
+  def proveImplies(strong: Predicate, weak: Expression, debug: Boolean): Boolean = proveImplies(strong, Predicate(List(weak)), debug)
 
-  def proveImplies(strong: Predicate, weak: List[Expression], debug: Boolean): Boolean = proveImplies(strong, Predicate(weak, Set(), Set()), debug)
+  def proveImplies(strong: Predicate, weak: List[Expression], debug: Boolean): Boolean = proveImplies(strong, Predicate(weak), debug)
 
   def proveExpression(cond: Expression, debug: Boolean): Boolean = {
     if (debug)

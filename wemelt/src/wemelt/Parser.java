@@ -23,19 +23,19 @@ public class Parser extends beaver.Parser {
 		static public final short STAR = 10;
 		static public final short DIV = 11;
 		static public final short MOD = 12;
-		static public final short PREFIX = 13;
-		static public final short POSTFIX = 14;
-		static public final short SHL = 15;
-		static public final short SHR = 16;
-		static public final short ASHR = 17;
+		static public final short SHL = 13;
+		static public final short SHR = 14;
+		static public final short ASHR = 15;
+		static public final short PREFIX = 16;
+		static public final short POSTFIX = 17;
 		static public final short LT = 18;
 		static public final short LE = 19;
 		static public final short GE = 20;
 		static public final short GT = 21;
 		static public final short EQ = 22;
 		static public final short NEQ = 23;
-		static public final short AMP = 24;
-		static public final short PRIMEID = 25;
+		static public final short PRIMEID = 24;
+		static public final short AMP = 25;
 		static public final short CARET = 26;
 		static public final short PIPE = 27;
 		static public final short AND = 28;
@@ -84,19 +84,19 @@ public class Parser extends beaver.Parser {
 			"STAR",
 			"DIV",
 			"MOD",
-			"PREFIX",
-			"POSTFIX",
 			"SHL",
 			"SHR",
 			"ASHR",
+			"PREFIX",
+			"POSTFIX",
 			"LT",
 			"LE",
 			"GE",
 			"GT",
 			"EQ",
 			"NEQ",
-			"AMP",
 			"PRIMEID",
+			"AMP",
 			"CARET",
 			"PIPE",
 			"AND",
@@ -134,54 +134,54 @@ public class Parser extends beaver.Parser {
 	}
 
 	static final ParsingTables PARSING_TABLES = new ParsingTables(
-		"U9pjMGbu5TKL$kTDybuKHG4N8f84IX44L1JGzYMGi8K0OIzLkc0jLkr2grMhHIsqLXHP51G" +
-		"54L5a5rbSs5IsW0kAo2wR80g2x8jeNMx$U#UyoSnx4tp9n#BtcSbtvZzpxltFEVVEdRla0M" +
-		"aza8vgg8BpSQ7SRS4K$1BLaOaQ#0b#YajG5$NG09VZzsY8gz0OLwljXji1Wz0U7#8Hh4E#S" +
-		"5CH2UJsYN5ndU7#WbpDlnNtAYNS2kWMn5NVkLpDx6buVpVtli8yWCFV4xMFc$63U1hFu5dy" +
-		"JhZ$HJYGUuulgiCPmhQUXNE5#KzgGSmRNURDXZk4V$z2Vt8VGINXte$70xcLtJx#MBYVOGJ" +
-		"xU1Fx#6$2tOcF0hddkN4lCDoTs8Egk0WN8mF$46uMQWPoQxdSsXYBSQY3Ir4Vb#4AN8c1ql" +
-		"f6Q889c8Gfc8ffc86Ny0fcOGwkmJoyZlbOYAOcRYwQeoLQgmFeZ1LENFKvhWsC#oithexw2" +
-		"NwDt#2tk1wzS8D4lGb$28pwHpTgRnFrp$YhEeZRS0UwOuUqzaxS7HZrBZVgFNo7zs4L$er2" +
-		"u#LszCDVq16tu4$uZtX9KoC2lJpW6o4FqTF36831wbiy9imdWqU8#iR778NH68Fdy3p6Ow8" +
-		"m9#E5m9Wl#lfhEcRYPRoAsPYBrwI$ti22mFvQvFQNPhw9jx4Cx#5zjGrhXRaU6mAP6rscpd" +
-		"Opjk1ZRALimtR9zbFi2inshw#Tk$4vMVl9tOU3mZo48u7Cepwc$tAO#WfYGfYwbVxBQQM#W" +
-		"be9QMNPufKjMbbYbILIQUEKDaRf$DExEcJAkYVXVIdUmc8innAyWtVn0LRoImMUydsfiVXd" +
-		"KefyyOV5nKy#qnmqGnIja8qyj40R54Yl$0m$Z#iLRVVdxTXrBB#zE9Q#UWJ4S2uTexoilAo" +
-		"yx4TGnhbGbtK$BZDn5dGkFHVsySs5pbM49qvIbbyWv5GrS$WQMbPJVxJ436DPLlHbMSWC$P" +
-		"P4Vf17lOCVAYqy0#tGrkZTnPAS3mWdCOTaVNWvN6$KNjVdwSrZZoUBqkPHQ1Zn8obP7zxtS" +
-		"hQybzETnt1tV9Gk3w#FaMNouUmodBjtF#BSa##Fs6wbo8qVsq4KoMwbfFsCjZirahFhFOpV" +
-		"7h#tARrTd$4JztQF6jtPItKrs8LQ9xTUiH$$vTWjpZvdeW9FuSwzZc0cpwldyBHLYIVeAZm" +
-		"9dyypy8Ky$JRc#RSQJy3LMLDpStX6RSPpRPGdsqk4cqTs43VBvMQuN8VV073ZjWdamkLgPf" +
-		"RmdBl3l8RpwV6ZPdaoTZYnZ1lmn174pVL5TUhcigtDORjjjGEPJUBQccjEySt9ZNBMZt7p0" +
-		"hdHk3xEHNioB#FNMzp7hP7$FToeuUfwKVcBSRMU33Vg#Iih5zpvnxXrI#2cnBrRc#AmCzoe" +
-		"mQCnmsMc66w6YNWrdsnFni6ZiRudOvjricbntbKDrEIffHRFBRLfTxoquqano4kcB$SQz1H" +
-		"bz0ncaUcEwE0HuX$HsRu$Xwcr86Rs2MVMuPx4OTebPEjlv#LyJk5RIk7uYhen2mEP3GEOKN" +
-		"8ptHugwGr5lKpbknocqGAOj3hCKyixTQnJm3d9zVLOW2cpawnjSzoa8em8qhXJpM2zBD#NA" +
-		"l5HZvBkzOX6SHwJppGnhk5oHrRHppKr$TpZsbtsbOanf8GnoilAoyhBVWnbt0teChjCNXFc" +
-		"Gh6dezv9oh80RQKkvt2UDMnq8NOhoMDmbjmbfIVEuOdpRRn7PmSlBMo1bcXbT5iiIVcGdEp" +
-		"479BruSkRwmtgndp#4F9mLzNIvP5X674ZALaVGU$bXvA7w$cK#P2TWdFtx4VaddH$kFkQT3" +
-		"T#R5#JBZkB4lOpnNkFqsVN$HYmlsfJt39qCFKxK#lgjipr4zWku5XVcDtZKSfMobx0Na1JP" +
-		"mhBxIwKfjHRclCdC088w$$oTAECxkly$uDWBmUi$iHDZitUBVYbWobX#lwIU1xnQs9DbaqZ" +
-		"NW54NY0oHaG$joUk8FOWRYFUJ6HEANSIloBUJrulub3YtSGnn5h45u7G4U9hHEQVyWvn074" +
-		"ziKjV9qbNQDyXUCJ1r93WkO8PkfVy78kvMhVuRU5xQ4kJyhFvl21MHlfsvZQOQdKfPnkjV4" +
-		"ez#gzF0q$OgVeNksjfQoXns$36jbgNKjV$fHmct3p10i7hMSv#m0p6tCNdgzW$3QJi9fRTH" +
-		"kLzwdoFLbS#ww8BYCp7Ufvo8uMsy0t2ONzRjx9y5Cn$Hwr#b74i7qzyW49CdSoolL9$aATV" +
-		"5dfq#a#TJIcYplTgyJrPVA$XBEBhjAyXRk5pRUc$re8T1Vc#mTp3p0K3YNo7QJd4OSGy8ds" +
-		"c5H9V8QOIEUxIAX7N4QiJ3n0vJiCSA$OJx9FAnB74QaJsTwGHaUCwGf#X3KIsDSHsHdeIU$" +
-		"lVRUGkmNw28mN72dAiMHNYnWZ7jhMHoWJdEPGg6ARzA9K6n3sKRsbB9tv7h2Rl$aq#C$V84" +
-		"cBhOf$wHutG6PIBA4qe5rCoM7y$iIebaxhsrvZ2Ro5SWVnUnVpKbJ6TOtAN9zS2rgrU$8ph" +
-		"z5WIlQF7FaHmgk1CmLc2imNd2CuLd2#uG72Pu0h1LOAh1TS8hXLS9xXUSBFW5a6tBLxXjK$" +
-		"meE0XmSE2Hu9u#dlr#uaSZlDhnJr$4npVgYHOESvUnQDN3U9wokLRXYsOwIbh4fT7Jx7dUs" +
-		"otKsh6rRlNezz1oVRuz8tzalF2VR5vHfxvVKVasxKU57n8S83Wmu831GS93XOSAXYRwsHTi" +
-		"SO9ZXUKRygQA3X9SBBW5C5fWjC5voMsmreak5YmI729uDAWzfVapx6ZlqSVBdKt2CfwO#to" +
-		"SwmFFPp9nNh8KoSKyUYUCOHZEEwbXfaxtv1wZ$8kPHc5AwDwc$8MXJEEMahXZAFqhtIBAOi" +
-		"e2oaBAFCfRr0uSolETcgUMgDMgrLg9VKFA5of5LSPjTn4cglcgDb6EwoEgI#CjjNSzwcZaj" +
-		"D72LbkyUYRAPie6rqBvsZrOGBdVuBhIsWvLmErLZsclbRxrP60Skv4r7GALoR5dOEQIk7Ae" +
-		"gPGkCgfIPI9b0aKhdoAAuJYggcuagZdACzInb2UeOnMizIhYkkHUfdo4cKcPOQ9yxGQfPvI" +
-		"Nndz4yfkYR$Bt7TIXhivFQwuNgdFZBx3t9yqzv5I$YbllRdlIgDK4Ac8FExjz2ydxOZjYCs" +
-		"8MjfGMXe9eHMPhQYte7Gm4ZBxkyxKkr8A#5p0tN81zyi5t2yNC4OdsZlHhdy1wqAzBIM7$d" +
-		"DOBuUnSrWln$m6f2LLdhNzB6FJlrtu9HGdzWaM9qwsJq9nOfzWSU9qfDwUKaZ9vtC#iJNxf" +
-		"3br$VjMBgNf$m4F7IGe");
+		"U9pjMdby5TKL$kQza4H150GQL9AmosOh85LV8Y24XB2lYgrLsYeY2De5L5fBMqLmGL5GMTm" +
+		"mecmgk8CAokA2ekmW2WHGGHIGjLZqzfixvxtSEtdpJ0W5$yZCxyntvzxpdNFkVYSlGEfCrC" +
+		"JPE1FLyGjvXWLh8GEriGILK1VrqH2Dq0JDbC8lSJvQu0ByMctJtAvOXCxOWALOXroBcueaa" +
+		"qkD61VzDFTMz27RjN0JKYnkRrIqk6SON9TvbMRz6N$7F$1Fawb#n8X0vekQwt5S$Ylexwlj" +
+		"onPtX57RhR7QliNQpcTjJxUuAr35ubvZ#BrESwjY5P9n6RsyYMeMjmB#4DXIDJHt7hbBy37" +
+		"sOZzkjBZBa6PnppAuE$1lt87Fy1NlpVW6vs2urFvEZC7TI4ScxiLz68S7CG4FemucOZ8UnU" +
+		"Du4lMqtmOu5utH5EVXLtZ1yjiSBIs$hGo$5shk9MY3Iz4U7THUl6DnUwXT5lToW#j6l1rNu" +
+		"ZVuBNw7g$57A#BVurehuW56n4Eqrw6u7dqn67$2N$6bvNKORh6ytcnu$HjkGnVD$mjUnGte" +
+		"Xe4OX94M$rzgeiM$tHVrA8p6NRW7Ot4$7h2Y7e#7hAWVCQ9scPCm1O$X2Kp5CvXkCMTYjiL" +
+		"ytc2wqRx4yVqQNiSRnBUjQ1TWeHNjOdi6gH$m0PQhe#IjL8KMSotMMynFVNDl8px7LjwRK8" +
+		"Xj5dCBlh2OEttCR$4rTf6v1Rknns9#XtqMyu2FUH3cPJBTosGYndHRrhxCbdKlisKHQrdNd" +
+		"tsLnD#nUJiMNyVYgVH#IkybiG$NdkqZWJsr3uSGuZpsRAwXh0RKk0Hn5rrTA2EiUHoDxDHO" +
+		"ohC2l1zeBnkj4K4Eij0MxP27ZbQBN8IBVJLmIwCrIDnUqUkAE3xCo$LHhb6kKQvHhc5hz0t" +
+		"IuBePBG#oOQwBr53Vngoww#OAgpnwVNJIQnoeKQp6q$0idi9pU1epC0jpC3TEJb6D2r3PL#" +
+		"E24blmzf82xalH6BozfEGMoXf3T3ShKDzP4PIc5bw$5nJhzv9QSB#8tjFwfw0JycDzKReOo" +
+		"jOEHJ6SzZE8uKCTGz#OrPFH5vz8EvGkXg8JJe6WTuOfkmNtEp#UXNTZ4VRIexadKzrbP1TO" +
+		"PpCpxOtxliOi3D8CEiMQBKmTzOsKUlhcoSr$naE9D1sUNaz5HLIIvxc2ft5ydSxluhQeoZY" +
+		"hCT8QUhxMv7VxsVm#hqLDbvlDh#VM$EhEudTtGukRmtgPt2o3cwwvEPhjMSYmk1rztB31TP" +
+		"cPmZ8ZzvXWMH2pcL5RZzymOMqp0slRZBLjOt4pkQARt5R5QXlXtGADjPU8nStbDs1GIqMaf" +
+		"IAQTo5tZeO#RiJYHWnkPytjXWwyytX7VDn80cua5dFqFdOkVDn6l8EuNkzc8eazvx5DPZhR" +
+		"BuYP95xJoKpdrtXIiOZjCTNKu6RnzdgfDkhmoweUlwqQCC$aP$6BDgYNN6QMTTlChFyJCuD" +
+		"rRSfdXcujarcRzJUPwJucD0kQPy$vVEObcdiP$EPEuft1KHNnpG4xsYu#vlbaPf2PoQVDpF" +
+		"2DfWmVCwACosJgTuF9joYJFALE6E$4iKuCvpWpT2$QZ0JsE2xpUIu8UpRHdTAJqZkOPNXDf" +
+		"sHQyrWYGvDOIbiXjWoCmeqtpB5Q0Sb8GIhFZ4RzS0Qg1DSlSNl5R3GlxiDgFVeeroZNADSe" +
+		"rx0r40xIu1U#b0TgcEkYgz4ePhNOkXahQNAoQvoWFZzTu#1sJ4UQlyRCAQ45sPlIA1A3hFW" +
+		"bjb3M66AxMPeTGMbg8VsUvk$t4iUWluYq$gLeX$RHlYXT36LiXvzX3D48JcvVb2w6eXEEEw" +
+		"erodWggmKTMJmB7MCHTjMbFPZgvOriwfldAzzPApRdlNH2JMiLyKfzfyFeAbXoQp#X2HmU2" +
+		"Jqh3rAsCCcyy9l4sodrWUG1VE$4j7lMRURzBIdvQk9rb1j6Ud#v6KITvO1p1t6pbnVUws6I" +
+		"8rYLzlz3h4lyBx4bTMuYvj3U569VukT4#ajjJxoPc4ySG#n7d4IyYZYJlAx4DuZ3Y1yHwn4" +
+		"t0Q5zn3t4jy2k8uucLY5sTsCmXVbr15i8jXVi8tYjstesnsdE6BVvxAnZVXKfhyeOhoWgmr" +
+		"Z6vlvIMKlAyoYiazE4lE7CY10P8ovdtaLYRo8Vh9Tp7jCpc1ult4w2NGJxitm#4tEPPfiv5" +
+		"m0fqwLi8Ci#PE8JfdjGBcFSD$Az8v7#dAd4SPvkid2Ivmf#m4SVuYhYKE8krecDcNo0s80#" +
+		"AX674AiJIKdXc4WTHMn5d41atwHE9j9dU3oHDi9F4TcVuHR4#uaLYQndQ3rn3j4jdqSSRBT" +
+		"joah1ZOBx1Ozwc5gDZzs#Fbf8uJXAQI3lBrCMKRSMNnYtivXIo7AENsSPPIVRYlfE9T5VQz" +
+		"XQOAGvlYhifdp5z57APieFR1UsfSETDPbzxtn6EKBvb8J17Y#K8bYP#TypyJYHRUhyo3pEg" +
+		"L0o9KtQlYxp6pDMzgMJM#GxnFOFfL9gKbWMEejo3lKvXq8rA1p$oPn78RPlg2dJd4lEDKNy" +
+		"SAWeZH7HD8Vt3dCyy$rZjajzqRlIuDmgE59mWk0qmTc2ymKN2IuMN2QuGd2ru1h1jOBh1DS" +
+		"BRX0i5Dmgk5DmJpH6KtZj4vJnWWE21mKFnUEn$hwvdNB8VaV8VdTIuljtpXIiviklRgJhnU" +
+		"CQvSt4Pv9WXb5siI$k8vAVAvWds5Emds1$mO62rmiE4fGnwyYwxWmH72euJ72uu6s2emJl5" +
+		"1mjE4RmhZZrkrlm7i471QFhtMG$nyj71qfhNzvO8tqBnLY3dHdnxCIno$KePO3nFi5OJvVw" +
+		"ObyGO6EgaPubkZAMdUs2ktos2WtExA9qo37IfnZfD4F$C19UIlzdZ7g0mbrISKTGNF4KLtZ" +
+		"rFkKzohkKfPGb5AwCYYkbUeVoDcKXPG65kwdYYK1nnrNprHgrMgrIAvbUGU4EuwuQQhdsD4" +
+		"#zhbxJgVtgi3gaKrlqSxUI$pTJcuj5kSb8SoLMN4NLnbWErrAreHY79mdr0kLvodEKsPHP5" +
+		"9uE57TDDPtoBEKPoZJAqnJtTsNkD8ehjdgIyWI5gx5wJBsgNb7S9zHBb1Sft5FL7EtdKJL5" +
+		"JHQVwmDQcIS0jLQDLqVK7dKWJldtxdc7k9tojUJjr4$k9UgXcDu4zJ2VEtJwI$ryH3ydIVa" +
+		"NS7UmtZoFkl$BwqbbvFA4bylJQWunXzYQw4f7IZij8PxoGN5usdRq#RMhUu9bNW#cUr7o#P" +
+		"xFysu#ZqtvFF7cqqTtvdTdlllxOK#cEr6oQJ#RUjdqdKszRFrBaoiLvDtDhwJptDzMR0dv9" +
+		"7oSnVEJPKd89#7ZB9wVRantfdIXvF4zZzY1RTAMwRPCjw5SyZ#p5Phj");
 
 	private final Action[] actions;
 
@@ -458,7 +458,7 @@ public class Parser extends beaver.Parser {
 					 return new If(a, b, c);
 				}
 			},
-			new Action() {	// [39] statement1 = WHILE LPAREN expr.a RPAREN INVARIANT COLON exprs.i GAMMA COLON gamma_mappings.g statement.b
+			new Action() {	// [39] statement1 = WHILE LPAREN expr.a RPAREN INVARIANT COLON rgexprs.i GAMMA COLON gamma_mappings.g statement.b
 				public Symbol reduce(Symbol[] _symbols, int offset) {
 					final Symbol _symbol_a = _symbols[offset + 3];
 					final Expression a = (Expression) _symbol_a.value;
@@ -473,7 +473,7 @@ public class Parser extends beaver.Parser {
 					 return new While(a, i, g, b);
 				}
 			},
-			new Action() {	// [40] statement1 = DO INVARIANT COLON exprs.i GAMMA COLON gamma_mappings.g statement.b WHILE LPAREN expr.a RPAREN
+			new Action() {	// [40] statement1 = DO INVARIANT COLON rgexprs.i GAMMA COLON gamma_mappings.g statement.b WHILE LPAREN expr.a RPAREN
 				public Symbol reduce(Symbol[] _symbols, int offset) {
 					final Symbol _symbol_i = _symbols[offset + 4];
 					final ArrayList _list_i = (ArrayList) _symbol_i.value;

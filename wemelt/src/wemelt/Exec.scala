@@ -113,18 +113,23 @@ object Exec {
       if (state0.toLog)
         println("line " + statement.line + ": While(" + test + ") {")
       // replace Ids in invariant with vars
-      val idToVar: Subst = {
+
+      val primeMap: Map[Id, Var] = {for (v <- state0.variables)
+        yield v.prime -> v.toVar.fresh}.toMap
+
+      val idToVar: Subst = ({
         for (v <- state0.variables)
           yield v -> v.toVar
-        }.toMap /* ++ {
+      } ++ primeMap).toMap/* ++ {
         for (v <- state0.arrays.keySet)
           yield v -> v.toVar
       }.toMap */
 
-      val PPrime = invariants map {i => i.subst(idToVar)}
+      // existentially quantify any prime variables
+      val PPrime = Predicate(invariants map {i => i.subst(idToVar)}, (invariants flatMap { p => p.variables } collect {case i if i.name.endsWith("'") => primeMap(i)}).toSet, Set())
 
       // convert gammaPrime to map
-      val gammaPrime: Map[Id, Expression] = (gamma map {g => g.variable -> g.security.subst(idToVar)}).toMap
+      val gammaPrime: Map[Id, Predicate] = (gamma map {g => g.variable -> Predicate(List(g.security.subst(idToVar)), g.security.variables collect {case i if i.name.endsWith("'") => primeMap(i)}, Set())}).toMap
       //val gammaPrime: Map[Id, Security] = (gamma flatMap {g => g.toPair(state0.arrays)}).toMap
 
       val state1 = whileRule(test, PPrime, gammaPrime, body, state0, statement.line)
@@ -139,18 +144,22 @@ object Exec {
       if (state0.toLog)
         println("line " + statement.line + ": While(" + test + ") {")
       // replace Ids in invariant with vars
-      val idToVar: Subst = {
+      val primeMap: Map[Id, Var] = {for (v <- state0.variables)
+        yield v.prime -> v.toVar.fresh}.toMap
+
+      val idToVar: Subst = ({
         for (v <- state0.variables)
           yield v -> v.toVar
-        }.toMap /* ++ {
+      } ++ primeMap).toMap/* ++ {
         for (v <- state0.arrays.keySet)
           yield v -> v.toVar
-        }.toMap */
+      }.toMap */
 
-      val PPrime = invariants map {i => i.subst(idToVar)}
+      // existentially quantify any prime variables
+      val PPrime = Predicate(invariants map {i => i.subst(idToVar)}, (invariants flatMap { p => p.variables } collect {case i if i.name.endsWith("'") => primeMap(i)}).toSet, Set())
 
       // convert gammaPrime to map
-      val gammaPrime: Map[Id, Expression] = (gamma map {g => g.variable -> g.security.subst(idToVar)}).toMap
+      val gammaPrime: Map[Id, Predicate] = (gamma map {g => g.variable -> Predicate(List(g.security.subst(idToVar)), g.security.variables collect {case i if i.name.endsWith("'") => primeMap(i)}, Set())}).toMap
       //val gammaPrime: Map[Id, Security] = (gamma flatMap {g => g.toPair(state0.arrays)}).toMap
 
       // execute loop body once at start
@@ -438,7 +447,7 @@ object Exec {
 
     // check guard is LOW
     val guardGamma = state1.security(_guard)
-    if (guardGamma != Const._true && !SMT.proveImplies(state1.P ++ state1.P_inv, guardGamma, state1.debug)) {
+    if (!(guardGamma.predicates.size == 1 && guardGamma.predicates.head == Const._true) && !SMT.proveImplies(state1.P ++ state1.P_inv, guardGamma, state1.debug)) {
       throw error.IfError(line, guard, "guard expression is HIGH")
     }
 
@@ -502,7 +511,7 @@ object Exec {
     _left1.mergeIf(_right1)
   }
 
-  def whileRule(guard: Expression, PPrime: Predicate, gammaPrime: Map[Id, Expression], body: Statement, state0: State, line: Int): State = {
+  def whileRule(guard: Expression, PPrime: Predicate, gammaPrime: Map[Id, Predicate], body: Statement, state0: State, line: Int): State = {
     // WHILE rule
 
     if (state0.toLog)
@@ -558,7 +567,7 @@ object Exec {
             println("Gamma'<" + v + ">: " + gammaInvSec)
             println("checking Gamma >= Gamma' for " + v + ": P && " + gammaInvSec + " ==> " + gammaOldSec)
           }
-          BinOp("==>", BinOp("&&", gammaInvSec, PPred), gammaOldSec)
+          BinOp("==>", BinOp("&&", gammaInvSec.toAnd, PPred), gammaOldSec.toAnd)
         }
     }.toList
     if (!SMT.proveListAnd(gammaGreaterCheckStart, state0.debug)) {
@@ -612,7 +621,7 @@ object Exec {
     if (state0.debug) {
       println("checking guard is LOW")
     }
-    if (guardGamma != Const._true && !SMT.proveImplies(state2.P ++ state2.P_inv, guardGamma, state2.debug)) {
+    if (!(guardGamma.predicates.size == 1 && guardGamma.predicates.head == Const._true) && !SMT.proveImplies(state2.P ++ state2.P_inv, guardGamma, state2.debug)) {
       throw error.WhileError(line, guard, "guard expression is HIGH")
     }
 
@@ -662,7 +671,7 @@ object Exec {
             println("Gamma'<" + v + ">: " + gammaInvSec)
             println("checking Gamma'' >= Gamma' for " + v + ": P'' && " + gammaInvSec + " ==> " + gammaNewSec)
           }
-          BinOp("==>", BinOp("&&", gammaInvSec, PPrimePrimePred), gammaNewSec)
+          BinOp("==>", BinOp("&&", gammaInvSec.toAnd, PPrimePrimePred), gammaNewSec.toAnd)
         }
     }.toList
     if (!SMT.proveListAnd(gammaGreaterCheck, state5.debug)) {
@@ -887,7 +896,7 @@ object Exec {
       println("checking L_G(x) && P ==> t holds")
     }
 
-    if (t != Const._true && !SMT.proveImplies(st1.P_inv.add(st1.L_G(lhs)) ++ st1.P , t, st1.debug)) {
+    if (!(t.predicates.size == 1 && t.predicates.head == Const._true) && !SMT.proveImplies(st1.P_inv.add(st1.L_G(lhs)) ++ st1.P , t, st1.debug)) {
       throw error.AssignGError(line, lhs, rhs, "L_G(" + lhs + ") && P ==> " + lhs + " doesn't hold for assignment")
     }
 
@@ -901,7 +910,7 @@ object Exec {
         if (st1.debug) {
           println("checking fall: P && L(y)[e/x] ==> (Gamma<y> || L(y)) for y == " + y)
         }
-        if (!SMT.proveImplies(st1.P.add(st1.L(y).subst(toSubst)) ++ st1.P_inv, BinOp("||", st1.security(y.toVar) , st1.L(y)), st1.debug)) {
+        if (!SMT.proveImplies(st1.P.add(st1.L(y).subst(toSubst)) ++ st1.P_inv, BinOp("||", st1.security(y.toVar).toAnd, st1.L(y)), st1.debug)) {
           throw error.AssignGError(line, lhs, rhs, "falling error for variable " + y)
         }
       }
