@@ -547,7 +547,7 @@ object Exec {
     if (state0.debug) {
       println("checking Gamma >= Gamma'")
     }
-    val PPred = State.andPredicates(state0.P)
+    val PPred = state0.P.toAnd
     val gammaGreaterCheckStart: List[Expression] = {
       for (v <- state0.variables)
         yield {
@@ -651,7 +651,7 @@ object Exec {
     if (state0.debug) {
       println("checking Gamma'' >= Gamma'")
     }
-    val PPrimePrimePred = State.andPredicates(state5.P)
+    val PPrimePrimePred = state5.P.toAnd
     val gammaGreaterCheck: List[Expression] = {
       for (v <- state5.variables)
         yield {

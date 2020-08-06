@@ -14,18 +14,7 @@ object SMT {
       println("smt checking !(" + cond + ") given " + given)
     solver.push()
     val res = try {
-      if (given.exists.isEmpty && given.forall.isEmpty) {
-        for (p <- given.predicates) {
-          solver.add(formula(p))
-        }
-      } else if (given.exists.isEmpty) {
-        ctx.mkForall(given.forall.toArray map translate, PToAnd(given.predicates), 0, scala.Array(), null, null, null)
-      } else if (given.forall.isEmpty) {
-        ctx.mkExists(given.exists.toArray map translate, PToAnd(given.predicates), 0, scala.Array(), null, null, null)
-      } else {
-        ctx.mkForall(given.forall.toArray map translate, ctx.mkExists(given.exists.toArray map translate, PToAnd(given.predicates), 0, scala.Array(), null, null, null), 0, scala.Array(), null, null, null)
-      }
-
+      solver.add(convertPredicate(given))
       // check that (NOT cond) AND P is unsatisfiable
       solver.add(formula(PreOp("!", cond)))
       solver.check
@@ -54,17 +43,7 @@ object SMT {
       println("smt checking " + cond + " given " + given)
     solver.push()
     val res = try {
-      if (given.exists.isEmpty && given.forall.isEmpty) {
-        for (p <- given.predicates) {
-          solver.add(formula(p))
-        }
-      } else if (given.exists.isEmpty) {
-        ctx.mkForall(given.forall.toArray map translate, PToAnd(given.predicates), 0, scala.Array(), null, null, null)
-      } else if (given.forall.isEmpty) {
-        ctx.mkExists(given.exists.toArray map translate, PToAnd(given.predicates), 0, scala.Array(), null, null, null)
-      } else {
-        ctx.mkForall(given.forall.toArray map translate, ctx.mkExists(given.exists.toArray map translate, PToAnd(given.predicates), 0, scala.Array(), null, null, null), 0, scala.Array(), null, null, null)
-      }
+      solver.add(convertPredicate(given))
       // check that cond AND P is satisfiable
       solver.add(formula(cond))
 
@@ -93,17 +72,7 @@ object SMT {
       println("smt checking " + given)
     solver.push()
     val res = try {
-      if (given.exists.isEmpty && given.forall.isEmpty) {
-        for (p <- given.predicates) {
-          solver.add(formula(p))
-        }
-      } else if (given.exists.isEmpty) {
-        ctx.mkForall(given.forall.toArray map translate, PToAnd(given.predicates), 0, scala.Array(), null, null, null)
-      } else if (given.forall.isEmpty) {
-        ctx.mkExists(given.exists.toArray map translate, PToAnd(given.predicates), 0, scala.Array(), null, null, null)
-      } else {
-        ctx.mkForall(given.forall.toArray map translate, ctx.mkExists(given.exists.toArray map translate, PToAnd(given.predicates), 0, scala.Array(), null, null, null), 0, scala.Array(), null, null, null)
-      }
+      solver.add(convertPredicate(given))
       solver.check
     } catch {
       case e: java.lang.UnsatisfiedLinkError if e.getMessage.equals("com.microsoft.z3.Native.INTERNALgetErrorMsgEx(JI)Ljava/lang/String;")=>
@@ -176,12 +145,12 @@ object SMT {
     res == z3.Status.UNSATISFIABLE
   }
 
-  def proveImplies(strong: List[Expression], weak: List[Expression], debug: Boolean): Boolean = {
+  def proveImplies(strong: Predicate, weak: Predicate, debug: Boolean): Boolean = {
     if (debug)
       println("smt checking !(" + strong + newline + "==> " + newline + weak + ")")
     solver.push()
     val res = try {
-      solver.add(ctx.mkNot(ctx.mkImplies(PToAnd(strong), PToAnd(weak))))
+      solver.add(ctx.mkNot(ctx.mkImplies(convertPredicate(strong), convertPredicate(weak))))
       solver.check
     } catch {
       case e: Throwable =>
@@ -198,7 +167,9 @@ object SMT {
     res == z3.Status.UNSATISFIABLE
   }
 
-  def proveImplies(strong: List[Expression], weak: Expression, debug: Boolean): Boolean = proveImplies(strong, List(weak), debug)
+  def proveImplies(strong: Predicate, weak: Expression, debug: Boolean): Boolean = proveImplies(strong, Predicate(List(weak), Set(), Set()), debug)
+
+  def proveImplies(strong: Predicate, weak: List[Expression], debug: Boolean): Boolean = proveImplies(strong, Predicate(weak, Set(), Set()), debug)
 
   def proveExpression(cond: Expression, debug: Boolean): Boolean = {
     if (debug)
@@ -226,6 +197,18 @@ object SMT {
       }
     }
     res == z3.Status.UNSATISFIABLE
+  }
+
+  def convertPredicate(P: Predicate): z3.BoolExpr = {
+    if (P.exists.isEmpty && P.forall.isEmpty) {
+      PToAnd(P.predicates)
+    } else if (P.exists.isEmpty) {
+      ctx.mkForall(P.forall.toArray map translate, PToAnd(P.predicates), 0, scala.Array(), null, null, null)
+    } else if (P.forall.isEmpty) {
+      ctx.mkExists(P.exists.toArray map translate, PToAnd(P.predicates), 0, scala.Array(), null, null, null)
+    } else {
+      ctx.mkForall(P.forall.toArray map translate, ctx.mkExists(P.exists.toArray map translate, PToAnd(P.predicates), 0, scala.Array(), null, null, null), 0, scala.Array(), null, null, null)
+    }
   }
 
   // recursively convert expression list into AND structure
