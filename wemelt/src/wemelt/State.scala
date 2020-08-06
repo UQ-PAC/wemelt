@@ -894,10 +894,10 @@ object State {
     val idToVar: Subst = ({
       for (v <- ids)
         yield v -> v.toVar
-      }.toMap ++ {
+      } ++ {
       for (v <- ids)
         yield v.prime -> v.toVar.prime
-      }.toMap)
+      }).toMap
     /* ++ {
       for (v <- arrays.keySet)
         yield v -> v.toVar
