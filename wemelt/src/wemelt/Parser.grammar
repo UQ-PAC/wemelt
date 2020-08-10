@@ -210,7 +210,7 @@ gamma_mappings
     = gamma_mapping | gamma_mappings COMMA gamma_mapping;
 
 gamma_mapping
-    = ID.n MAPSTO expr.e {: return new GammaMapping(n, e); :}
+    = ID.n MAPSTO rgexpr.e {: return new GammaMapping(n, e); :}
     //| ID.n LBRACK NUM.i RBRACK MAPSTO expr.e {: return new GammaMapping(n, i, s); :}
     //| ID.n LBRACK STAR RBRACK MAPSTO expr.e {: return new GammaMapping(n, s); :}
     ;

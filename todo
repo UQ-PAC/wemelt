@@ -1,24 +1,7 @@
-make quantification happen on outside of implies
-fix introducing temporary variables
-
-x = 0
-=>
-x_1 = 0 && x_2 = 0
-P_1 && P_2
-Gamma(x) = Q
--> Q_1 || Q_2 => x_1 = x_2
-P, Gamma >= P', Gamma'
-
-exists temp ::
-P_1 && P_2 && (forall x :: ((gamma(x))_1 || (gamma(x))_2) ==> x_1 = x_2)
-
 -make P_inv optional in parsing
 -remove unnecessary SMT calls in R-var part of P + R ?? - check this ??
 -SMT optimisations to reduce calls in a few places
--test everything!!!
--fix gamma invariant problem with new P structure
 
 for later
 -make r_var implementation better?
--quantification in predicates?
 -check rely & guarantee don't evaluate to false initially

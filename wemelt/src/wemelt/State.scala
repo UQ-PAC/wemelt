@@ -10,6 +10,7 @@ case class Predicate(predicates: List[Expression], exists: Set[Var] = Set(), for
     copy(predicates = predicates ++ expressions)
   }
 
+  // P1 AND P2
   def combine(other: Predicate): Predicate = {
     copy(predicates = predicates ++ other.predicates, exists = exists ++ other.exists, forall = forall ++ other.forall)
   }
@@ -46,7 +47,11 @@ case class Predicate(predicates: List[Expression], exists: Set[Var] = Set(), for
   }
 
   def toAnd: Expression = {
-    if (exists.isEmpty && forall.isEmpty) {
+    if (predicates == List(Const._true)) {
+      Const._true
+    } else if (predicates == List(Const._false)) {
+      Const._false
+    } else if (exists.isEmpty && forall.isEmpty) {
       State.andPredicates(predicates)
     } else if (exists.isEmpty && forall.nonEmpty) {
       ForAll(forall, State.andPredicates(predicates))
@@ -55,6 +60,26 @@ case class Predicate(predicates: List[Expression], exists: Set[Var] = Set(), for
     } else {
       ForAll(forall, Exists(exists, State.andPredicates(predicates)))
     }
+  }
+
+  // https://www.cs.jhu.edu/~jason/tutorials/convert-to-CNF.html
+  // P1 OR P2 converted to CNF, using switching variable to keep converted formula small
+  def merge(P2: Predicate): Predicate = {
+    if (predicates.isEmpty) {
+      return P2
+    }
+    if (P2.predicates.isEmpty) {
+      return this
+    }
+    val common = predicates.intersect(P2.predicates) // common elements don't need switching variable
+    val switch = Switch.fresh
+    val p1List: List[Expression] = for (p1 <- predicates if !common.contains(p1)) yield {
+      BinOp("||", PreOp("!", switch), p1)
+    }
+    val p2List: List[Expression] = for (p2 <- P2.predicates if !common.contains(p2)) yield {
+      BinOp("||", switch, p2)
+    }
+    Predicate(common ++ p1List ++ p2List, exists ++ P2.exists, forall ++ P2.forall)
   }
 }
 
@@ -713,15 +738,22 @@ case class State(
       println("checking classification of " + e)
     val varE = e.variables
 
-    val tList: List[Predicate] = { for (x <- varE)
-      yield security(x)
-    }.toList
+    val t = e match {
+      case l: Lit =>
+        Predicate(List(Const._true), Set(), Set())
 
-    val preds = tList flatMap {p => p.predicates}
-    val exists: Set[Var] = (tList flatMap {p => p.exists}).toSet
-    val forall: Set[Var] = (tList flatMap {p => p.forall}).toSet
+      case _ =>
+        val tList: List[Predicate] = {for (x <- varE)
+          yield security(x)
+        }.toList
 
-    val t = Predicate(preds, exists, forall)
+        val preds = tList flatMap {p => p.predicates}
+        val exists: Set[Var] = (tList flatMap {p => p.exists}).toSet
+        val forall: Set[Var] = (tList flatMap {p => p.forall}).toSet
+
+        Predicate(preds, exists, forall)
+    }
+
     if (debug)
       println(e + " classification is " + t)
     t
@@ -744,40 +776,15 @@ case class State(
     //val DPrime = this.mergeD(state2)
 
     // P1 OR P2 converted to CNF
-    val PPrime = mergeP(state1.P, state2.P)
+    val PPrime = state1.P.merge(state2.P)
 
     copy(gamma = gammaPrime, P = PPrime)
   }
 
-  /*
-  // D' = D1 intersect D2
-  def mergeD(state2: State): Map[Id, (Set[Id], Set[Id], Set[Id], Set[Id])] = {
-    State.mergeD(this.D, state2.D)
-  } */
-
-  // https://www.cs.jhu.edu/~jason/tutorials/convert-to-CNF.html
-  // P1 OR P2 converted to CNF, using switching variable to keep converted formula small
-  def mergeP(P1: Predicate, P2: Predicate): Predicate = {
-    if (P1.predicates.isEmpty) {
-      return P2
-    }
-    if (P2.predicates.isEmpty) {
-      return P1
-    }
-    val common = P1.predicates.intersect(P2.predicates) // common elements don't need switching variable
-    val switch = Switch.fresh
-    val p1List: List[Expression] = for (p1 <- P1.predicates if !common.contains(p1)) yield {
-      BinOp("||", PreOp("!", switch), p1)
-    }
-    val p2List: List[Expression] = for (p2 <- P2.predicates if !common.contains(p2)) yield {
-      BinOp("||", switch, p2)
-    }
-    Predicate(common ++ p1List ++ p2List, P1.exists ++ P2.exists, P1.forall ++ P2.forall)
-  }
 
   def mergePs(ps: List[Predicate]): Predicate = {
     if (ps.size == 2) {
-      mergeP(ps.head, ps(1))
+      ps.head.merge(ps(1))
     } else if (ps.size == 1) {
       ps.head
     } else if (ps.isEmpty) {

@@ -556,18 +556,20 @@ object Exec {
     if (state0.debug) {
       println("checking Gamma >= Gamma'")
     }
-    val PPred = state0.P.toAnd
     val gammaGreaterCheckStart: List[Expression] = {
       for (v <- state0.variables)
         yield {
-          val gammaInvSec = state1.security(v)
-          val gammaOldSec = state0.security(v)
+          val gammaPrimeSec = state1.security(v)
+          val gammaSec = state0.security(v)
+          val notGammaPrimeSec = gammaPrimeSec.copy(predicates = List(PreOp("!", State.andPredicates(gammaPrimeSec.predicates))))
+          val notGammaSec = gammaSec.copy(predicates = List(PreOp("!", State.andPredicates(gammaSec.predicates))))
+          val PPrimeAndNotGammaPrime = state1.P.combine(notGammaPrimeSec)
+          val PAndNotGamma = state0.P.combine(notGammaSec)
           if (state0.debug) {
-            println("Gamma<" + v + ">: " + gammaOldSec)
-            println("Gamma'<" + v + ">: " + gammaInvSec)
-            println("checking Gamma >= Gamma' for " + v + ": P && " + gammaInvSec + " ==> " + gammaOldSec)
+            println("Gamma<" + v + ">: " + gammaSec)
+            println("Gamma'<" + v + ">: " + gammaPrimeSec)
           }
-          BinOp("==>", BinOp("&&", gammaInvSec.toAnd, PPred), gammaOldSec.toAnd)
+          BinOp("==>", PAndNotGamma.toAnd, PPrimeAndNotGammaPrime.toAnd)
         }
     }.toList
     if (!SMT.proveListAnd(gammaGreaterCheckStart, state0.debug)) {
@@ -656,34 +658,36 @@ object Exec {
     }
      */
 
-    // check gamma' is greater or equal than gamma'' for all in gamma domain
-    if (state0.debug) {
-      println("checking Gamma'' >= Gamma'")
-    }
-    val PPrimePrimePred = state5.P.toAnd
-    val gammaGreaterCheck: List[Expression] = {
-      for (v <- state5.variables)
-        yield {
-          val gammaInvSec = state1.security(v)
-          val gammaNewSec = state5.security(v)
-          if (state0.debug) {
-            println("Gamma''<" + v + ">: " + gammaNewSec)
-            println("Gamma'<" + v + ">: " + gammaInvSec)
-            println("checking Gamma'' >= Gamma' for " + v + ": P'' && " + gammaInvSec + " ==> " + gammaNewSec)
-          }
-          BinOp("==>", BinOp("&&", gammaInvSec.toAnd, PPrimePrimePred), gammaNewSec.toAnd)
-        }
-    }.toList
-    if (!SMT.proveListAnd(gammaGreaterCheck, state5.debug)) {
-      throw error.WhileError(line, guard, "gamma'' is not greater to or equal than than gamma' ")
-    }
-
     // check P'' is stronger than P' - tested
     if (state0.debug) {
       println("checking P'' ==> P'")
     }
     if (!SMT.proveImplies(state5.P, PPrime, state0.debug)) {
       throw error.WhileError(line, guard, "provided P' " + PPrime + " does not hold after loop body. P'': " + state5.P)
+    }
+
+    // check gamma' is greater or equal than gamma'' for all in gamma domain
+    if (state0.debug) {
+      println("checking Gamma'' >= Gamma'")
+    }
+    val gammaGreaterCheck: List[Expression] = {
+      for (v <- state5.variables)
+        yield {
+          val gammaPrimeSec = state1.security(v)
+          val gammaSec = state5.security(v)
+          val notGammaPrimeSec = gammaPrimeSec.copy(predicates = List(PreOp("!", State.andPredicates(gammaPrimeSec.predicates))))
+          val notGammaSec = gammaSec.copy(predicates = List(PreOp("!", State.andPredicates(gammaSec.predicates))))
+          val PPrimeAndNotGammaPrime = state1.P.combine(notGammaPrimeSec)
+          val PAndNotGamma = state5.P.combine(notGammaSec)
+          if (state0.debug) {
+            println("Gamma''<" + v + ">: " + gammaSec)
+            println("Gamma'<" + v + ">: " + gammaPrimeSec)
+          }
+          BinOp("==>", PAndNotGamma.toAnd, PPrimeAndNotGammaPrime.toAnd)
+        }
+    }.toList
+    if (!SMT.proveListAnd(gammaGreaterCheck, state5.debug)) {
+      throw error.WhileError(line, guard, "gamma'' is not greater to or equal than than gamma' ")
     }
 
     // state1 used here as do not keep gamma'', P'', D'' from after loop body execution

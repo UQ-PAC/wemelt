@@ -134,54 +134,54 @@ public class Parser extends beaver.Parser {
 	}
 
 	static final ParsingTables PARSING_TABLES = new ParsingTables(
-		"U9pjMdby5TKL$kQza4H150GQL9AmosOh85LV8Y24XB2lYgrLsYeY2De5L5fBMqLmGL5GMTm" +
-		"mecmgk8CAokA2ekmW2WHGGHIGjLZqzfixvxtSEtdpJ0W5$yZCxyntvzxpdNFkVYSlGEfCrC" +
-		"JPE1FLyGjvXWLh8GEriGILK1VrqH2Dq0JDbC8lSJvQu0ByMctJtAvOXCxOWALOXroBcueaa" +
-		"qkD61VzDFTMz27RjN0JKYnkRrIqk6SON9TvbMRz6N$7F$1Fawb#n8X0vekQwt5S$Ylexwlj" +
-		"onPtX57RhR7QliNQpcTjJxUuAr35ubvZ#BrESwjY5P9n6RsyYMeMjmB#4DXIDJHt7hbBy37" +
-		"sOZzkjBZBa6PnppAuE$1lt87Fy1NlpVW6vs2urFvEZC7TI4ScxiLz68S7CG4FemucOZ8UnU" +
-		"Du4lMqtmOu5utH5EVXLtZ1yjiSBIs$hGo$5shk9MY3Iz4U7THUl6DnUwXT5lToW#j6l1rNu" +
-		"ZVuBNw7g$57A#BVurehuW56n4Eqrw6u7dqn67$2N$6bvNKORh6ytcnu$HjkGnVD$mjUnGte" +
-		"Xe4OX94M$rzgeiM$tHVrA8p6NRW7Ot4$7h2Y7e#7hAWVCQ9scPCm1O$X2Kp5CvXkCMTYjiL" +
-		"ytc2wqRx4yVqQNiSRnBUjQ1TWeHNjOdi6gH$m0PQhe#IjL8KMSotMMynFVNDl8px7LjwRK8" +
-		"Xj5dCBlh2OEttCR$4rTf6v1Rknns9#XtqMyu2FUH3cPJBTosGYndHRrhxCbdKlisKHQrdNd" +
-		"tsLnD#nUJiMNyVYgVH#IkybiG$NdkqZWJsr3uSGuZpsRAwXh0RKk0Hn5rrTA2EiUHoDxDHO" +
-		"ohC2l1zeBnkj4K4Eij0MxP27ZbQBN8IBVJLmIwCrIDnUqUkAE3xCo$LHhb6kKQvHhc5hz0t" +
-		"IuBePBG#oOQwBr53Vngoww#OAgpnwVNJIQnoeKQp6q$0idi9pU1epC0jpC3TEJb6D2r3PL#" +
-		"E24blmzf82xalH6BozfEGMoXf3T3ShKDzP4PIc5bw$5nJhzv9QSB#8tjFwfw0JycDzKReOo" +
-		"jOEHJ6SzZE8uKCTGz#OrPFH5vz8EvGkXg8JJe6WTuOfkmNtEp#UXNTZ4VRIexadKzrbP1TO" +
-		"PpCpxOtxliOi3D8CEiMQBKmTzOsKUlhcoSr$naE9D1sUNaz5HLIIvxc2ft5ydSxluhQeoZY" +
-		"hCT8QUhxMv7VxsVm#hqLDbvlDh#VM$EhEudTtGukRmtgPt2o3cwwvEPhjMSYmk1rztB31TP" +
-		"cPmZ8ZzvXWMH2pcL5RZzymOMqp0slRZBLjOt4pkQARt5R5QXlXtGADjPU8nStbDs1GIqMaf" +
-		"IAQTo5tZeO#RiJYHWnkPytjXWwyytX7VDn80cua5dFqFdOkVDn6l8EuNkzc8eazvx5DPZhR" +
-		"BuYP95xJoKpdrtXIiOZjCTNKu6RnzdgfDkhmoweUlwqQCC$aP$6BDgYNN6QMTTlChFyJCuD" +
-		"rRSfdXcujarcRzJUPwJucD0kQPy$vVEObcdiP$EPEuft1KHNnpG4xsYu#vlbaPf2PoQVDpF" +
-		"2DfWmVCwACosJgTuF9joYJFALE6E$4iKuCvpWpT2$QZ0JsE2xpUIu8UpRHdTAJqZkOPNXDf" +
-		"sHQyrWYGvDOIbiXjWoCmeqtpB5Q0Sb8GIhFZ4RzS0Qg1DSlSNl5R3GlxiDgFVeeroZNADSe" +
-		"rx0r40xIu1U#b0TgcEkYgz4ePhNOkXahQNAoQvoWFZzTu#1sJ4UQlyRCAQ45sPlIA1A3hFW" +
-		"bjb3M66AxMPeTGMbg8VsUvk$t4iUWluYq$gLeX$RHlYXT36LiXvzX3D48JcvVb2w6eXEEEw" +
-		"erodWggmKTMJmB7MCHTjMbFPZgvOriwfldAzzPApRdlNH2JMiLyKfzfyFeAbXoQp#X2HmU2" +
-		"Jqh3rAsCCcyy9l4sodrWUG1VE$4j7lMRURzBIdvQk9rb1j6Ud#v6KITvO1p1t6pbnVUws6I" +
-		"8rYLzlz3h4lyBx4bTMuYvj3U569VukT4#ajjJxoPc4ySG#n7d4IyYZYJlAx4DuZ3Y1yHwn4" +
-		"t0Q5zn3t4jy2k8uucLY5sTsCmXVbr15i8jXVi8tYjstesnsdE6BVvxAnZVXKfhyeOhoWgmr" +
-		"Z6vlvIMKlAyoYiazE4lE7CY10P8ovdtaLYRo8Vh9Tp7jCpc1ult4w2NGJxitm#4tEPPfiv5" +
-		"m0fqwLi8Ci#PE8JfdjGBcFSD$Az8v7#dAd4SPvkid2Ivmf#m4SVuYhYKE8krecDcNo0s80#" +
-		"AX674AiJIKdXc4WTHMn5d41atwHE9j9dU3oHDi9F4TcVuHR4#uaLYQndQ3rn3j4jdqSSRBT" +
-		"joah1ZOBx1Ozwc5gDZzs#Fbf8uJXAQI3lBrCMKRSMNnYtivXIo7AENsSPPIVRYlfE9T5VQz" +
-		"XQOAGvlYhifdp5z57APieFR1UsfSETDPbzxtn6EKBvb8J17Y#K8bYP#TypyJYHRUhyo3pEg" +
-		"L0o9KtQlYxp6pDMzgMJM#GxnFOFfL9gKbWMEejo3lKvXq8rA1p$oPn78RPlg2dJd4lEDKNy" +
-		"SAWeZH7HD8Vt3dCyy$rZjajzqRlIuDmgE59mWk0qmTc2ymKN2IuMN2QuGd2ru1h1jOBh1DS" +
-		"BRX0i5Dmgk5DmJpH6KtZj4vJnWWE21mKFnUEn$hwvdNB8VaV8VdTIuljtpXIiviklRgJhnU" +
-		"CQvSt4Pv9WXb5siI$k8vAVAvWds5Emds1$mO62rmiE4fGnwyYwxWmH72euJ72uu6s2emJl5" +
-		"1mjE4RmhZZrkrlm7i471QFhtMG$nyj71qfhNzvO8tqBnLY3dHdnxCIno$KePO3nFi5OJvVw" +
-		"ObyGO6EgaPubkZAMdUs2ktos2WtExA9qo37IfnZfD4F$C19UIlzdZ7g0mbrISKTGNF4KLtZ" +
-		"rFkKzohkKfPGb5AwCYYkbUeVoDcKXPG65kwdYYK1nnrNprHgrMgrIAvbUGU4EuwuQQhdsD4" +
-		"#zhbxJgVtgi3gaKrlqSxUI$pTJcuj5kSb8SoLMN4NLnbWErrAreHY79mdr0kLvodEKsPHP5" +
-		"9uE57TDDPtoBEKPoZJAqnJtTsNkD8ehjdgIyWI5gx5wJBsgNb7S9zHBb1Sft5FL7EtdKJL5" +
-		"JHQVwmDQcIS0jLQDLqVK7dKWJldtxdc7k9tojUJjr4$k9UgXcDu4zJ2VEtJwI$ryH3ydIVa" +
-		"NS7UmtZoFkl$BwqbbvFA4bylJQWunXzYQw4f7IZij8PxoGN5usdRq#RMhUu9bNW#cUr7o#P" +
-		"xFysu#ZqtvFF7cqqTtvdTdlllxOK#cEr6oQJ#RUjdqdKszRFrBaoiLvDtDhwJptDzMR0dv9" +
-		"7oSnVEJPKd89#7ZB9wVRantfdIXvF4zZzY1RTAMwRPCjw5SyZ#p5Phj");
+		"U9pjMWUOLSKPFU#zBKzPgQ8hmkw2A5sb26QBrAKilPgGH1CJCJ44Gn91Oo8aKOCQOX1Kge8" +
+		"2Yc01Aw3I11KLwSL2jQ0e7H6ZJixC$TzxC$VjU#m27#ltkNU$Sy$SkNF#CZDtxjpT1S8BS1" +
+		"xEHpLKnxbo3WdNGZPgOpaoS04kH3qqG2CqKGgNe2cQupAqKhjmDNw9xbY6hjY25TY4ZlW9V" +
+		"egVurUu5jSXZ1Jy5h$3xt43Xk9FR74ZXkDct8A$uST6#pJwKUrfqXrjNynrj1KixJD6wxNM" +
+		"tX$5Q4Ux7C$PMlMTfTNA#ungbZa$xrE#x7YT6rEgdT5iNs6s2vdj0uvs3IexsdMMrnL6Mub" +
+		"rQKYbbtUmmD6#wTDEihGF6kr#7C80x4OLLCNxZdO2pdQqvrZQJAFzX3$Ry3bge2PcEjeiv3" +
+		"ZQEfQshj5UXFfeYCQu69VY2KVR32qSRKjBUxdH5g0rsg8z2jL#B7MqlTGUHtkbfTNpyKCCn" +
+		"Czm5Nw1Q$1hPpuEmc$i#OZhO$CHWutN8VW3#kEF#3E6uMF7wqtuY#FrhvRNMt4RkXdVZ#C5" +
+		"F88UU0ZJS8VZUvIQuFY#o$AjbV$6M8p1lHY7#p7UKKx4P4SvnQUSYXbu6DFn66PZZgDy2lC" +
+		"SvPEMKcVxB6VEYyHyl8J5JhQBiCJ9zbNtAL3VOYLrgzGtMAjsECgDsEmet$KzF#$X0#p4Lc" +
+		"8xNEKkVEGeF$Kfly1dLEt1FYhtEie3EEWe3$jcn17OXzr3#h1x2D4UqXxTm$Qe3ziZeXwrF" +
+		"$SeYRyJytOYlax4K#dzbDvBSX$QdkiZYJrr45yYoEVOixc1M0#eCKdYZXtTYBdESno9xCne" +
+		"oRC2l97GtZznE$wEk$4F$0jtuZ#un#cH4HZfoq3VZMIGlByYnt#ByM4VsaTvY$8MvIr#M2t" +
+		"w9sh1LJ5oFv4DUzLZ2$L5rAfU5TSuzoF7ssMUSS8MSHddumhy21sGXpPeXqxeN4nDBEDSLF" +
+		"Hbd5jY2zwR8fTldKWCtfkYv1PEDeR8kofN7N0YA4qMthZdnerxIItexvtNJVipK8GkqR4eN" +
+		"Gmdrm#n6Cxw7iJmbecXVzHgMOp5Qkc7qiKGsx$a2dixbBAouCrlpu8kvpfxCRlijUnlFPU9" +
+		"MYOwx3xNNp#VIxqNZxrJy#$fKAAM#lSOnHslHKjzpBatqHC1xctFH0LaoBc#y5cSdvNOLst" +
+		"vbL#Dt$NL#JL$hicv1hEkoHph6sq1#xKrlydp#LLUpz4MiXTiRRwbpJBQGgFsDDcEjWjo76" +
+		"ssfMrYnUnvhrVYcBKoHrJUEPao9s6sJUAopK78qUPPsdoZRSEwvfnvsakXe#taqxQCwwdBE" +
+		"NSRcbKZdsDcQozZJQ9Uzlnsv4zdymJa#sBEFwust$evSIrysWRyITHNtWZbMJ#sKbydKkOP" +
+		"hMuH4cMzKcZpfAThemw$k#hoo#kYEDzDaqQTnxXJn7UMJzamgJBBA5BGYd1zPljwkR5FcKr" +
+		"$ZObi$gGuojg#RBDyIXXjDZdFzymN#MPZACxd9VIb$ULmPhbvkj5szocRYbBtLBOlpxo4px" +
+		"lfMsKTjj9SMqfUHPJKANNQTATFTNeqfrXXHj5L9B77MLc4hfnvnYPw4Ns8VebLbjSi8iTvZ" +
+		"YKoD8gMZ1LoYuHHw7X3dAsfI4CwmjnpMlcXCgeapYzvVqLjD8ltuVGUVPItA6zHtkA7rGAX" +
+		"H2tu$I$t4xQmLptTea7KQjog6BtJgAmpJfBFyJDEt8zPoFHdp9eIMf0tJoOXCSXwNc8B9nj" +
+		"3z5sLwKPGcYnat3FzurxY6CptZcdV3ktH8J8MfOlX9FlXUnX398Ao7OlInH3Rl#XPRLZcKz" +
+		"bOa2VCUwfqoqndF#NRMqLN0LiLrr8bEFoxmSYwcDoQi#DBtf9ZKwpVBj5I3tFkJVJbxlReI" +
+		"9Yd#WYndSLAGEXbyct4XK3Q05vtPLdlX5iG3xEk9taeiNYazrkSAQox6WZSJXxkrQMD51ul" +
+		"F8tsloBF9$#Fl9HsQIFjNU9kOXVn5i5xONwdfwUGsv5hadkJ6KluId81TJt87Sd3o5UHwvA" +
+		"l0u87oIF8hv17aOdqgUHUEeO8M3TBU8dmIk6Tmdjq3xcQG3F6jjQjIrt1#YfolohZwnExXz" +
+		"cCYtcXbdSTMYMyJNY$noa1dbgHgtg$3KkvWFuFazdNuUhaGd9BCiSXV1EPUOPl9RCS7as#a" +
+		"poMF94snv6rtqV8Bv6RazycLo1lPJzi9kyZytugtGK7s$b8Jf9FQXtXvi8TXFNl6$DyVKDx" +
+		"WHd47Rm$2FhtWKWTJkRu14QBZcC1nXTWlAaJM9udskd2CuMNyFxZBAnccRa6xc5$o1mABEE" +
+		"zXIpiPPbv1fvcxY5UDoPdy9fpCx2O#82Qwg9vZdYLzpb7C8JbvSGstkTS2hn9xA1Dphj0Xh" +
+		"JVQEMro2gp$r9fDtKZozyGsmazZyV0$0eZZUCOU9yuHd1EOx2d2wOBLsJzronC8kyXlcKTd" +
+		"wd0T#Jpl3Pfd0E1Xeor2RbJp7UGWnKC4pK8pelW#KGjjkTS2Pv3CBSqNS$n3h8lqZXd0jV6" +
+		"zA5Wh8oXaJAd#6vxJlFw7VRBsTBkHaipMNY6y1nX6KFC5ruWl5HucR0yNrWjl4vulV06uOt" +
+		"2cuGt2syNtY6yMtXl94OhrWF21uKF2HyMFkBNQ33tNQwTy22VtQ1x7KYtofM5esk1S3LXwT" +
+		"D0P4xM59Qr8L1NkA5m4#6BXIyLRYhSJ3XNE4#udN3dud9aVHVXli83XQyHlhuudQKV8do3h" +
+		"twuLHvn71kZF8QiBoYmxessst9CZadzk5WRypyjRLoR66QL#Lx0GClcl6JnMBfREFS7MDSt" +
+		"M#lE2byEYnBOkCigpvQsMuJts6pPsc5fvbZrAbOEdc6LCwtsHv7qK6FD#Lw2AwLwYdYIU8A" +
+		"OGt05LLnfrIpYCU9HOYR1bLnD9xYgAwweQXenbNY8U52ze9vNN5FLiyGpn3nYhl4pHKrMaq" +
+		"pfa3gglZIbxUQyLyb$gYckl8fl9CKLLt7rLIk9DuZNYTS8lb4LLsZ55LjnjLVS9IY#4THYO" +
+		"X71DxlYxaJnxQOMgWrglLgdrhAyXk0RGwzWQfNnj43DLo$6zSXMgypLN775Lkz5QxXkgorn" +
+		"cg#4DoVevKt4HZLE7LFxrE5Yxd#jzpla3udFfEvJS$w4k3$QxZxr0C#xJVbZSnvlpXFb$aV" +
+		"GRx1#tBtsutxFGqLqudvG$zMca5n8RatMw4AqDmZoAm54WBlr07eO1CtVt7gpt9SeudKHTy" +
+		"T5t1OKSNzSH1#zMD#BzVelT7rOxaeKq7u1snNGTm7R5PY$GscaohMkpp1r#cyWBe8#X4unF" +
+		"3$v3e8#X4unF3yzMUv6T2SwyxepkIFxf2tBRLbkGrpnV$tmspm=");
 
 	private final Action[] actions;
 
@@ -1012,7 +1012,7 @@ public class Parser extends beaver.Parser {
 					((ArrayList) _symbols[offset + 1].value).add(_symbols[offset + 3].value); return _symbols[offset + 1];
 				}
 			},
-			new Action() {	// [109] gamma_mapping = ID.n MAPSTO expr.e
+			new Action() {	// [109] gamma_mapping = ID.n MAPSTO rgexpr.e
 				public Symbol reduce(Symbol[] _symbols, int offset) {
 					final Symbol _symbol_n = _symbols[offset + 1];
 					final String n = (String) _symbol_n.value;
