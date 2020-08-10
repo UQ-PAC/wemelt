@@ -19,7 +19,7 @@ case class Predicate(predicates: List[Expression], exists: Set[Var] = Set(), for
     copy(exists = exists ++ toAdd)
   }
 
-  def addForall(toAdd: Set[Var]): Predicate = {
+  def addForAll(toAdd: Set[Var]): Predicate = {
     copy(forall = forall ++ toAdd)
   }
 
@@ -28,6 +28,29 @@ case class Predicate(predicates: List[Expression], exists: Set[Var] = Set(), for
 
   def subst(toSubst: Subst): Predicate = {
     copy(predicates = predicates map (p => p.subst(toSubst)))
+  }
+
+  // existentially quantify (substitute with fresh variables) all variables in toBind
+  def bindExists(toBind: Set[Id]): Predicate = {
+    var bound: Set[Var] = Set()
+    val toSubst: Subst = {for (r <- toBind) yield {
+      val fresh = r.toVar.fresh
+      bound += fresh
+      r.toVar -> fresh
+    }}.toMap
+
+    copy(predicates = predicates map (p => p.subst(toSubst)), exists = exists ++ bound)
+  }
+
+  // universally quantify all variables in toBind
+  def bindForAll(toBind: Set[Id]): Predicate = {
+    var bound: Set[Var] = Set()
+    val toSubst: Subst = {for (r <- toBind) yield {
+      val fresh = r.toVar.fresh
+      bound += fresh
+      r.toVar -> fresh
+    }}.toMap
+    copy(predicates = predicates map (p => p.subst(toSubst)), forall = forall ++ bound)
   }
 
   override def toString: String = {
@@ -127,7 +150,7 @@ case class State(
   def U_w(v: Id): Set[Id] = D(v)._7
   def U_r(v: Id): Set[Id] = D(v)._8
 
-  def log(): Unit = {
+  def log: Unit = {
     if (toLog) {
       println("Gamma: " + gamma.gammaStr)
       println("P: " + P)
@@ -135,10 +158,9 @@ case class State(
     }
   }
 
-  // update P and Gamma after assignment
-  def assignUpdateP(id: Id, arg: Expression): (State, Subst) = {
-    val vars = arg.variables + id // variables in assignment
-    val PRestrictInd = restrictPInd(vars)
+  // update P after assignment
+  def assignUpdateP(id: Id, arg: Expression): (State, Subst, Set[Var]) = {
+    val PRestrictInd = restrictPInd(variables -- arg.variables + id)
 
     val v = id.toVar
 
@@ -239,17 +261,16 @@ case class State(
       println("P': " + PPrime)
       println("P + R: " + PPlusR)
     }
-    (copy(P = PPlusR), m)
+    (copy(P = PPlusR), m, exists)
   }
 
-  def assignUpdateGamma(id: Id, t: Predicate, m: Subst): State = {
+  def assignUpdateGamma(id: Id, t: Predicate, m: Subst, exists: Set[Var]): State = {
     val domGamma = low_or_eq(P)
     val gammaPrime = if (domGamma.contains(id)) {
-      gamma + (id -> ForAll(indirect map (i => i.toVar), t))
+      gamma + (id -> t.bindForAll(indirect & (t.predicates flatMap (p => p.variables)).toSet))
     } else {
       gamma
     }
-
     val gammaPrimeRestrict = gammaPrime -- (gammaPrime.keySet -- domGamma)
     val gammaPlusR: Map[Id, Predicate] = {
       for (g <- gammaPrimeRestrict.keySet)
@@ -262,7 +283,7 @@ case class State(
   }
 
   // update P and Gamma with loop/if guard
-  def guardUpdateP(guard: Expression): (State, Subst) = {
+  def guardUpdateP(guard: Expression): (State, Subst, Set[Var]) = {
     val vars = guard.variables
     val PRestrictInd = restrictPInd(vars)
 
@@ -327,15 +348,15 @@ case class State(
 
     if (debug) {
       println("updating P and Gamma with guard " + guard)
-      println("P: " + P.PStr)
-      println("P': " + PPrime.PStr)
-      println("P + R: " + PPlusR.PStr)
+      println("P: " + P)
+      println("P': " + PPrime)
+      println("P + R: " + PPlusR)
 
     }
-    (copy(P = PPlusR), m)
+    (copy(P = PPlusR), m, exists)
   }
 
-  def guardUpdateGamma(m: Subst): State = {
+  def guardUpdateGamma(m: Subst, exists: Set[Var]): State = {
     val domGamma = low_or_eq(P)
     val gammaPrimeRestrict = gamma -- (gamma.keySet -- domGamma)
     val gammaPlusR: Map[Id, Predicate] = {
@@ -349,19 +370,21 @@ case class State(
     copy(gamma = gammaPlusR)
   }
 
-  def PPlusRUpdate(id: Id, arg: Expression, t: Expression): List[Expression] = {
+  def PPlusRUpdate(id: Id, arg: Expression): Predicate = {
     val v = id.toVar
+
     // create mapping from variable to fresh variable
-    val toSubst: Subst = Map(v -> Var.fresh(id.name))
+    val fresh = Var.fresh(id.name)
+    val toSubst: Subst = Map(v -> fresh)
 
     // substitute variable in P for fresh variable
-    val PReplace = P map (p => p.subst(toSubst))
+    val PReplace = P.subst(toSubst)
 
     // substitute variable in expression for fresh variable
     val argReplace = arg.subst(toSubst)
 
     // add new assignment statement to P
-    val PPrime = BinOp("==", v, argReplace) :: PReplace
+    val PPrime = PReplace.add(BinOp("==", v, argReplace)).addExists(Set(fresh))
 
     // calculate new_var
     val varE = arg.variables
@@ -371,15 +394,16 @@ case class State(
     }.flatten
     val new_var: Set[Id] = Set(id) ++ varE ++ varLY
 
+
     // calculate weaker
     val toSubstC: Subst = Map(v -> arg) // for c[e/x]
-
     var weaker: Set[Id] = Set()
+
     for (y <- R_var.keySet) {
       // check !(P && c ==> c[e/x])
       var yAdded = false
       for ((c, r) <- R_var(y) if !yAdded && c != Const._true) {
-        if (!SMT.proveImplies(c :: PPrime, c.subst(toSubstC), debug)) {
+        if (!SMT.proveImplies(PPrime.add(c), c.subst(toSubstC), debug)) {
           weaker +=y
           yAdded = true
         }
@@ -401,10 +425,15 @@ case class State(
 
     val domM = new_var ++ weaker -- equals
 
+    var exists: Set[Var] = Set() // set of newly created variables to bind
     // map all of domM to fresh temporary variables - probably change to different fresh allocator
     val m: Subst = {
       for (v <- domM)
-        yield v.toVar -> v.toVar.fresh
+        yield {
+          val newFresh = v.toVar.fresh
+          exists += newFresh
+          v.toVar -> newFresh
+        }
     }.toMap
 
     val mPlusMPrime: Subst = m ++ {
@@ -412,7 +441,7 @@ case class State(
         yield v.toVar.prime -> v.toVar
     }.toMap
 
-    val PPlus = PPrime map {p: Expression => p.subst(m)}
+    val PPlus = PPrime.subst(m).addExists(exists)
 
     if (debug) {
       println("dom R_var: " + R_var.keySet)
@@ -423,16 +452,17 @@ case class State(
         yield if (c == Const._true) {
           r.subst(mPlusMPrime)
         } else {
-          BinOp("==>", c, r.subst(mPlusMPrime))
+          BinOp("==>", ForAll(indirect map (i => i.toVar), c), r.subst(mPlusMPrime))
         }
     }
     }.flatten.toList
 
     if (debug) {
-      println("P +: " + PPlus.PStr)
-      println("+ R: " + RPlus.PStr)
+      println("P +: " + PPlus)
+      println("+ R: " + RPlus)
     }
-    PPlus ++ RPlus
+
+    PPlus.add(RPlus)
   }
 
   /*
@@ -950,8 +980,16 @@ case class State(
     copy(gamma = gammaPrime, P = PPrime, D = DPrime)
   }
 
-/*
-  def mergePs(ps: List[Predicate]): Predicate = {
+
+  // D' = D1 intersect D2
+  def mergeD(state2: State): DType = {
+    State.mergeD(this.D, state2.D)
+  }
+
+
+
+    /*
+  def mergePs(ps: List[List[Expression]]): List[Expression] = {
     if (ps.size == 2) {
       ps.head.merge(ps(1))
     } else if (ps.size == 1) {
@@ -1029,13 +1067,13 @@ case class State(
     locals ++ globalLowOrEq
   }
 
-  def restrictP(restricted: Set[Id]): List[Expression] = {
-    State.restrictP(P ::: P_inv, restricted)
+  def restrictP(restricted: Set[Id]): Predicate = {
+    val PAndPInv = P ::: P_inv
+    PAndPInv.bindExists(variables -- restricted)
   }
 
-  def restrictPInd(vars: Set[Id]): List[Expression] = {
-    val toRestrict = variables -- (vars -- knownI)
-    State.restrictP(P, toRestrict)
+  def restrictPInd(vars: Set[Id]): Predicate = {
+    P.bindExists(vars -- knownI)
   }
 
   def DSubsetOf(state1: State): Boolean = {
@@ -1053,7 +1091,7 @@ case class State(
   // update u and i
   def calculateIndirectUsed: State = {
     // all fresh variables in P
-    val PVar: Set[Id] = {for (p <- P) yield p.variables}.flatten.toSet
+    val PVar: Set[Id] = {for (p <- P.predicates) yield p.variables}.flatten.toSet
     val known_W = knownW
     val known_R = knownR
     val indirectPrime = variables -- (PVar -- (known_W & known_R))
@@ -1359,11 +1397,6 @@ object State {
           x
       }
     }
-  }
-
-  // calculate P|_known_W(a) etc. with known_W(a) being the input set in that example
-  def restrictP(P: List[Expression], restricted: Set[Id]): List[Expression] = {
-    P map (p => p.restrict(restricted))
   }
 
   def mergeD(D1: DType,

@@ -1,6 +1,7 @@
 _global var z:
 _L: TRUE
 _R_var: (TRUE, z' >= z)
+_G_var: (TRUE, z' == z)
 
 _global var x:
 _L_R: z % 2 == 0
@@ -13,7 +14,6 @@ _local var r1
 _local var r2
 
 _P_inv: TRUE
-_G: z' == z
 _P_0: r1 % 2 == 0
 
 do

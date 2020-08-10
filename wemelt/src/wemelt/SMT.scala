@@ -2,6 +2,7 @@ package wemelt
 
 import com.microsoft.z3
 import com.microsoft.z3.Solver
+import com.microsoft.z3.Params
 
 object SMT {
   val intSize = 32 // size of bitvectors used

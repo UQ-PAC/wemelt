@@ -6,23 +6,6 @@ trait Expression extends beaver.Symbol {
   def subst(su: Subst): Expression
   //def subst(su: Subst, num: Int): Expression
   //def arrays: Set[Access] // returns all array accesses in the expression
-
-  // existentially quantify (substitute with fresh variables) all variables that aren't in restricted
-  def restrict(restricted: Set[Id]): Expression = {
-    // get variables that aren't in restricted
-    val toSubst = for (v <- variables if !restricted.contains(v))
-      yield v
-
-    // if no variables need to be bound then predicate stays the same
-    if (toSubst.isEmpty) {
-      this
-    } else {
-      // create mapping from variables to be substituted with their fresh versions
-      val toSubstFresh: Subst = (toSubst map (x => x.toVar -> Var.fresh(x.name))).toMap
-      this.subst(toSubstFresh)
-    }
-  }
-
 }
 
 trait BoolExpression extends Expression {
