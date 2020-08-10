@@ -17,12 +17,12 @@ _G: z' == z
 _P_0: r1 % 2 == 0
 
 do
-_invariant: TRUE
-_Gamma: r1 -> TRUE, r2 -> TRUE, low_out -> TRUE, z -> TRUE
+_invariant: z >= z'
+_Gamma: r1 -> TRUE, r2 -> z' % 2 == 0, low_out -> TRUE, z -> TRUE
 {
     do
-    _invariant: TRUE
-    _Gamma: r1 -> TRUE, r2 -> TRUE, low_out -> TRUE, z -> TRUE
+    _invariant: z >= z'
+    _Gamma: r1 -> TRUE, r2 -> z' % 2 == 0, low_out -> TRUE, z -> TRUE
     {
         r1 = z;
     } while ((r1 % 2) != 0)

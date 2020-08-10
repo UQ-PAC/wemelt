@@ -9,24 +9,21 @@ object SMT {
   val ctx = new z3.Context(cfg)
   val solver: Solver = ctx.mkSolver()
 
-  def prove(cond: Expression, given: List[Expression], debug: Boolean): Boolean = {
+  def prove(cond: Expression, given: Predicate, debug: Boolean): Boolean = {
     if (debug)
-      println("smt checking !(" + cond + ") given " + given.PStr)
+      println("smt checking !(" + cond + ") given " + given)
     solver.push()
     val res = try {
-      for (p <- given) {
-        solver.add(formula(p))
-      }
+      solver.add(convertPredicate(given))
       // check that (NOT cond) AND P is unsatisfiable
       solver.add(formula(PreOp("!", cond)))
-
       solver.check
     } catch {
       case e: java.lang.UnsatisfiedLinkError if e.getMessage.equals("com.microsoft.z3.Native.INTERNALgetErrorMsgEx(JI)Ljava/lang/String;")=>
         // weird unintuitive error z3 can have when an input type is incorrect in a way it doesn't check
-        throw error.Z3Error("Z3 failed", cond, given.PStr, "incorrect z3 expression type, probably involving ForAll/Exists")
+        throw error.Z3Error("Z3 failed", cond, given, "incorrect z3 expression type, probably involving ForAll/Exists")
       case e: Throwable =>
-        throw error.Z3Error("Z3 failed", cond, given.PStr, e)
+        throw error.Z3Error("Z3 failed", cond, given, e)
     } finally {
       solver.pop()
     }
@@ -41,14 +38,12 @@ object SMT {
     res == z3.Status.UNSATISFIABLE
   }
 
-  def proveSat(cond: Expression, given: List[Expression], debug: Boolean): Boolean = {
+  def proveSat(cond: Expression, given: Predicate, debug: Boolean): Boolean = {
     if (debug)
-      println("smt checking " + cond + " given " + given.PStr)
+      println("smt checking " + cond + " given " + given)
     solver.push()
     val res = try {
-      for (p <- given) {
-        solver.add(formula(p))
-      }
+      solver.add(convertPredicate(given))
       // check that cond AND P is satisfiable
       solver.add(formula(cond))
 
@@ -56,9 +51,9 @@ object SMT {
     } catch {
       case e: java.lang.UnsatisfiedLinkError if e.getMessage.equals("com.microsoft.z3.Native.INTERNALgetErrorMsgEx(JI)Ljava/lang/String;")=>
         // weird unintuitive error z3 can have when an input type is incorrect in a way it doesn't check
-        throw error.Z3Error("Z3 failed", cond, given.PStr, "incorrect z3 expression type, probably involving ForAll/Exists")
+        throw error.Z3Error("Z3 failed", cond, given, "incorrect z3 expression type, probably involving ForAll/Exists")
       case e: Throwable =>
-        throw error.Z3Error("Z3 failed", cond, given.PStr, e)
+        throw error.Z3Error("Z3 failed", cond, given, e)
     } finally {
       solver.pop()
     }
@@ -72,21 +67,19 @@ object SMT {
     res == z3.Status.SATISFIABLE
   }
 
-  def proveP(given: List[Expression], debug: Boolean): Boolean = {
+  def proveP(given: Predicate, debug: Boolean): Boolean = {
     if (debug)
-      println("smt checking " + given.PStr)
+      println("smt checking " + given)
     solver.push()
     val res = try {
-      for (p <- given) {
-        solver.add(formula(p))
-      }
+      solver.add(convertPredicate(given))
       solver.check
     } catch {
       case e: java.lang.UnsatisfiedLinkError if e.getMessage.equals("com.microsoft.z3.Native.INTERNALgetErrorMsgEx(JI)Ljava/lang/String;")=>
         // weird unintuitive error z3 can have when an input type is incorrect in a way it doesn't check
-        throw error.Z3Error("Z3 failed", given.PStr, "incorrect z3 expression type, probably involving ForAll/Exists")
+        throw error.Z3Error("Z3 failed", given, "incorrect z3 expression type, probably involving ForAll/Exists")
       case e: Throwable =>
-        throw error.Z3Error("Z3 failed", given.PStr, e)
+        throw error.Z3Error("Z3 failed", given, e)
     } finally {
       solver.pop()
     }
@@ -102,7 +95,7 @@ object SMT {
 
   def proveListAnd(given: List[Expression], debug: Boolean): Boolean = {
     if (debug)
-      println("smt checking !(" + given.PStr + ")")
+      println("smt checking !(" + given + ")")
     solver.push()
     val res = try {
       solver.add(ctx.mkNot(PToAnd(given)))
@@ -110,9 +103,9 @@ object SMT {
     } catch {
       case e: java.lang.UnsatisfiedLinkError if e.getMessage.equals("com.microsoft.z3.Native.INTERNALgetErrorMsgEx(JI)Ljava/lang/String;")=>
         // weird unintuitive error z3 can have when an input type is incorrect in a way it doesn't check
-        throw error.Z3Error("Z3 failed", given.PStr, "incorrect z3 expression type, probably involving ForAll/Exists")
+        throw error.Z3Error("Z3 failed", given, "incorrect z3 expression type, probably involving ForAll/Exists")
       case e: Throwable =>
-        throw error.Z3Error("Z3 failed", given.PStr, e)
+        throw error.Z3Error("Z3 failed", given, e)
     } finally {
       solver.pop()
     }
@@ -152,12 +145,12 @@ object SMT {
     res == z3.Status.UNSATISFIABLE
   }
 
-  def proveImplies(strong: List[Expression], weak: List[Expression], debug: Boolean): Boolean = {
+  def proveImplies(strong: Predicate, weak: Predicate, debug: Boolean): Boolean = {
     if (debug)
-      println("smt checking !(" + strong.PStr + newline + "==> " + newline + weak.PStr + ")")
+      println("smt checking !(" + strong + newline + "==> " + newline + weak + ")")
     solver.push()
     val res = try {
-      solver.add(ctx.mkNot(ctx.mkImplies(PToAnd(strong), PToAnd(weak))))
+      solver.add(ctx.mkNot(ctx.mkImplies(convertPredicate(strong), convertPredicate(weak))))
       solver.check
     } catch {
       case e: Throwable =>
@@ -174,7 +167,9 @@ object SMT {
     res == z3.Status.UNSATISFIABLE
   }
 
-  def proveImplies(strong: List[Expression], weak: Expression, debug: Boolean): Boolean = proveImplies(strong, List(weak), debug)
+  def proveImplies(strong: Predicate, weak: Expression, debug: Boolean): Boolean = proveImplies(strong, Predicate(List(weak)), debug)
+
+  def proveImplies(strong: Predicate, weak: List[Expression], debug: Boolean): Boolean = proveImplies(strong, Predicate(weak), debug)
 
   def proveExpression(cond: Expression, debug: Boolean): Boolean = {
     if (debug)
@@ -202,6 +197,18 @@ object SMT {
       }
     }
     res == z3.Status.UNSATISFIABLE
+  }
+
+  def convertPredicate(P: Predicate): z3.BoolExpr = {
+    if (P.exists.isEmpty && P.forall.isEmpty) {
+      PToAnd(P.predicates)
+    } else if (P.exists.isEmpty) {
+      ctx.mkForall(P.forall.toArray map translate, PToAnd(P.predicates), 0, scala.Array(), null, null, null)
+    } else if (P.forall.isEmpty) {
+      ctx.mkExists(P.exists.toArray map translate, PToAnd(P.predicates), 0, scala.Array(), null, null, null)
+    } else {
+      ctx.mkForall(P.forall.toArray map translate, ctx.mkExists(P.exists.toArray map translate, PToAnd(P.predicates), 0, scala.Array(), null, null, null), 0, scala.Array(), null, null, null)
+    }
   }
 
   // recursively convert expression list into AND structure

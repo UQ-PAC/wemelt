@@ -127,8 +127,8 @@ statement1
     | CFENCE SEMICOLON                   {: return ControlFence.self();  :}
     | IF LPAREN expr.a RPAREN statement.b   {: return new If(a, b);  :}
     | IF LPAREN expr.a RPAREN statement.b ELSE statement.c     {: return new If(a, b, c);   :}
-    | WHILE LPAREN expr.a RPAREN INVARIANT COLON exprs.i GAMMA COLON gamma_mappings.g statement.b      {: return new While(a, i, g, b);   :}
-    | DO INVARIANT COLON exprs.i GAMMA COLON gamma_mappings.g statement.b WHILE LPAREN expr.a RPAREN    {: return new DoWhile(a, i, g, b);   :}
+    | WHILE LPAREN expr.a RPAREN INVARIANT COLON rgexprs.i GAMMA COLON gamma_mappings.g statement.b      {: return new While(a, i, g, b);   :}
+    | DO INVARIANT COLON rgexprs.i GAMMA COLON gamma_mappings.g statement.b WHILE LPAREN expr.a RPAREN    {: return new DoWhile(a, i, g, b);   :}
     | error SEMICOLON {: return Malformed.self(); :}
     ;
 
@@ -213,7 +213,7 @@ gamma_mappings
     = gamma_mapping | gamma_mappings COMMA gamma_mapping;
 
 gamma_mapping
-    = ID.n MAPSTO expr.e {: return new GammaMapping(n, e); :}
+    = ID.n MAPSTO rgexpr.e {: return new GammaMapping(n, e); :}
     //| ID.n LBRACK NUM.i RBRACK MAPSTO expr.e {: return new GammaMapping(n, i, s); :}
     //| ID.n LBRACK STAR RBRACK MAPSTO expr.e {: return new GammaMapping(n, s); :}
     ;

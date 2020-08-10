@@ -113,18 +113,23 @@ object Exec {
       if (state0.toLog)
         println("line " + statement.line + ": While(" + test + ") {")
       // replace Ids in invariant with vars
-      val idToVar: Subst = {
+
+      val primeMap: Map[Id, Var] = {for (v <- state0.variables)
+        yield v.prime -> v.toVar.fresh}.toMap
+
+      val idToVar: Subst = ({
         for (v <- state0.variables)
           yield v -> v.toVar
-        }.toMap /* ++ {
+      } ++ primeMap).toMap/* ++ {
         for (v <- state0.arrays.keySet)
           yield v -> v.toVar
       }.toMap */
 
-      val PPrime = invariants map {i => i.subst(idToVar)}
+      // existentially quantify any prime variables
+      val PPrime = Predicate(invariants map {i => i.subst(idToVar)}, (invariants flatMap { p => p.variables } collect {case i if i.name.endsWith("'") => primeMap(i)}).toSet, Set())
 
       // convert gammaPrime to map
-      val gammaPrime: Map[Id, Expression] = (gamma map {g => g.variable -> g.security.subst(idToVar)}).toMap
+      val gammaPrime: Map[Id, Predicate] = (gamma map {g => g.variable -> Predicate(List(g.security.subst(idToVar)), g.security.variables collect {case i if i.name.endsWith("'") => primeMap(i)}, Set())}).toMap
       //val gammaPrime: Map[Id, Security] = (gamma flatMap {g => g.toPair(state0.arrays)}).toMap
 
       val state1 = whileRule(test, PPrime, gammaPrime, body, state0, statement.line)
@@ -139,18 +144,22 @@ object Exec {
       if (state0.toLog)
         println("line " + statement.line + ": While(" + test + ") {")
       // replace Ids in invariant with vars
-      val idToVar: Subst = {
+      val primeMap: Map[Id, Var] = {for (v <- state0.variables)
+        yield v.prime -> v.toVar.fresh}.toMap
+
+      val idToVar: Subst = ({
         for (v <- state0.variables)
           yield v -> v.toVar
-        }.toMap /* ++ {
+      } ++ primeMap).toMap/* ++ {
         for (v <- state0.arrays.keySet)
           yield v -> v.toVar
-        }.toMap */
+      }.toMap */
 
-      val PPrime = invariants map {i => i.subst(idToVar)}
+      // existentially quantify any prime variables
+      val PPrime = Predicate(invariants map {i => i.subst(idToVar)}, (invariants flatMap { p => p.variables } collect {case i if i.name.endsWith("'") => primeMap(i)}).toSet, Set())
 
       // convert gammaPrime to map
-      val gammaPrime: Map[Id, Expression] = (gamma map {g => g.variable -> g.security.subst(idToVar)}).toMap
+      val gammaPrime: Map[Id, Predicate] = (gamma map {g => g.variable -> Predicate(List(g.security.subst(idToVar)), g.security.variables collect {case i if i.name.endsWith("'") => primeMap(i)}, Set())}).toMap
       //val gammaPrime: Map[Id, Security] = (gamma flatMap {g => g.toPair(state0.arrays)}).toMap
 
       // execute loop body once at start
@@ -434,6 +443,7 @@ object Exec {
     // check guard is LOW
     val guardGamma = state2.security(_guard)
     val PRestrictU = state2.restrictP(state2.used)
+    if (!(guardGamma.predicates.size == 1 && guardGamma.predicates.head == Const._true) && !SMT.proveImplies(state1.P ++ state1.P_inv, guardGamma, state1.debug)) {}
     if (guardGamma != Const._true && !SMT.proveImplies(PRestrictU, guardGamma, state2.debug)) {
       throw error.IfError(line, guard, "guard expression is HIGH")
     }
@@ -455,7 +465,7 @@ object Exec {
       println("D[b]: " + _left2.D.DStr)
     val _left3 = if (_left2.noInfeasible) {
       // don't check infeasible paths
-      if (SMT.proveP(_left2.P, _left2.debug)) {
+      if (SMT.proveP(_left2.P ++ _left2.P_inv, _left2.debug)) {
         execute(left, _left2).st
       } else {
         _left2
@@ -475,7 +485,7 @@ object Exec {
         val _right2 = _right1.updateDGuard(_guard)
         if (_right2.noInfeasible) {
           // don't check infeasible paths
-          if (SMT.proveP(_right2.P, _right2.debug)) {
+          if (SMT.proveP(_right2.P ++ _right2.P_inv, _right2.debug)) {
             execute(r, _right2).st
           } else {
             _right2
@@ -493,7 +503,7 @@ object Exec {
     _left3.mergeIf(_right3)
   }
 
-  def whileRule(guard: Expression, PPrime: List[Expression], gammaPrime: Map[Id, Expression], body: Statement, state0: State, line: Int): State = {
+  def whileRule(guard: Expression, PPrime: Predicate, gammaPrime: Map[Id, Predicate], body: Statement, state0: State, line: Int): State = {
     // WHILE rule
 
     if (state0.toLog)
@@ -504,7 +514,7 @@ object Exec {
       println("checking P' is stable")
     }
     if (!state0.PStable(PPrime)) {
-      throw error.WhileError(line, guard, "provided P': " + PPrime.PStr + " is not stable")
+      throw error.WhileError(line, guard, "provided P': " + PPrime + " is not stable")
     }
 
     // check P' is weaker than previous P
@@ -512,7 +522,7 @@ object Exec {
       println("checking previous P ==> P'")
     }
     if (!SMT.proveImplies(state0.P, PPrime, state0.debug)) {
-      throw error.WhileError(line, guard, "provided P' " + PPrime.PStr + " is not weaker than P " + state0.P.PStr)
+      throw error.WhileError(line, guard, "provided P' " + PPrime + " is not weaker than P " + state0.P)
     }
 
     // check gamma prime has valid domain
@@ -559,18 +569,20 @@ object Exec {
     if (state0.debug) {
       println("checking Gamma >= Gamma'")
     }
-    val PPred = State.andPredicates(state0.P)
     val gammaGreaterCheckStart: List[Expression] = {
       for (v <- state0.variables)
         yield {
-          val gammaInvSec = state1.security(v)
-          val gammaOldSec = state0.security(v)
+          val gammaPrimeSec = state1.security(v)
+          val gammaSec = state0.security(v)
+          val notGammaPrimeSec = gammaPrimeSec.copy(predicates = List(PreOp("!", State.andPredicates(gammaPrimeSec.predicates))))
+          val notGammaSec = gammaSec.copy(predicates = List(PreOp("!", State.andPredicates(gammaSec.predicates))))
+          val PPrimeAndNotGammaPrime = state1.P.combine(notGammaPrimeSec)
+          val PAndNotGamma = state0.P.combine(notGammaSec)
           if (state0.debug) {
-            println("Gamma<" + v + ">: " + gammaOldSec)
-            println("Gamma'<" + v + ">: " + gammaInvSec)
-            println("checking Gamma >= Gamma' for " + v + ": P && " + gammaInvSec + " ==> " + gammaOldSec)
+            println("Gamma<" + v + ">: " + gammaSec)
+            println("Gamma'<" + v + ">: " + gammaPrimeSec)
           }
-          BinOp("==>", BinOp("&&", gammaInvSec, PPred), gammaOldSec)
+          BinOp("==>", PAndNotGamma.toAnd, PPrimeAndNotGammaPrime.toAnd)
         }
     }.toList
     if (!SMT.proveListAnd(gammaGreaterCheckStart, state0.debug)) {
@@ -596,6 +608,8 @@ object Exec {
     if (state0.debug) {
       println("checking guard is LOW")
     }
+    if (!(guardGamma.predicates.size == 1 && guardGamma.predicates.head == Const._true) && !SMT.proveImplies(state2.P ++ state2.P_inv, guardGamma, state2.debug)) {
+    }
     if (guardGamma != Const._true && !SMT.proveImplies(PRestrictU, guardGamma, state3.debug)) {
       throw error.WhileError(line, guard, "guard expression is HIGH")
     }
@@ -608,7 +622,7 @@ object Exec {
     if (state0.debug) {
       println("while rule after test, before loop body:")
       println("gamma':" + state6.gamma.gammaStr)
-      println("P and [e]_M:" + state6.P.PStr)
+      println("P and [e]_M:" + state6.P)
     }
 
     // evaluate body
@@ -618,10 +632,10 @@ object Exec {
     if (state0.debug) {
       println("while rule after loop body:")
       println("gamma': " + gammaPrime.gammaStr)
-      println("P' :" + PPrime.PStr)
+      println("P' :" + PPrime)
 
       println("gamma'': " + state7.gamma.gammaStr)
-      println("P'' :" + state7.P.PStr)
+      println("P'' :" + state7.P)
     }
 
     // this shouldn't be able to happen if D' is calculated correctly
@@ -631,34 +645,36 @@ object Exec {
       throw error.ProgramError("line " + line + ": D' is not a subset of D''." + newline + "D': " +  state1.D.DStr + newline + "D'': " + state7.D.DStr)
     }
 
-    // check gamma' is greater or equal than gamma'' for all in gamma domain
-    if (state0.debug) {
-      println("checking Gamma'' >= Gamma'")
-    }
-    val PPrimePrimePred = State.andPredicates(state7.P)
-    val gammaGreaterCheck: List[Expression] = {
-      for (v <- state7.variables)
-        yield {
-          val gammaInvSec = state1.security(v)
-          val gammaNewSec = state7.security(v)
-          if (state0.debug) {
-            println("Gamma''<" + v + ">: " + gammaNewSec)
-            println("Gamma'<" + v + ">: " + gammaInvSec)
-            println("checking Gamma'' >= Gamma' for " + v + ": P'' && " + gammaInvSec + " ==> " + gammaNewSec)
-          }
-          BinOp("==>", BinOp("&&", gammaInvSec, PPrimePrimePred), gammaNewSec)
-        }
-    }.toList
-    if (!SMT.proveListAnd(gammaGreaterCheck, state7.debug)) {
-      throw error.WhileError(line, guard, "Gamma'' is not greater to or equal than than Gamma' ")
-    }
-
     // check P'' is stronger than P' - tested
     if (state0.debug) {
       println("checking P'' ==> P'")
     }
     if (!SMT.proveImplies(state7.P, PPrime, state0.debug)) {
-      throw error.WhileError(line, guard, "provided P' " + PPrime.PStr + " does not hold after loop body. P'': " + state7.P.PStr)
+      throw error.WhileError(line, guard, "provided P' " + PPrime + " does not hold after loop body. P'': " + state5.P)
+    }
+
+    // check gamma' is greater or equal than gamma'' for all in gamma domain
+    if (state0.debug) {
+      println("checking Gamma'' >= Gamma'")
+    }
+    val gammaGreaterCheck: List[Expression] = {
+      for (v <- state7.variables)
+        yield {
+          val gammaPrimeSec = state1.security(v)
+          val gammaSec = state7.security(v)
+          val notGammaPrimeSec = gammaPrimeSec.copy(predicates = List(PreOp("!", State.andPredicates(gammaPrimeSec.predicates))))
+          val notGammaSec = gammaSec.copy(predicates = List(PreOp("!", State.andPredicates(gammaSec.predicates))))
+          val PPrimeAndNotGammaPrime = state1.P.combine(notGammaPrimeSec)
+          val PAndNotGamma = state7.P.combine(notGammaSec)
+          if (state0.debug) {
+            println("Gamma''<" + v + ">: " + gammaSec)
+            println("Gamma'<" + v + ">: " + gammaPrimeSec)
+          }
+          BinOp("==>", PAndNotGamma.toAnd, PPrimeAndNotGammaPrime.toAnd)
+        }
+    }.toList
+    if (!SMT.proveListAnd(gammaGreaterCheck, state7.debug)) {
+      throw error.WhileError(line, guard, "Gamma'' is not greater to or equal than than Gamma' ")
     }
 
     // state1 used here as do not keep gamma'', P'', D'' from after loop body execution
@@ -866,7 +882,7 @@ object Exec {
     // check guar P(x := e)
     val guarUnchanged: List[Expression] = {for (g <- st3.globals - lhs)
       yield BinOp("==", g.toVar, g.toVar.prime)}.toList
-    val guarP: List[Expression] = (BinOp("==", lhs.toVar.prime, _rhs) :: guarUnchanged) ::: PRestrictU
+    val guarP: Predicate = st1.P.add(BinOp("==", lhs.toVar.prime, _rhs) :: guarUnchanged) ++ PRestrictU
 
     if (st3.debug) {
       println("checking assignment conforms to guarantee")
@@ -880,7 +896,9 @@ object Exec {
     if (st3.debug) {
       println("checking L_G(x) && P /restrict u ==> t holds")
     }
-    if (t != Const._true && !SMT.proveImplies(st3.L_G(lhs) :: PRestrictU, t, st3.debug)) {
+    if (t != Const._true && !SMT.proveImplies(st3.L_G(lhs) :: PRestrictU, t, st3.debug)) {}
+
+    if (!(t.predicates.size == 1 && t.predicates.head == Const._true) && !SMT.proveImplies(st1.P_inv.add(st1.L_G(lhs)) ++ st1.P , t, st1.debug)) {
       throw error.AssignGError(line, lhs, rhs, "L_G(" + lhs + ") && P ==> " + lhs + " doesn't hold for assignment")
     }
 
