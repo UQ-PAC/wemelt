@@ -1026,8 +1026,8 @@ object State {
 
     // init Gamma
     val gamma: Map[Id, Predicate] = gamma_0 match {
-      // empty gamma by default if user hasn't provided
-      case None => Map()
+      // all locals low by default
+      case None => (locals map {l => l -> Predicate(List(Const._false))}).toMap
       // user provided
       case Some(gs) => {
         //gs flatMap {g => g.toPair(arrays)}

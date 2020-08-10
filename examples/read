@@ -15,6 +15,7 @@ _local var r2
 _P_inv: TRUE
 _G: z' == z
 _P_0: r1 % 2 == 0
+_Gamma_0: r2 -> FALSE, r1 -> FALSE
 
 do
 _invariant: z >= z'
@@ -22,7 +23,7 @@ _Gamma: r1 -> TRUE, r2 -> z' % 2 == 0, low_out -> TRUE, z -> TRUE
 {
     do
     _invariant: z >= z'
-    _Gamma: r1 -> TRUE, r2 -> z' % 2 == 0, low_out -> TRUE, z -> TRUE
+    _Gamma: r1 -> TRUE, r2 -> FALSE, low_out -> TRUE, z -> TRUE
     {
         r1 = z;
     } while ((r1 % 2) != 0)
