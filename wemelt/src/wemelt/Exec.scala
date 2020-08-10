@@ -573,28 +573,12 @@ object Exec {
       println("checking Gamma >= Gamma'")
     }
 
-      for (v <- state0.variables) {
-        val gammaPrimeSec = state1.security(v)
-        val gammaSec = state0.security(v)
-        val notGammaPrimeSec = gammaPrimeSec.copy(predicates = List(PreOp("!", State.andPredicates(gammaPrimeSec.predicates))))
-        val notGammaSec = gammaSec.copy(predicates = List(PreOp("!", State.andPredicates(gammaSec.predicates))))
-        val PPrimeAndNotGammaPrime = state1.P.combine(notGammaPrimeSec)
-        val PAndNotGamma = state0.P.combine(notGammaSec)
-        if (state0.debug) {
-          println("Gamma<" + v + ">: " + gammaSec)
-          println("Gamma'<" + v + ">: " + gammaPrimeSec)
-        }
-        if (!SMT.proveImplies(PAndNotGamma, PPrimeAndNotGammaPrime, state0.debug)) {
-          throw error.WhileError(line, guard, "Gamma is not greater to or equal than than Gamma' ")
-        }
-      }
 
-    /*
     val gammaGreaterCheckStart: List[Expression] = {
       for (v <- state0.variables)
         yield {
-          val gammaPrimeSec = state1.security(v)
           val gammaSec = state0.security(v)
+          val gammaPrimeSec = state1.security(v)
           val notGammaPrimeSec = gammaPrimeSec.copy(predicates = List(PreOp("!", State.andPredicates(gammaPrimeSec.predicates))))
           val notGammaSec = gammaSec.copy(predicates = List(PreOp("!", State.andPredicates(gammaSec.predicates))))
           val PPrimeAndNotGammaPrime = state1.P.combine(notGammaPrimeSec)
@@ -609,7 +593,6 @@ object Exec {
     if (!SMT.proveListAnd(gammaGreaterCheckStart, state0.debug)) {
       throw error.WhileError(line, guard, "Gamma is not greater to or equal than than Gamma' ")
     }
-     */
 
     // evaluate guard
     val (_guard, state2) = eval(guard, state1)
