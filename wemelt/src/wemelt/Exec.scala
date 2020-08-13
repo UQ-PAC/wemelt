@@ -115,38 +115,28 @@ object Exec {
         println("line " + statement.line + ": While(" + test + ") {")
       // replace Ids in invariant with vars
 
-      val primeMap: Map[Id, Var] = {
+      val primeMap: Map[Var, Var] = {
         {for (v <- state0.variables)
-          yield v.prime -> v.toVar.fresh} ++
+          yield v.prime -> v.fresh} ++
         {for (v <- state0.variables)
-          yield v.prime.prime -> v.toVar.fresh} ++
+          yield v.prime.prime -> v.fresh} ++
         {for (v <- state0.variables)
-          yield v.prime.prime.prime -> v.toVar.fresh} ++
+          yield v.prime.prime.prime -> v.fresh} ++
         {for (v <- state0.variables)
-          yield v.prime.prime.prime.prime -> v.toVar.fresh}
+          yield v.prime.prime.prime.prime -> v.fresh}
       }.toMap
-
-      val idToVar: Subst = ({
-        for (v <- state0.variables)
-          yield v -> v.toVar
-      } ++ primeMap).toMap/* ++ {
-        for (v <- state0.arrays.keySet)
-          yield v -> v.toVar
-      }.toMap */
 
       val toSubst: Subst = {
-        for (g <- state0.globals)
-          yield Id(g.name) -> g
+        {for (g <- state0.globals)
+            yield Id(g.name) -> g
+        } ++ primeMap
       }.toMap
 
-      val PPrime = invariants map {p => p.subst(toSubst)}
       // existentially quantify any prime variables
-      val PPrime = Predicate(invariants map {i => i.subst(idToVar)}, (invariants flatMap { p => p.variables } collect {case i if i.name.endsWith("'") => primeMap(i)}).toSet, Set())
+      val PPrime = Predicate(invariants map {i => i.subst(toSubst)}, (invariants flatMap {p => p.variables} collect {case i if i.name.endsWith("'") => primeMap(i)}).toSet, Set())
 
       // convert gammaPrime to map
-      val gammaPrime: Map[Id, Predicate] = (gamma map {g => g.variable -> Predicate(List(g.security.subst(idToVar)), g.security.variables collect {case i if i.name.endsWith("'") => primeMap(i)}, Set())}).toMap
-      //val gammaPrime: Map[Id, Security] = (gamma flatMap {g => g.toPair(state0.arrays)}).toMap
-      val gammaPrime: Map[Var, Expression] = (gamma map {g => state0.labels(g.label) -> g.security.subst(toSubst)}).toMap
+      val gammaPrime: Map[Var, Predicate] = (gamma map {g => state0.labels(g.label) -> Predicate(List(g.security.subst(toSubst)), g.security.variables collect {case i if i.name.endsWith("'") => primeMap(i)}, Set())}).toMap
       //val gammaPrime: Map[Var, Security] = (gamma flatMap {g => g.toPair(state0.arrays)}).toMap
 
       val state1 = whileRule(test, PPrime, gammaPrime, body, state0, statement.line)
@@ -161,39 +151,29 @@ object Exec {
       if (state0.toLog)
         println("line " + statement.line + ": While(" + test + ") {")
       // replace Ids in invariant with vars
-      val primeMap: Map[Id, Var] = {
+      val primeMap: Map[Var, Var] = {
         {for (v <- state0.variables)
-          yield v.prime -> v.toVar.fresh} ++
+          yield v.prime -> v.fresh} ++
           {for (v <- state0.variables)
-            yield v.prime.prime -> v.toVar.fresh} ++
+            yield v.prime.prime -> v.fresh} ++
           {for (v <- state0.variables)
-            yield v.prime.prime.prime -> v.toVar.fresh} ++
+            yield v.prime.prime.prime -> v.fresh} ++
           {for (v <- state0.variables)
-            yield v.prime.prime.prime.prime -> v.toVar.fresh}
+            yield v.prime.prime.prime.prime -> v.fresh}
       }.toMap
-
-      val idToVar: Subst = ({
-        for (v <- state0.variables)
-          yield v -> v.toVar
-      } ++ primeMap).toMap/* ++ {
-        for (v <- state0.arrays.keySet)
-          yield v -> v.toVar
-      }.toMap */
 
       val toSubst: Subst = {
-        for (g <- state0.globals)
+        {for (g <- state0.globals)
           yield Id(g.name) -> g
+        } ++ primeMap
       }.toMap
 
-      val PPrime = invariants map {p => p.subst(toSubst)}
       // existentially quantify any prime variables
-      val PPrime = Predicate(invariants map {i => i.subst(idToVar)}, (invariants flatMap { p => p.variables } collect {case i if i.name.endsWith("'") => primeMap(i)}).toSet, Set())
+      val PPrime = Predicate(invariants map {i => i.subst(toSubst)}, (invariants flatMap {p => p.variables} collect {case i if i.name.endsWith("'") => primeMap(i)}).toSet, Set())
 
       // convert gammaPrime to map
-      val gammaPrime: Map[Var, Expression] = (gamma map {g => state0.labels(g.label) -> g.security.subst(toSubst)}).toMap
+      val gammaPrime: Map[Var, Predicate] = (gamma map {g => state0.labels(g.label) -> Predicate(List(g.security.subst(toSubst)), g.security.variables collect {case i if i.name.endsWith("'") => primeMap(i)}, Set())}).toMap
       //val gammaPrime: Map[Var, Security] = (gamma flatMap {g => g.toPair(state0.arrays)}).toMap
-      val gammaPrime: Map[Id, Predicate] = (gamma map {g => g.variable -> Predicate(List(g.security.subst(idToVar)), g.security.variables collect {case i if i.name.endsWith("'") => primeMap(i)}, Set())}).toMap
-      //val gammaPrime: Map[Id, Security] = (gamma flatMap {g => g.toPair(state0.arrays)}).toMap
 
       // execute loop body once at start
       val state1 = execute(body, state0).st
@@ -318,55 +298,45 @@ object Exec {
       st4.copy(D =_left.mergeD(_right), P = _left.P.merge(_right.P))
 
     case While(test, invariants, _, body) =>
-      val primeMap: Map[Id, Var] = {
+      val primeMap: Map[Var, Var] = {
         {for (v <- st0.variables)
-          yield v.prime -> v.toVar.fresh} ++
+          yield v.prime -> v.fresh} ++
           {for (v <- st0.variables)
-            yield v.prime.prime -> v.toVar.fresh} ++
+            yield v.prime.prime -> v.fresh} ++
           {for (v <- st0.variables)
-            yield v.prime.prime.prime -> v.toVar.fresh} ++
+            yield v.prime.prime.prime -> v.fresh} ++
           {for (v <- st0.variables)
-            yield v.prime.prime.prime.prime -> v.toVar.fresh}
+            yield v.prime.prime.prime.prime -> v.fresh}
       }.toMap
-      val idToVar: Subst = ({
-        for (v <- st0.variables)
-          yield v -> v.toVar
-      } ++ primeMap).toMap
-      val PPrime = Predicate(invariants map {i => i.subst(idToVar)}, (invariants flatMap { p => p.variables } collect {case i if i.name.endsWith("'") => primeMap(i)}).toSet, Set())
-      st0.copy(D = DFixedPoint(test, body, st0, PPrime), P = PPrime)
-    case While(test, invariants, gamma, body) =>
       val toSubst: Subst = {
-        for (g <- st0.globals)
-          yield Id(g.name) -> g
+        {
+          for (g <- st0.globals)
+            yield Id(g.name) -> g
+        } ++ primeMap
       }.toMap
-      val PPrime = invariants map {p => p.subst(toSubst)}
-      st0.copy(D = DFixedPoint(test, body, st0, invariants), P = PPrime)
+      val PPrime = Predicate(invariants map {i => i.subst(toSubst)}, (invariants flatMap { p => p.variables } collect {case i if i.name.endsWith("'") => primeMap(i)}).toSet, Set())
+      st0.copy(D = DFixedPoint(test, body, st0, PPrime), P = PPrime)
 
     case DoWhile(test, invariants, _, body) =>
       val st1 = DFixedPoint(body, st0)
-      val primeMap: Map[Id, Var] = {
+      val primeMap: Map[Var, Var] = {
         {for (v <- st0.variables)
-          yield v.prime -> v.toVar.fresh} ++
+          yield v.prime -> v.fresh} ++
           {for (v <- st0.variables)
-            yield v.prime.prime -> v.toVar.fresh} ++
+            yield v.prime.prime -> v.fresh} ++
           {for (v <- st0.variables)
-            yield v.prime.prime.prime -> v.toVar.fresh} ++
+            yield v.prime.prime.prime -> v.fresh} ++
           {for (v <- st0.variables)
-            yield v.prime.prime.prime.prime -> v.toVar.fresh}
+            yield v.prime.prime.prime.prime -> v.fresh}
       }.toMap
-      val idToVar: Subst = ({
-        for (v <- st0.variables)
-          yield v -> v.toVar
-      } ++ primeMap).toMap
-      val PPrime = Predicate(invariants map {i => i.subst(idToVar)}, (invariants flatMap { p => p.variables } collect {case i if i.name.endsWith("'") => primeMap(i)}).toSet, Set())
-      st1.copy(D = DFixedPoint(test, body, st0, PPrime), P = PPrime)
       val toSubst: Subst = {
-        for (g <- st0.globals)
-          yield Id(g.name) -> g
+        {
+          for (g <- st0.globals)
+            yield Id(g.name) -> g
+        } ++ primeMap
       }.toMap
-      val PPrime = invariants map {p => p.subst(toSubst)}
-      st0.copy(D = DFixedPoint(test, body, st0, invariants), P = PPrime)
-
+      val PPrime = Predicate(invariants map {i => i.subst(toSubst)}, (invariants flatMap { p => p.variables } collect {case i if i.name.endsWith("'") => primeMap(i)}).toSet, Set())
+      st1.copy(D = DFixedPoint(test, body, st0, PPrime), P = PPrime)
       /*
     case CompareAndSwap(r3, x, r1, r2) =>
       val st1 = DFixedPoint(r1, st0)

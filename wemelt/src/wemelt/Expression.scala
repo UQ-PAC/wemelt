@@ -114,9 +114,9 @@ case class Var(name: String, size: Int, index: Option[Int] = None) extends Expre
   }
 
   override def bound: Set[Var] = this match {
-    case Var(_, Some(_)) =>
+    case Var(_, _, Some(_)) =>
       Set(this)
-    case Var(_, None) =>
+    case Var(_, _, None) =>
       Set()
   }
 
@@ -270,19 +270,23 @@ case class Const(name: String) extends Expression {
 case class ExtLow(n: Int, e: Expression) extends Expression {
   override def subst(su: Subst): ExtLow = ExtLow(n, e.subst(su))
   override def variables: Set[Var] = e.variables
+  override def bound: Set[Var] = e.bound
 }
 
 case class ExtHigh(n: Int, e: Expression) extends Expression {
   override def subst(su: Subst): ExtHigh = ExtHigh(n, e.subst(su))
   override def variables: Set[Var] = e.variables
+  override def bound: Set[Var] = e.bound
 }
 
 case class ExtSigned(n: Int, e: Expression) extends Expression {
   override def subst(su: Subst): ExtSigned = ExtSigned(n, e.subst(su))
   override def variables: Set[Var] = e.variables
+  override def bound: Set[Var] = e.bound
 }
 
 case class ExtUnsigned(n: Int, e: Expression) extends Expression {
   override def subst(su: Subst): ExtUnsigned = ExtUnsigned(n, e.subst(su))
   override def variables: Set[Var] = e.variables
+  override def bound: Set[Var] = e.bound
 }

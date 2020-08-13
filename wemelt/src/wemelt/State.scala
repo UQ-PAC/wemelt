@@ -31,12 +31,12 @@ case class Predicate(predicates: List[Expression], exists: Set[Var] = Set(), for
   }
 
   // existentially quantify (substitute with fresh variables) all variables in toBind
-  def bindExists(toBind: Set[Id]): Predicate = {
+  def bindExists(toBind: Set[Var]): Predicate = {
     var bound: Set[Var] = Set()
     val toSubst: Subst = {for (r <- toBind) yield {
-      val fresh = r.toVar.fresh
+      val fresh = r.fresh
       bound += fresh
-      r.toVar -> fresh
+      r -> fresh
     }}.toMap
     val predicatesPrime = predicates map (p => p.subst(toSubst))
     val existsPrime = (exists ++ bound) & (predicatesPrime flatMap (p => p.bound)).toSet
@@ -44,12 +44,12 @@ case class Predicate(predicates: List[Expression], exists: Set[Var] = Set(), for
   }
 
   // universally quantify all variables in toBind
-  def bindForAll(toBind: Set[Id]): Predicate = {
+  def bindForAll(toBind: Set[Var]): Predicate = {
     var bound: Set[Var] = Set()
     val toSubst: Subst = {for (r <- toBind) yield {
-      val fresh = r.toVar.fresh
+      val fresh = r.fresh
       bound += fresh
-      r.toVar -> fresh
+      r -> fresh
     }}.toMap
     val predicatesPrime = predicates map (p => p.subst(toSubst))
     val forallPrime = (forall ++ bound) & (predicatesPrime flatMap (p => p.bound)).toSet
@@ -165,7 +165,7 @@ case class State(
 
   // update P after assignment
   def assignUpdateP(v: Var, arg: Expression): (State, Subst, Set[Var]) = {
-    val PRestrictInd = restrictPInd(variables -- arg.variables + id)
+    val PRestrictInd = restrictPInd(variables -- arg.variables + v)
 
     val fresh = Var.fresh(v.name, v.size)
     // create mapping from variable to fresh variable
@@ -225,7 +225,7 @@ case class State(
         yield {
           val newFresh = v.fresh
           exists += newFresh
-          v.toVar -> newFresh
+          v -> newFresh
         }
     }.toMap
 
@@ -452,7 +452,7 @@ case class State(
         yield if (c == Const._true) {
           r.subst(mPlusMPrime)
         } else {
-          BinOp("==>", ForAll(indirect map (i => i.toVar), c), r.subst(mPlusMPrime))
+          BinOp("==>", ForAll(indirect, c), r.subst(mPlusMPrime))
         }
     }
     }.flatten.toList
@@ -1200,11 +1200,8 @@ object State {
         case Some(rvars) =>
           R_var += (g.variable -> (rvars map {rvar => (rvar.condition.subst(toSubst), rvar.relation.subst(toSubst))}))
         case None =>
-
       }
     }
-
-    val P_inv = P_invIn map {p => p.subst(toSubst)}
 
     val R_var_pred: List[Expression] = {
       for (g <- R_var.keys) yield {
@@ -1308,7 +1305,7 @@ object State {
       // user provided
       case Some(gs) => {
         //gs flatMap {g => g.toPair(arrays)}
-        gs map {g => labels(g.label) -> Predicate(List(g.security.subst(toSubst))}
+        gs map {g => labels(g.label) -> Predicate(List(g.security.subst(toSubst)))}
       }.toMap
     }
 

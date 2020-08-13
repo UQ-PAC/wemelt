@@ -5,6 +5,9 @@ BIL stuff
 -what order to calculate read/written sets and possible indices for memory writes?
 -handle memory reads
 
+don't restrict locals
+do a pass for address calculation then second pass for assign rule
+
 to check
 -index is low
 -index in bounds
