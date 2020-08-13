@@ -114,8 +114,16 @@ object Exec {
         println("line " + statement.line + ": While(" + test + ") {")
       // replace Ids in invariant with vars
 
-      val primeMap: Map[Id, Var] = {for (v <- state0.variables)
-        yield v.prime -> v.toVar.fresh}.toMap
+      val primeMap: Map[Id, Var] = {
+        {for (v <- state0.variables)
+          yield v.prime -> v.toVar.fresh} ++
+          {for (v <- state0.variables)
+            yield v.prime.prime -> v.toVar.fresh} ++
+          {for (v <- state0.variables)
+            yield v.prime.prime.prime -> v.toVar.fresh} ++
+          {for (v <- state0.variables)
+            yield v.prime.prime.prime.prime -> v.toVar.fresh}
+      }.toMap
 
       val idToVar: Subst = ({
         for (v <- state0.variables)
@@ -144,8 +152,16 @@ object Exec {
       if (state0.toLog)
         println("line " + statement.line + ": While(" + test + ") {")
       // replace Ids in invariant with vars
-      val primeMap: Map[Id, Var] = {for (v <- state0.variables)
-        yield v.prime -> v.toVar.fresh}.toMap
+      val primeMap: Map[Id, Var] = {
+        {for (v <- state0.variables)
+          yield v.prime -> v.toVar.fresh} ++
+          {for (v <- state0.variables)
+            yield v.prime.prime -> v.toVar.fresh} ++
+          {for (v <- state0.variables)
+            yield v.prime.prime.prime -> v.toVar.fresh} ++
+          {for (v <- state0.variables)
+            yield v.prime.prime.prime.prime -> v.toVar.fresh}
+      }.toMap
 
       val idToVar: Subst = ({
         for (v <- state0.variables)

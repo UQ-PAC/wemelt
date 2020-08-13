@@ -16,11 +16,11 @@ case class Predicate(predicates: List[Expression], exists: Set[Var] = Set(), for
   }
 
   def addExists(toAdd: Set[Var]): Predicate = {
-    copy(exists = exists ++ toAdd)
+    copy(exists = (predicates.flatMap (p => p.bound)).toSet & (exists ++ toAdd))
   }
 
-  def addForall(toAdd: Set[Var]): Predicate = {
-    copy(forall = forall ++ toAdd)
+  def addForAll(toAdd: Set[Var]): Predicate = {
+    copy(forall = (predicates.flatMap (p => p.bound)).toSet & (forall ++ toAdd))
   }
 
   def ++(other: Predicate): Predicate = combine(other)
