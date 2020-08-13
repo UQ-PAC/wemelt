@@ -163,7 +163,7 @@ case class State(
 
   // update P after assignment
   def assignUpdateP(id: Id, arg: Expression): (State, Subst, Set[Var]) = {
-    val PRestrictInd = restrictPInd(variables -- arg.variables + id)
+    val PRestrictInd = restrictPInd(arg.variables + id)
 
     val v = id.toVar
 
@@ -1060,7 +1060,7 @@ case class State(
 
   def low_or_eq(P: Predicate): Set[Id] = {
     val PAnd = P.toAnd
-    val PPlusRAnd = (P ++ R ++ P_inv).toAnd
+    val PPlusRAnd = (P ++ R).toAnd
     val lowOrEqTest = for (g <- globals)
       yield g -> BinOp("||", BinOp("==>", PAnd, L_R(g)), BinOp("==>", PPlusRAnd, BinOp("==", g.toVar, g.toVar.prime)))
 
@@ -1072,11 +1072,11 @@ case class State(
 
   def restrictP(restricted: Set[Id]): Predicate = {
     val PAndPInv = P ::: P_inv
-    PAndPInv.bindExists(variables -- restricted)
+    PAndPInv.bindExists(globals -- restricted)
   }
 
   def restrictPInd(vars: Set[Id]): Predicate = {
-    P.bindExists(vars -- knownI)
+    P.bindExists(vars -- knownI -- locals)
   }
 
   def DSubsetOf(state1: State): Boolean = {

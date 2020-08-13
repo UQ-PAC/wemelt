@@ -943,17 +943,6 @@ object Exec {
     if (st3.debug) {
       println("checking weaker")
     }
-    /*
-    var weaker: Set[Id] = Set()
-    for (y <- st3.R_var.keySet) {
-      // check !(P && c ==> c[e/x])
-      val weakerCheck: List[Expression] = for ((c, r) <- st3.R_var(y) if c != Const._true)
-        yield PreOp("!", BinOp("==>", BinOp("&&", c, PAnd), c.subst(toSubstC)))
-      if (SMT.proveListOr(weakerCheck, st3.debug)) {
-        weaker += y
-      }
-    }
-     */
 
     var weaker: Set[Id] = Set()
     for (y <- st3.R_var.keySet) {
