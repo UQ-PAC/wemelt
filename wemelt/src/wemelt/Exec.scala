@@ -114,8 +114,16 @@ object Exec {
         println("line " + statement.line + ": While(" + test + ") {")
       // replace Ids in invariant with vars
 
-      val primeMap: Map[Id, Var] = {for (v <- state0.variables)
-        yield v.prime -> v.toVar.fresh}.toMap
+      val primeMap: Map[Id, Var] = {
+        {for (v <- state0.variables)
+          yield v.prime -> v.toVar.fresh} ++
+        {for (v <- state0.variables)
+          yield v.prime.prime -> v.toVar.fresh} ++
+        {for (v <- state0.variables)
+          yield v.prime.prime.prime -> v.toVar.fresh} ++
+        {for (v <- state0.variables)
+          yield v.prime.prime.prime.prime -> v.toVar.fresh}
+      }.toMap
 
       val idToVar: Subst = ({
         for (v <- state0.variables)
@@ -144,8 +152,16 @@ object Exec {
       if (state0.toLog)
         println("line " + statement.line + ": While(" + test + ") {")
       // replace Ids in invariant with vars
-      val primeMap: Map[Id, Var] = {for (v <- state0.variables)
-        yield v.prime -> v.toVar.fresh}.toMap
+      val primeMap: Map[Id, Var] = {
+        {for (v <- state0.variables)
+          yield v.prime -> v.toVar.fresh} ++
+          {for (v <- state0.variables)
+            yield v.prime.prime -> v.toVar.fresh} ++
+          {for (v <- state0.variables)
+            yield v.prime.prime.prime -> v.toVar.fresh} ++
+          {for (v <- state0.variables)
+            yield v.prime.prime.prime.prime -> v.toVar.fresh}
+      }.toMap
 
       val idToVar: Subst = ({
         for (v <- state0.variables)
@@ -177,7 +193,6 @@ object Exec {
       throw error.InvalidProgram("unimplemented statement " + statement + " at line " + statement.line)
 
   }
-
 
   // compute fixed point of D
   def DFixedPoint(guard: Expression, body: Statement, state: State, invariant: Predicate): DType = {
@@ -286,8 +301,16 @@ object Exec {
       st4.copy(D =_left.mergeD(_right), P = _left.P.merge(_right.P))
 
     case While(test, invariants, _, body) =>
-      val primeMap: Map[Id, Var] = {for (v <- st0.variables)
-        yield v.prime -> v.toVar.fresh}.toMap
+      val primeMap: Map[Id, Var] = {
+        {for (v <- st0.variables)
+          yield v.prime -> v.toVar.fresh} ++
+          {for (v <- st0.variables)
+            yield v.prime.prime -> v.toVar.fresh} ++
+          {for (v <- st0.variables)
+            yield v.prime.prime.prime -> v.toVar.fresh} ++
+          {for (v <- st0.variables)
+            yield v.prime.prime.prime.prime -> v.toVar.fresh}
+      }.toMap
       val idToVar: Subst = ({
         for (v <- st0.variables)
           yield v -> v.toVar
@@ -297,8 +320,16 @@ object Exec {
 
     case DoWhile(test, invariants, _, body) =>
       val st1 = DFixedPoint(body, st0)
-      val primeMap: Map[Id, Var] = {for (v <- st0.variables)
-        yield v.prime -> v.toVar.fresh}.toMap
+      val primeMap: Map[Id, Var] = {
+        {for (v <- st0.variables)
+          yield v.prime -> v.toVar.fresh} ++
+          {for (v <- st0.variables)
+            yield v.prime.prime -> v.toVar.fresh} ++
+          {for (v <- st0.variables)
+            yield v.prime.prime.prime -> v.toVar.fresh} ++
+          {for (v <- st0.variables)
+            yield v.prime.prime.prime.prime -> v.toVar.fresh}
+      }.toMap
       val idToVar: Subst = ({
         for (v <- st0.variables)
           yield v -> v.toVar
@@ -572,7 +603,6 @@ object Exec {
     if (state0.debug) {
       println("checking Gamma >= Gamma'")
     }
-
 
     val gammaGreaterCheckStart: List[Expression] = {
       for (v <- state0.variables)

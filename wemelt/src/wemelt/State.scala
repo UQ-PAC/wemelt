@@ -16,11 +16,11 @@ case class Predicate(predicates: List[Expression], exists: Set[Var] = Set(), for
   }
 
   def addExists(toAdd: Set[Var]): Predicate = {
-    copy(exists = exists ++ toAdd)
+    copy(exists = (predicates.flatMap (p => p.bound)).toSet & (exists ++ toAdd))
   }
 
   def addForAll(toAdd: Set[Var]): Predicate = {
-    copy(forall = forall ++ toAdd)
+    copy(forall = (predicates.flatMap (p => p.bound)).toSet & (forall ++ toAdd))
   }
 
   def ++(other: Predicate): Predicate = combine(other)
@@ -38,8 +38,9 @@ case class Predicate(predicates: List[Expression], exists: Set[Var] = Set(), for
       bound += fresh
       r.toVar -> fresh
     }}.toMap
-
-    copy(predicates = predicates map (p => p.subst(toSubst)), exists = exists ++ bound)
+    val predicatesPrime = predicates map (p => p.subst(toSubst))
+    val existsPrime = (exists ++ bound) & (predicatesPrime flatMap (p => p.bound)).toSet
+    copy(predicates = predicatesPrime, exists = existsPrime)
   }
 
   // universally quantify all variables in toBind
@@ -50,7 +51,9 @@ case class Predicate(predicates: List[Expression], exists: Set[Var] = Set(), for
       bound += fresh
       r.toVar -> fresh
     }}.toMap
-    copy(predicates = predicates map (p => p.subst(toSubst)), forall = forall ++ bound)
+    val predicatesPrime = predicates map (p => p.subst(toSubst))
+    val forallPrime = (forall ++ bound) & (predicatesPrime flatMap (p => p.bound)).toSet
+    copy(predicates = predicatesPrime, forall = forallPrime)
   }
 
   override def toString: String = {

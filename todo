@@ -3,9 +3,7 @@
 -SMT optimisations to reduce calls in a few places
 
 new weak memory model:
--figure out how to calculate D Fixed Point now that it is dependent on P
 -optimise by only testing those variables not in the sets to compare to in AssignG
--fix gamma initialising domain issue?
 done:
 -I and U updates
 -P restrict ind

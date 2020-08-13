@@ -122,7 +122,7 @@ WS = {NL} | [ \t\f]
 
     [a-zA-Z_][a-zA-Z_0-9]*
                 { return resolve(yytext()); }
-    [a-zA-Z_][a-zA-Z_0-9]*[']
+    [a-zA-Z_][a-zA-Z_0-9]*[']*
                 { return resolvePrime(yytext()); }
 
     [0-9]+      { return newToken(Terminals.NUM, new Integer(yytext())); }
