@@ -165,7 +165,7 @@ case class State(
 
   // update P after assignment
   def assignUpdateP(v: Var, arg: Expression): (State, Subst, Set[Var]) = {
-    val PRestrictInd = restrictPInd(variables -- arg.variables + v)
+    val PRestrictInd = restrictPInd(arg.variables + v)
 
     val fresh = Var.fresh(v.name, v.size)
     // create mapping from variable to fresh variable
@@ -1069,11 +1069,11 @@ case class State(
 
   def restrictP(restricted: Set[Var]): Predicate = {
     val PAndPInv = P ::: P_inv
-    PAndPInv.bindExists(variables -- restricted)
+    PAndPInv.bindExists(globals -- restricted)
   }
 
   def restrictPInd(vars: Set[Var]): Predicate = {
-    P.bindExists(vars -- knownI)
+    P.bindExists(vars -- knownI -- locals)
   }
 
   def DSubsetOf(state1: State): Boolean = {
