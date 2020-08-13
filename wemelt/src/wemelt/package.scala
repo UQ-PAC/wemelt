@@ -88,7 +88,7 @@ package object wemelt {
     def OrStr: String = exprs.mkString(" ||" + newline + "   ")
   }
 
-  implicit class GammaToString(gamma: Map[Var, Expression]) {
+  implicit class GammaToString(gamma: Map[Var, Predicate]) {
     def gammaStr: String = gamma.mkString(", ")
   }
 }

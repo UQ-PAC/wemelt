@@ -1,13 +1,122 @@
 package wemelt
 
+case class Predicate(predicates: List[Expression], exists: Set[Var] = Set(), forall: Set[Var] = Set()) {
+
+  def add(expression: Expression): Predicate = {
+    copy(predicates = expression :: predicates)
+  }
+
+  def add(expressions: List[Expression]): Predicate = {
+    copy(predicates = predicates ++ expressions)
+  }
+
+  // P1 AND P2
+  def combine(other: Predicate): Predicate = {
+    copy(predicates = predicates ++ other.predicates, exists = exists ++ other.exists, forall = forall ++ other.forall)
+  }
+
+  def addExists(toAdd: Set[Var]): Predicate = {
+    copy(exists = (predicates.flatMap (p => p.bound)).toSet & (exists ++ toAdd))
+  }
+
+  def addForAll(toAdd: Set[Var]): Predicate = {
+    copy(forall = (predicates.flatMap (p => p.bound)).toSet & (forall ++ toAdd))
+  }
+
+  def ++(other: Predicate): Predicate = combine(other)
+  def :::(other: Predicate): Predicate = combine(other)
+
+  def subst(toSubst: Subst): Predicate = {
+    copy(predicates = predicates map (p => p.subst(toSubst)))
+  }
+
+  // existentially quantify (substitute with fresh variables) all variables in toBind
+  def bindExists(toBind: Set[Id]): Predicate = {
+    var bound: Set[Var] = Set()
+    val toSubst: Subst = {for (r <- toBind) yield {
+      val fresh = r.toVar.fresh
+      bound += fresh
+      r.toVar -> fresh
+    }}.toMap
+    val predicatesPrime = predicates map (p => p.subst(toSubst))
+    val existsPrime = (exists ++ bound) & (predicatesPrime flatMap (p => p.bound)).toSet
+    copy(predicates = predicatesPrime, exists = existsPrime)
+  }
+
+  // universally quantify all variables in toBind
+  def bindForAll(toBind: Set[Id]): Predicate = {
+    var bound: Set[Var] = Set()
+    val toSubst: Subst = {for (r <- toBind) yield {
+      val fresh = r.toVar.fresh
+      bound += fresh
+      r.toVar -> fresh
+    }}.toMap
+    val predicatesPrime = predicates map (p => p.subst(toSubst))
+    val forallPrime = (forall ++ bound) & (predicatesPrime flatMap (p => p.bound)).toSet
+    copy(predicates = predicatesPrime, forall = forallPrime)
+  }
+
+  override def toString: String = {
+     val existsStr = if (exists.nonEmpty) {
+       "exists " + exists.mkString(", ") + " :: ("
+    } else {
+      ""
+    }
+    val existsClose = if (exists.nonEmpty) {")"} else {""}
+    val forallStr = if (forall.nonEmpty) {
+      "forall " + forall.mkString(", ") + " :: ("
+    } else {
+      ""
+    }
+    val forallClose = if (forall.nonEmpty) {")"} else {""}
+    existsStr ++ forallStr ++ predicates.mkString(" &&" + newline + "   ") ++ forallClose ++ existsClose
+  }
+
+  def toAnd: Expression = {
+    if (predicates == List(Const._true)) {
+      Const._true
+    } else if (predicates == List(Const._false)) {
+      Const._false
+    } else if (exists.isEmpty && forall.isEmpty) {
+      State.andPredicates(predicates)
+    } else if (exists.isEmpty && forall.nonEmpty) {
+      ForAll(forall, State.andPredicates(predicates))
+    } else if (exists.nonEmpty && forall.isEmpty) {
+      Exists(exists, State.andPredicates(predicates))
+    } else {
+      ForAll(forall, Exists(exists, State.andPredicates(predicates)))
+    }
+  }
+
+  // https://www.cs.jhu.edu/~jason/tutorials/convert-to-CNF.html
+  // P1 OR P2 converted to CNF, using switching variable to keep converted formula small
+  def merge(P2: Predicate): Predicate = {
+    if (predicates.isEmpty) {
+      return P2
+    }
+    if (P2.predicates.isEmpty) {
+      return this
+    }
+    val common = predicates.intersect(P2.predicates) // common elements don't need switching variable
+    val switch = Switch.fresh
+    val p1List: List[Expression] = for (p1 <- predicates if !common.contains(p1)) yield {
+      BinOp("||", PreOp("!", switch), p1)
+    }
+    val p2List: List[Expression] = for (p2 <- P2.predicates if !common.contains(p2)) yield {
+      BinOp("||", switch, p2)
+    }
+    Predicate(common ++ p1List ++ p2List, exists ++ P2.exists, forall ++ P2.forall)
+  }
+}
+
 case class State(
-  gamma: Map[Var, Expression],
+  gamma: Map[Var, Predicate],
   D: DType, // W_w, W_r, R_w, R_r
-  P: List[Expression],
-  P_inv: List[Expression],
+  P: Predicate,
+  P_inv: Predicate,
   R_var: Map[Var, List[(Expression, Expression)]],
-  R: List[Expression],
-  G: List[Expression],
+  R: Predicate,
+  G: Predicate,
   G_var: Map[Var, List[(Expression, Expression)]],
 
   L_R: Map[Var, Expression],
@@ -46,30 +155,30 @@ case class State(
   def U_w(v: Var): Set[Var] = D(v)._7
   def U_r(v: Var): Set[Var] = D(v)._8
 
-  def log(): Unit = {
+  def log: Unit = {
     if (toLog) {
       println("Gamma: " + gamma.gammaStr)
-      println("P: " + P.PStr)
+      println("P: " + P)
       println("D: " + D.DStr)
     }
   }
 
-  // update P and Gamma after assignment
-  def assignUpdateP(v: Var, arg: Expression): (State, Subst) = {
-    val vars = arg.variables + v // variables in assignment
-    val PRestrictInd = restrictPInd(vars)
-    
+  // update P after assignment
+  def assignUpdateP(v: Var, arg: Expression): (State, Subst, Set[Var]) = {
+    val PRestrictInd = restrictPInd(variables -- arg.variables + id)
+
+    val fresh = Var.fresh(v.name, v.size)
     // create mapping from variable to fresh variable
-    val toSubst: Subst = Map(v -> Var.fresh(v.name, v.size))
+    val toSubst: Subst = Map(v -> fresh)
 
     // substitute variable in P for fresh variable
-    val PReplace = PRestrictInd map (p => p.subst(toSubst))
+    val PReplace = PRestrictInd.subst(toSubst)
 
     // substitute variable in expression for fresh variable
     val argReplace = arg.subst(toSubst)
 
     // add new assignment statement to P
-    val PPrime = BinOp("==", v, argReplace) :: PReplace
+    val PPrime = PReplace.add(BinOp("==", v, argReplace)).addExists(Set(fresh))
 
     // calculate new_var
     val varE = arg.variables
@@ -87,7 +196,7 @@ case class State(
       // check !(P && c ==> c[e/x])
       var yAdded = false
       for ((c, r) <- R_var(y) if !yAdded && c != Const._true) {
-        if (!SMT.proveImplies(c :: PPrime, c.subst(toSubstC), debug)) {
+        if (!SMT.proveImplies(PPrime.add(c), c.subst(toSubstC), debug)) {
           weaker +=y
           yAdded = true
         }
@@ -109,10 +218,15 @@ case class State(
 
     val domM = new_var ++ weaker -- equals
 
+    var exists: Set[Var] = Set() // set of newly created variables to bind
     // map all of domM to fresh temporary variables - probably change to different fresh allocator
     val m: Subst = {
       for (v <- domM)
-        yield v -> v.fresh
+        yield {
+          val newFresh = v.fresh
+          exists += newFresh
+          v.toVar -> newFresh
+        }
     }.toMap
 
     val mPlusMPrime: Subst = m ++ {
@@ -120,7 +234,7 @@ case class State(
         yield v.prime -> v
     }.toMap
 
-    val PPlus = PPrime map {p: Expression => p.subst(m)}
+    val PPlus = PPrime.subst(m).addExists(exists)
 
     if (debug) {
       println("dom R_var: " + R_var.keySet)
@@ -137,33 +251,32 @@ case class State(
     }.flatten.toList
 
     if (debug) {
-      println("P +: " + PPlus.PStr)
-      println("+ R: " + RPlus.PStr)
+      println("P +: " + PPlus)
+      println("+ R: " + RPlus)
     }
 
-    val PPlusR = PPlus ++ RPlus
+    val PPlusR = PPlus.add(RPlus)
 
     if (debug) {
       println("assigning " + arg + " to " + v + ":")
-      println("P: " + P.PStr)
-      println("P': " + PPrime.PStr)
-      println("P + R: " + PPlusR.PStr)
+      println("P: " + P)
+      println("P': " + PPrime)
+      println("P + R: " + PPlusR)
     }
-    (copy(P = PPlusR), m)
+    (copy(P = PPlusR), m, exists)
   }
 
-  def assignUpdateGamma(id: Var, t: Expression, m: Subst): State = {
+  def assignUpdateGamma(id: Var, t: Predicate, m: Subst, exists: Set[Var]): State = {
     val domGamma = low_or_eq(P)
     val gammaPrime = if (domGamma.contains(id)) {
-      gamma + (id -> ForAll(indirect, t))
+      gamma + (id -> t.bindForAll(indirect & (t.predicates flatMap (p => p.variables)).toSet))
     } else {
       gamma
     }
-
     val gammaPrimeRestrict = gammaPrime -- (gammaPrime.keySet -- domGamma)
-    val gammaPlusR: Map[Var, Expression] = {
+    val gammaPlusR: Map[Var, Predicate] = {
       for (g <- gammaPrimeRestrict.keySet)
-        yield g -> gammaPrimeRestrict(g).subst(m)
+        yield g -> gammaPrimeRestrict(g).subst(m).addExists(exists)
     }.toMap
     if (debug) {
       println("Gamma + R: " + gammaPlusR.gammaStr)
@@ -172,12 +285,12 @@ case class State(
   }
 
   // update P and Gamma with loop/if guard
-  def guardUpdateP(guard: Expression): (State, Subst) = {
+  def guardUpdateP(guard: Expression): (State, Subst, Set[Var]) = {
     val vars = guard.variables
     val PRestrictInd = restrictPInd(vars)
 
     // add guard to P
-    val PPrime = guard :: PRestrictInd
+    val PPrime = PRestrictInd.add(guard)
 
     // calculate new_var
     val new_var: Set[Var] = vars
@@ -196,10 +309,15 @@ case class State(
 
     val domM = new_var -- equals
 
+    var exists: Set[Var] = Set() // set of newly created variables to bind
     // map all of domM to fresh temporary variables - probably change to different fresh allocator
     val m: Subst = {
       for (v <- domM)
-        yield v -> v.fresh
+        yield {
+          val newFresh = v.fresh
+          exists += newFresh
+          v -> newFresh
+        }
     }.toMap
 
     val mPlusMPrime: Subst = m ++ {
@@ -207,7 +325,7 @@ case class State(
         yield v.prime -> v
     }.toMap
 
-    val PPlus = PPrime map {p : Expression => p.subst(m)}
+    val PPlus = PPrime.subst(m).addExists(exists)
 
     if (debug) {
       println("dom R_var: " + R_var.keySet)
@@ -224,28 +342,28 @@ case class State(
     }.flatten.toList
 
     if (debug) {
-      println("P +: " + PPlus.PStr)
-      println("+ R: " + RPlus.PStr)
+      println("P +: " + PPlus)
+      println("+ R: " + RPlus)
     }
 
-    val PPlusR = PPlus ++ RPlus
+    val PPlusR = PPlus.add(RPlus)
 
     if (debug) {
       println("updating P and Gamma with guard " + guard)
-      println("P: " + P.PStr)
-      println("P': " + PPrime.PStr)
-      println("P + R: " + PPlusR.PStr)
+      println("P: " + P)
+      println("P': " + PPrime)
+      println("P + R: " + PPlusR)
 
     }
-    (copy(P = PPlusR), m)
+    (copy(P = PPlusR), m, exists)
   }
 
-  def guardUpdateGamma(m: Subst): State = {
+  def guardUpdateGamma(m: Subst, exists: Set[Var]): State = {
     val domGamma = low_or_eq(P)
     val gammaPrimeRestrict = gamma -- (gamma.keySet -- domGamma)
-    val gammaPlusR: Map[Var, Expression] = {
+    val gammaPlusR: Map[Var, Predicate] = {
       for (g <- gammaPrimeRestrict.keySet)
-        yield g -> gammaPrimeRestrict(g).subst(m)
+        yield g -> gammaPrimeRestrict(g).subst(m).addExists(exists)
     }.toMap
 
     if (debug) {
@@ -254,18 +372,19 @@ case class State(
     copy(gamma = gammaPlusR)
   }
 
-  def PPlusRUpdate(v: Var, arg: Expression, t: Expression): List[Expression] = {
+  def PPlusRUpdate(v: Var, arg: Expression): Predicate = {
     // create mapping from variable to fresh variable
-    val toSubst: Subst = Map(v -> Var.fresh(v.name, v.size))
+    val fresh = Var.fresh(v.name, v.size)
+    val toSubst: Subst = Map(v -> fresh)
 
     // substitute variable in P for fresh variable
-    val PReplace = P map (p => p.subst(toSubst))
+    val PReplace = P.subst(toSubst)
 
     // substitute variable in expression for fresh variable
     val argReplace = arg.subst(toSubst)
 
     // add new assignment statement to P
-    val PPrime = BinOp("==", v, argReplace) :: PReplace
+    val PPrime = PReplace.add(BinOp("==", v, argReplace)).addExists(Set(fresh))
 
     // calculate new_var
     val varE = arg.variables
@@ -275,6 +394,7 @@ case class State(
     }.flatten
     val new_var: Set[Var] = Set(v) ++ varE ++ varLY
 
+
     // calculate weaker
     val toSubstC: Subst = Map(v -> arg) // for c[e/x]
 
@@ -283,7 +403,7 @@ case class State(
       // check !(P && c ==> c[e/x])
       var yAdded = false
       for ((c, r) <- R_var(y) if !yAdded && c != Const._true) {
-        if (!SMT.proveImplies(c :: PPrime, c.subst(toSubstC), debug)) {
+        if (!SMT.proveImplies(PPrime.add(c), c.subst(toSubstC), debug)) {
           weaker +=y
           yAdded = true
         }
@@ -305,10 +425,15 @@ case class State(
 
     val domM = new_var ++ weaker -- equals
 
+    var exists: Set[Var] = Set() // set of newly created variables to bind
     // map all of domM to fresh temporary variables - probably change to different fresh allocator
     val m: Subst = {
       for (v <- domM)
-        yield v -> v.fresh
+        yield {
+          val newFresh = v.fresh
+          exists += newFresh
+          v -> newFresh
+        }
     }.toMap
 
     val mPlusMPrime: Subst = m ++ {
@@ -316,7 +441,7 @@ case class State(
         yield v.prime -> v
     }.toMap
 
-    val PPlus = PPrime map {p: Expression => p.subst(m)}
+    val PPlus = PPrime.subst(m).addExists(exists)
 
     if (debug) {
       println("dom R_var: " + R_var.keySet)
@@ -327,16 +452,17 @@ case class State(
         yield if (c == Const._true) {
           r.subst(mPlusMPrime)
         } else {
-          BinOp("==>", c, r.subst(mPlusMPrime))
+          BinOp("==>", ForAll(indirect map (i => i.toVar), c), r.subst(mPlusMPrime))
         }
     }
     }.flatten.toList
 
     if (debug) {
-      println("P +: " + PPlus.PStr)
-      println("+ R: " + RPlus.PStr)
+      println("P +: " + PPlus)
+      println("+ R: " + RPlus)
     }
-    PPlus ++ RPlus
+
+    PPlus.add(RPlus)
   }
 
   /*
@@ -791,14 +917,14 @@ case class State(
    */
 
   // gamma mapping
-  def security(x: Var): Expression = {
+  def security(x: Var): Predicate = {
     if (debug)
       println("checking Gamma<> of " + x)
-    var gammaOut: Expression = Const._true
+    var gammaOut: Predicate = Predicate(List(Const._true))
     if (gamma.contains(x)) {
       gammaOut = gamma(x)
     } else if (globals.contains(x)) {
-      gammaOut = L(x)
+      gammaOut = Predicate(List(L(x)))
     }
     if (debug)
       println("Gamma<" + x + "> is " + gammaOut)
@@ -806,16 +932,27 @@ case class State(
   }
 
   // e is expression to get security of, returns predicate t
-  def security(e: Expression): Expression = {
+  def security(e: Expression): Predicate = {
     if (debug)
       println("checking classification of " + e)
     val varE = e.variables
 
-    val tList: List[Expression] = {for (x <- varE)
-      yield security(x)
-    }.toList
+    val t = e match {
+      case l: Lit =>
+        Predicate(List(Const._true), Set(), Set())
 
-    val t = State.andPredicates(tList)
+      case _ =>
+        val tList: List[Predicate] = {for (x <- varE)
+          yield security(x)
+        }.toList
+
+        val preds = tList flatMap {p => p.predicates}
+        val exists: Set[Var] = (tList flatMap {p => p.exists}).toSet
+        val forall: Set[Var] = (tList flatMap {p => p.forall}).toSet
+
+        Predicate(preds, exists, forall)
+    }
+
     if (debug)
       println(e + " classification is " + t)
     t
@@ -825,20 +962,20 @@ case class State(
     val state1 = this
 
     // gamma'(x) = gamma_1(x) && gamma_2(x)
-    val gammaPrime: Map[Var, Expression] = {
+    val gammaPrime: Map[Var, Predicate] = {
       for (v <- state1.gamma.keySet & state2.gamma.keySet)
-        yield v -> BinOp("&&", state1.gamma(v), state2.gamma(v))
+        yield v -> Predicate(state1.gamma(v).predicates ++ state2.gamma(v).predicates, state1.gamma(v).exists ++ state2.gamma(v).exists, state1.gamma(v).forall ++ state2.gamma(v).forall)
     }.toMap ++ {
       for (v <- state1.gamma.keySet -- state2.gamma.keySet)
-        yield v -> BinOp("&&", state1.gamma(v), L(v))
+        yield v -> Predicate(L(v) :: state1.gamma(v).predicates, state1.gamma(v).exists, state1.gamma(v).forall)
     } ++ {
       for (v <- state2.gamma.keySet -- state1.gamma.keySet)
-        yield v -> BinOp("&&", state2.gamma(v), L(v))
+        yield v -> Predicate(L(v) :: state2.gamma(v).predicates, state2.gamma(v).exists, state2.gamma(v).forall)
     }
     val DPrime = this.mergeD(state2)
 
     // P1 OR P2 converted to CNF
-    val PPrime = State.mergeP(state1.P, state2.P)
+    val PPrime = state1.P.merge(state2.P)
 
     copy(gamma = gammaPrime, P = PPrime, D = DPrime)
   }
@@ -854,34 +991,38 @@ case class State(
     /*
   def mergePs(ps: List[List[Expression]]): List[Expression] = {
     if (ps.size == 2) {
-      mergeP(ps.head, ps(1))
+      ps.head.merge(ps(1))
     } else if (ps.size == 1) {
       ps.head
     } else if (ps.isEmpty) {
-      List()
+      Predicate(List(Const._true))
     } else {
       // common is intersection of all lists
       // slightly inefficient but will do for now?
-      var common = ps.head
+      var common = ps.head.predicates
       for (p <- ps) {
-        common = common.intersect(p)
+        common = common.intersect(p.predicates)
       }
       val switch = MultiSwitch.fresh
 
+      var forallOut: Set[Var] = Set()
+      var existsOut: Set[Var] = Set()
       val it = ps.indices.toIterator
       val out: List[Expression] = {
         for (p <- ps) yield {
+          forallOut = forallOut ++ p.forall
+          existsOut = existsOut ++ p.exists
           val i = it.next
-          for (e <- p if !common.contains(e)) yield {
+          for (e <- p.predicates if !common.contains(e)) yield {
             BinOp("||", PreOp("!", BinOp("==", switch, Lit(i))), e)
           }
         }
       }.flatten
 
-      BinOp(">=", switch, Lit(0)) :: BinOp("<", switch, Lit(ps.size)) :: common ++ out
+      Predicate(BinOp(">=", switch, Lit(0)) :: BinOp("<", switch, Lit(ps.size)) :: common ++ out, existsOut, forallOut)
     }
   }
-     */
+ */
 
 /* old mergePs implementation that decreases readability of P for merging multiple states (for array assignments)
    but is slightly smaller in size
@@ -893,20 +1034,20 @@ case class State(
   }
 */
 
-  def PStable(P: List[Expression]): Boolean = {
-    val PPrime = P map {e: Expression => e.subst(primed) }
+  def PStable(P: Predicate): Boolean = {
+    val PPrime = P.subst(primed)
     if (debug) {
-      println("checking " + P.PStr + " is stable")
+      println("checking " + P + " is stable")
     }
     SMT.proveImplies(P ++ R, PPrime, debug)
   }
 
   // for all x in dom gamma,
   //  P && R ==> Gamma(x) == Gamma'(x)
-  def gammaStable(gamma: Map[Var, Expression], P: List[Expression]): Boolean = {
+  def gammaStable(gamma: Map[Var, Predicate], P: Predicate): Boolean = {
     val gammaEqualsGammaPrime: List[Expression] = {
       for (g <- globals if gamma.contains(g))
-        yield BinOp("==", gamma(g), gamma(g).subst(primed))
+        yield BinOp("==", gamma(g).toAnd, gamma(g).subst(primed).toAnd)
     }.toList
     if (debug) {
       println("checking Gamma: " + gamma.gammaStr + " is stable")
@@ -914,9 +1055,9 @@ case class State(
     SMT.proveImplies(P ++ R, gammaEqualsGammaPrime, debug)
   }
 
-  def low_or_eq(P: List[Expression]): Set[Var] = {
-    val PAnd = State.andPredicates(P)
-    val PPlusRAnd = State.andPredicates(P ++ R)
+  def low_or_eq(P: Predicate): Set[Var] = {
+    val PAnd = P.toAnd
+    val PPlusRAnd = (P ++ R).toAnd
     val lowOrEqTest = for (g <- globals)
       yield g -> BinOp("||", BinOp("==>", PAnd, L_R(g)), BinOp("==>", PPlusRAnd, BinOp("==", g, g.prime)))
 
@@ -926,13 +1067,13 @@ case class State(
     locals ++ globalLowOrEq
   }
 
-  def restrictP(restricted: Set[Var]): List[Expression] = {
-    State.restrictP(P ::: P_inv, restricted)
+  def restrictP(restricted: Set[Var]): Predicate = {
+    val PAndPInv = P ::: P_inv
+    PAndPInv.bindExists(variables -- restricted)
   }
 
-  def restrictPInd(vars: Set[Var]): List[Expression] = {
-    val toRestrict = variables -- (vars -- knownI)
-    State.restrictP(P, toRestrict)
+  def restrictPInd(vars: Set[Var]): Predicate = {
+    P.bindExists(vars -- knownI)
   }
 
   def DSubsetOf(state1: State): Boolean = {
@@ -950,7 +1091,7 @@ case class State(
   // update u and i
   def calculateIndirectUsed: State = {
     // all fresh variables in P
-    val PVar: Set[Var] = {for (p <- P) yield p.variables}.flatten.toSet
+    val PVar: Set[Var] = {for (p <- P.predicates) yield p.variables}.flatten.toSet
     val known_W = knownW
     val known_R = knownR
     val indirectPrime = variables -- (PVar -- (known_W & known_R))
@@ -1051,6 +1192,8 @@ object State {
     }.toMap
 
     // initialise R & G
+    val P_inv = Predicate(P_invIn map {i => i.subst(toSubst)})
+
     var R_var: Map[Var, List[(Expression, Expression)]] = Map()
     for (g <- globalDefs) {
       g.rvar match {
@@ -1073,7 +1216,7 @@ object State {
           }
       }
     }.flatten.toList
-    val P_invAnd = State.andPredicates(P_inv)
+    val P_invAnd = P_inv.toAnd
 
     val R_loc: List[Expression] = {
       for (l <- locals) yield
@@ -1081,7 +1224,7 @@ object State {
     }.toList
 
     // R == P_inv ==> primed(P_inv) && R_var
-    val R = BinOp("==>", P_invAnd, P_invAnd.subst(primed)) :: R_var_pred ++ R_loc
+    val R = Predicate(BinOp("==>", P_invAnd, P_invAnd.subst(primed)) :: R_var_pred ++ R_loc)
 
     var G_var: Map[Var, List[(Expression, Expression)]] = Map()
     for (g <- globalDefs) {
@@ -1103,21 +1246,21 @@ object State {
       }
     }.flatten.toList
 
-    val G = BinOp("==>", P_invAnd, P_invAnd.subst(primed)) :: G_var_pred
+    val G = Predicate(BinOp("==>", P_invAnd, P_invAnd.subst(primed)) :: G_var_pred)
 
-    //val G = guarantee map {i => i.subst(idToVar)}
+    //val G = Predicate(guarantee map {i => i.subst(idToVar)})
 
     // initialise P - true by default
-    val P: List[Expression] = P_0 match {
+    val P: Predicate = P_0 match {
       case None =>
-        List(Const._true)
+        Predicate(List(Const._true))
 
       case Some(p) =>
-        p map {p => p.subst(toSubst)}
+        Predicate(p map {i => i.subst(toSubst)})
     }
 
     // check P_0 is stable
-    val PPrime = P map {e: Expression => e.subst(primed)}
+    val PPrime = P.subst(primed)
     if (!SMT.proveImplies(P ++ R, PPrime, debug)) {
       throw error.InvalidProgram("P_0 is not stable")
     }
@@ -1149,8 +1292,8 @@ object State {
 
 
 
-    val PAnd = andPredicates(P)
-    val PPlusRAnd = andPredicates(P ++ R)
+    val PAnd = P.toAnd
+    val PPlusRAnd = (P ++ R).toAnd
     val lowOrEqTest = for (g <- globals)
       yield g -> BinOp("||", BinOp("==>", PAnd, L_R(g)), BinOp("==>", PPlusRAnd, BinOp("==", g, g.prime)))
 
@@ -1159,13 +1302,13 @@ object State {
     val low_or_eq: Set[Var] = locals ++ globalLowOrEq
 
     // init Gamma
-    val gamma: Map[Var, Expression] = gamma_0 match {
+    val gamma: Map[Var, Predicate] = gamma_0 match {
       // all locals low by default
-      case None => (locals map {l => l -> Const._false}).toMap
+      case None => (locals map {l => l -> Predicate(List(Const._false))}).toMap
       // user provided
       case Some(gs) => {
         //gs flatMap {g => g.toPair(arrays)}
-        gs map {g => labels(g.label) -> g.security.subst(toSubst)}
+        gs map {g => labels(g.label) -> Predicate(List(g.security.subst(toSubst))}
       }.toMap
     }
 
@@ -1175,7 +1318,7 @@ object State {
         + "), as domain is not " + low_or_eq.mkString(", "))
 
     val gammaEqualsGammaPrime: List[Expression] = {for (g <- globals if gamma.contains(g))
-      yield BinOp("==", gamma(g), gamma(g).subst(primed))
+      yield BinOp("==", gamma(g).toAnd, gamma(g).subst(primed).toAnd)
     }.toList
     if (!SMT.proveImplies(P ++ R, gammaEqualsGammaPrime, debug)) {
       throw error.InvalidProgram("Gamma is not stable")
@@ -1192,7 +1335,7 @@ object State {
     }
     if (toLog) {
       println("Gamma: " + gamma.gammaStr)
-      println("P: " + P.PStr)
+      println("P: " + P)
       println("D: " + D.DStr)
     }
 
@@ -1260,11 +1403,6 @@ object State {
     }
   }
 
-  // calculate P|_known_W(a) etc. with known_W(a) being the input set in that example
-  def restrictP(P: List[Expression], restricted: Set[Var]): List[Expression] = {
-    P map (p => p.restrict(restricted))
-  }
-
   def mergeD(D1: DType,
              D2: DType): DType = {
     for (v <- D1.keySet) yield {
@@ -1279,23 +1417,4 @@ object State {
     }
     }.toMap
 
-  // https://www.cs.jhu.edu/~jason/tutorials/convert-to-CNF.html
-  // P1 OR P2 converted to CNF, using switching variable to keep converted formula small
-  def mergeP(P1: List[Expression], P2: List[Expression]): List[Expression] = {
-    if (P1.isEmpty) {
-      return P2
-    }
-    if (P2.isEmpty) {
-      return P1
-    }
-    val common = P1.intersect(P2) // common elements don't need switching variable
-    val switch = Switch.fresh
-    val p1List: List[Expression] = for (p1 <- P1 if !common.contains(p1)) yield {
-      BinOp("||", PreOp("!", switch), p1)
-    }
-    val p2List: List[Expression] = for (p2 <- P2 if !common.contains(p2)) yield {
-      BinOp("||", switch, p2)
-    }
-    common ++ p1List ++ p2List
-  }
 }
