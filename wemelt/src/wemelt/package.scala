@@ -20,6 +20,12 @@ package object wemelt {
     case class AssignGError(line: Int, lhs: Var, rhs: Expression, message: String)  extends Exception {
       override def toString: String = "line " + line + ": ASSIGNG rule not valid for " + lhs + " = " + rhs + " as " + message
     }
+    case class StoreLError(line: Int, index: Expression, rhs: Expression, message: String)  extends Exception {
+      override def toString: String = "line " + line + ": STOREL rule not valid for mem[" + index + "] = " + rhs + " as " + message
+    }
+    case class StoreGError(line: Int, index: Expression, rhs: Expression, message: String)  extends Exception {
+      override def toString: String = "line " + line + ": STOREG rule not valid for mem[" + index + "] = " + rhs + " as " + message
+    }
     /*
     case class CASError(line: Int, lhs: Var, x: Var, r1: Expression, r2: Expression, message: String)  extends Exception {
       override def toString = "line " + line + ": CAS rule not valid for " + lhs + " = " + "CAS(" + x + ", " + r1 + ", " + r2 + ") as " + message

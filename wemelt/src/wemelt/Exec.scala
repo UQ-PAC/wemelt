@@ -780,7 +780,7 @@ object Exec {
       println("STOREG applying")
     val (_rhs, st1) = eval(rhs, st0) // computes rd
     val (_index, st2) = eval(index, st1)
-    val st3: State = st2.updateWritten() // every possible index that could be written to
+    val st3: State = st2.updateWrittenStore // every possible index that could be written to
     val st4 = st3.calculateIndirectUsed
     val PRestrictUIndices = st4.restrictP(st4.used)
 
@@ -797,7 +797,7 @@ object Exec {
           yield i
     }
 
-    val st5: State = st2.updateWritten() // only possible indices
+    val st5: State = st2.updateWrittenStore(possibleIndices) // only possible indices
     val st6 = st5.calculateIndirectUsed
     val PRestrictU = st6.restrictP(st6.used)
 
