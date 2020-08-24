@@ -142,6 +142,7 @@ expr
     | BV64.n                             {: return new Var(n, 64);  :}
     | BV1.n                             {: return new Var(n, 1);  :}
     | ID.n                              {: return new Id(n);  :}
+    | GOT ID.n                              {: return new GOTAccess(new Id(n));  :}
     | MEM LBRACK expr.i COMMA ENDIAN RBRACK COLON NAT      {: return new Access(n, i); :}
     | NUM.n                             {: return new Lit(n); :}
     | PLUS  expr.a @ PREFIX             {: return new PreOp("+", a);    :}
@@ -175,7 +176,6 @@ expr
     | SIGNED COLON NUM.n LBRACK expr.e RBRACK {: return new ExtSigned(n, e); :}
     | UNSIGNED COLON NUM.n LBRACK expr.e RBRACK {: return new ExtUnsigned(n, e); :}
     | IF expr.e1 THEN expr.e2 ELSE expr.e3 {: return new Question(e1, e2, e3); :}
-    |
     ;
 
 rgexpr = ID.n                              {: return new Id(n);  :}

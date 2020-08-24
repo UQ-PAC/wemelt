@@ -143,7 +143,6 @@ WS = {NL} | [ \t\f]
     "N" {return newToken(Terminals.BV1, "N");}
     "V" {return newToken(Terminals.BV1, "V");}
     ":got:" {return newToken(Terminals.GOT);}
-    ":got_lo12:" {return newToken(Terminals.GOTLO12);}
     "size" {return newToken(Terminals.SIZE);}
 
     x(30|[12][0-9]|[0-9]) {return newToken(Terminals.REG64, yytext());}

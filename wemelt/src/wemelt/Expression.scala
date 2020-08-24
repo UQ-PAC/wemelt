@@ -290,3 +290,9 @@ case class ExtUnsigned(n: Int, e: Expression) extends Expression {
   override def variables: Set[Var] = e.variables
   override def bound: Set[Var] = e.bound
 }
+
+case class GOTAccess(id: Id) extends Expression {
+  override def subst(su: Subst): GOTAccess = this
+  override def variables: Set[Var] = Set()
+  override def bound: Set[Var] = Set()
+}
