@@ -2,6 +2,7 @@ BIL stuff:
 -rules for stores, figure out how they work for where lhs is referenced in assign versions
 -handling gamma, D for memory accesses
 -updates for memory stores
+-handle memory reads in assignL and assignG rules
 
 to check for memory accesses:
 -index is low

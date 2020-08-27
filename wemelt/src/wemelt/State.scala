@@ -147,6 +147,7 @@ case class State(
   memSize: Int,
   memory: Map[Id, Int],
   globalOffsetTable: Map[Id, Int],
+  indexToGlobal: Map[Int, Var],
   //arrayIndices: Set[Var],
   //arrays: Map[Var, VarArray],
 
@@ -1127,9 +1128,11 @@ object State {
       Var("Z", 1), Var("N", 1), Var("C", 1), Var("V", 1))
     val definedLocals: Map[Id, Var] = {localDefs map {l => Id(l.variable.name) -> l.variable}}.toMap
     var memory: Map[Id, Int] = Map()
+    var indexToGlobal: Map[Int, Var] = Map()
     var lastIndex = 0
     for (g <- globals) {
       memory += (Id(g.name) -> lastIndex)
+      indexToGlobal += (lastIndex -> g)
       if (g.size == 32) {
         lastIndex += 4
       } else if (g.size == 64) {
@@ -1400,7 +1403,8 @@ object State {
       noInfeasible = noInfeasible,
       memSize = memSize,
       memory = memory,
-      globalOffsetTable = globalOffsetTable
+      globalOffsetTable = globalOffsetTable,
+      indexToGlobal = indexToGlobal
     )
   }
 
