@@ -334,7 +334,7 @@ object SMT {
       ctx.mkZeroExt(arg1, bitwise(arg2))
 
       // array index
-    //case VarAccess(name, index) => ctx.mkSelect(ctx.mkArrayConst(name.toString, ctx.getIntSort, ctx.getIntSort), translate(index))
+    case Access(index) => ctx.mkSelect(ctx.mkArrayConst("mem", ctx.getIntSort, ctx.getIntSort), translate(index))
 
     case _ =>
       throw error.InvalidProgram("cannot translate to SMT", prop)

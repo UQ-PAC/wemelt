@@ -1,9 +1,44 @@
+_global var z:
+size: 32
+_L: TRUE
+_R_var: (TRUE, z' >= z)
+_G_var: (TRUE, z' == z)
+
+_global var x:
+size: 32
+_L_R: z % 2 == 0
+_L_G: TRUE
+
+_local var Temp1:
+size: 32
+
+_local var Temp2:
+size: 32
+
+_local var Result:
+size: 32
+
+mem[0]: z
+mem[4]: x
+mem[8]: :got:z = 0
+mem[16]: :got:x: = 4
+mem[24]:
+
+_P_inv: TRUE
+_P_0: r1 % 2 == 0, sp == 40
+memory_size: 40
+
+
             sp := sp - 16
             mem := mem with [sp, el]:u32 <- wzr
             mem := mem with [sp + 4, el]:u32 <- wzr
-            
+
 do {
+_invariant: z >= z'
+_Gamma: z -> TRUE
 do {
+_invariant: z >= z'
+_Gamma: z -> TRUE
             x0 := z - low:12[z]
             x0 := x0 + low:12[z]
             w0 := mem[x0, el]:u32

@@ -79,10 +79,10 @@
 
 %goal unit;
 
-unit = defs.v P_INV COLON exprs.r statements.s {: return new Parsed(v, r, s); :}
-     | defs.v P_INV COLON exprs.r GAMMA_0 COLON gamma_mappings.f statements.s {: return new Parsed(v, r,f, s); :}
-     | defs.v P_INV COLON exprs.r P_0 COLON exprs.p statements.s {: return new Parsed(v, r, p, s); :}
-     | defs.v P_INV COLON exprs.r P_0 COLON exprs.p GAMMA_0 COLON gamma_mappings.f statements.s {: return new Parsed(v, r, p, f, s); :};
+unit = defs.v P_INV COLON exprs.r MEMSIZE COLON NUM.n statements.s {: return new Parsed(v, r, s, n); :}
+     | defs.v P_INV COLON exprs.r GAMMA_0 COLON gamma_mappings.f MEMSIZE COLON NUM.n statements.s {: return new Parsed(v, r, f, s, n); :}
+     | defs.v P_INV COLON exprs.r P_0 COLON exprs.p MEMSIZE COLON NUM.n statements.s {: return new Parsed(v, r, p, s, n); :}
+     | defs.v P_INV COLON exprs.r P_0 COLON exprs.p GAMMA_0 COLON gamma_mappings.f statements.s MEMSIZE COLON NUM.n {: return new Parsed(v, r, p, f, s, n); :};
 
 exprs = expr | exprs COMMA expr;
 rgexprs = rgexpr | rgexprs COMMA rgexpr;

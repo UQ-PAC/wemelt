@@ -107,6 +107,10 @@ case class Predicate(predicates: List[Expression], exists: Set[Var] = Set(), for
     }
     Predicate(common ++ p1List ++ p2List, exists ++ P2.exists, forall ++ P2.forall)
   }
+
+  def isConstTrue: Boolean = {
+    if (predicates == List(Const._true)) true else false
+  }
 }
 
 case class State(
@@ -139,6 +143,10 @@ case class State(
   written: Set[Var],
   indirect: Set[Var],
   used: Set[Var],
+
+  memSize: Int,
+  memory: Map[Id, Int],
+  globalOffsetTable: Map[Id, Int],
   //arrayIndices: Set[Var],
   //arrays: Map[Var, VarArray],
 
@@ -1104,7 +1112,7 @@ case class State(
 
 object State {
   def init(definitions: Set[Definition], P_0: Option[List[Expression]], gamma_0: Option[List[GammaMapping]],
-           P_invIn: List[Expression], toLog: Boolean, debug: Boolean, noInfeasible: Boolean): State = {
+           P_invIn: List[Expression], memSize: Int, toLog: Boolean, debug: Boolean, noInfeasible: Boolean): State = {
     val globalDefs: Set[GlobalVarDef] = definitions collect {case g: GlobalVarDef => g}
     val localDefs: Set[LocalVarDef] = definitions collect {case l: LocalVarDef => l}
     val globals: Set[Var] = globalDefs map {g => g.variable}
@@ -1118,6 +1126,24 @@ object State {
     }}.toSet ++ Set(Var("sp", 64),Var("wsp", 32), Var("wzr", 32), Var("xzr", 64),
       Var("Z", 1), Var("N", 1), Var("C", 1), Var("V", 1))
     val definedLocals: Map[Id, Var] = {localDefs map {l => Id(l.variable.name) -> l.variable}}.toMap
+    var memory: Map[Id, Int] = Map()
+    var lastIndex = 0
+    for (g <- globals) {
+      memory += (Id(g.name) -> lastIndex)
+      if (g.size == 32) {
+        lastIndex += 4
+      } else if (g.size == 64) {
+        lastIndex += 8
+      } else {
+        throw error.InvalidProgram("global variable " + g.name + " has invalid size " + g.size)
+      }
+    }
+
+    var globalOffsetTable: Map[Id, Int] = Map()
+    for (g <- globals) {
+      globalOffsetTable += (Id(g.name) -> lastIndex)
+      lastIndex += 8
+    }
 
     var controls: Set[Var] = Set()
     var controlled: Set[Var] = Set()
@@ -1191,8 +1217,14 @@ object State {
         yield v -> v.prime
     }.toMap
 
+    val initMem: List[Expression] = {for ((v, i) <- memory) yield {
+      BinOp("==", Access(Lit(i)), labels(v))
+    }}.toList ++ {for ((v, i) <- globalOffsetTable) yield {
+      BinOp("==", Access(Lit(i)), Lit(memory(v)))
+    }}.toList
+
     // initialise R & G
-    val P_inv = Predicate(P_invIn map {i => i.subst(toSubst)})
+    val P_inv = Predicate(P_invIn map {i => i.subst(toSubst)}).add(initMem)
 
     var R_var: Map[Var, List[(Expression, Expression)]] = Map()
     for (g <- globalDefs) {
@@ -1365,7 +1397,10 @@ object State {
       //arrays = arrays,
       toLog = toLog,
       debug = debug,
-      noInfeasible = noInfeasible
+      noInfeasible = noInfeasible,
+      memSize = memSize,
+      memory = memory,
+      globalOffsetTable = globalOffsetTable
     )
   }
 

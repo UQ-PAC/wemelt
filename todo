@@ -1,14 +1,9 @@
-BIL stuff
--rules for stores
--initialising memory layout
--handling global offset table stuff
--what order to calculate read/written sets and possible indices for memory writes?
--handle memory reads
+BIL stuff:
+-rules for stores, figure out how they work for where lhs is referenced in assign versions
+-handling gamma, D for memory accesses
+-updates for memory stores
 
-don't restrict locals
-do a pass for address calculation then second pass for assign rule
-
-to check
+to check for memory accesses:
 -index is low
 -index in bounds
 -rules hold for all possible indices

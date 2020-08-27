@@ -144,6 +144,7 @@ WS = {NL} | [ \t\f]
     "V" {return newToken(Terminals.BV1, "V");}
     ":got:" {return newToken(Terminals.GOT);}
     "size" {return newToken(Terminals.SIZE);}
+    "memory_size" {return newToken(Terminals.MEMSIZE);}
 
     x(30|[12][0-9]|[0-9]) {return newToken(Terminals.REG64, yytext());}
     w(30|[12][0-9]|[0-9]) {return newToken(Terminals.REG32, yytext());}

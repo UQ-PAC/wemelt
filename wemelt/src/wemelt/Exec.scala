@@ -357,8 +357,23 @@ object Exec {
       val st1 = st0.updateRead(v)
       (v, st1)
 
+    // look up id
     case i: Id =>
-      (i, st0)
+      // id is global
+      if (st0.memory.contains(i)) {
+        (Lit(st0.memory(i)), st0)
+      // id is local
+      } else if (st0.definedLocals.contains(i)) {
+        val v = st0.definedLocals(i)
+        val st1 = st0.updateRead(v)
+        (v, st1)
+      } else {
+        throw error.InvalidProgram("symbol " + i + " not defined")
+      }
+
+    // get pointer from global offset table
+    case g: GOTAccess =>
+      (Lit(st0.globalOffsetTable(g.id)), st0)
 
     case res: Lit =>
       (res, st0)
@@ -481,7 +496,7 @@ object Exec {
     // check guard is LOW
     val guardGamma = state2.security(_guard)
     val PRestrictU = state2.restrictP(state2.used)
-    if (guardGamma.predicates != List(Const._true) && !SMT.proveImplies(PRestrictU, guardGamma, state2.debug)) {
+    if (!guardGamma.isConstTrue && !SMT.proveImplies(PRestrictU, guardGamma, state2.debug)) {
       throw error.IfError(line, guard, "guard expression is HIGH")
     }
 
@@ -646,7 +661,7 @@ object Exec {
     if (state0.debug) {
       println("checking guard is LOW")
     }
-    if (guardGamma.predicates != List(Const._true) && !SMT.proveImplies(PRestrictU, guardGamma, state3.debug)) {
+    if (!guardGamma.isConstTrue && !SMT.proveImplies(PRestrictU, guardGamma, state3.debug)) {
       throw error.WhileError(line, guard, "guard expression is HIGH")
     }
 
@@ -727,7 +742,12 @@ object Exec {
       println("STOREL applying")
     val (_rhs, st1) = eval(rhs, st0) // computes rd
     val (_index, st2) = eval(index, st1)
-    val st3: State = st2.updateWritten() // every possible index that could be written to
+    val st3: State = _index match {
+      case Lit(value) =>
+        st2.updateWrittenAccess(value)
+      case _ =>
+        st2.updateWrittenStore
+    }
     val st4 = st3.calculateIndirectUsed
     val PRestrictUIndices = st4.restrictP(st4.used)
 
@@ -739,19 +759,18 @@ object Exec {
     }
 
     // check index is in bounds
-    if (!SMT.prove(BinOp("&&", BinOp(">=", _index, Lit(0)), BinOp("<", _index, Lit(st4.memSize))), PRestrictUIndices, st3.debug))
-      throw error.storeLError(line, index, rhs, "memory access not provably in bounds")
+    if (!SMT.prove(BinOp("&&", BinOp(">=", _index, Lit(0)), BinOp("<=", _index, Lit(st4.memSize))), PRestrictUIndices, st3.debug))
+      throw error.StoreLError(line, index, rhs, "memory access not provably in bounds")
 
     val possibleIndices: Seq[Int] = _index match {
       case Lit(value) =>
         Seq(value)
       case _ =>
-        // instead check only for global variables / global offset table ???
-        for (i <- 0 to st4.memSize if SMT.proveSat(BinOp("==", _index, Lit(i)), PRestrictUIndices, st4.debug))
+        for (i <- 0 to st4.memSize by 4 if SMT.proveSat(BinOp("==", _index, Lit(i)), PRestrictUIndices, st4.debug))
           yield i
     }
 
-    val st5: State = st2.updateWritten() // only possible indices
+    val st5: State = st2.updateWrittenAccess(possibleIndices) // only possible indices
     val st6 = st5.calculateIndirectUsed
     val PRestrictU = st6.restrictP(st6.used)
 
@@ -765,12 +784,12 @@ object Exec {
       println("checking L_G(x) && P /restrict u ==> index_t holds")
     }
     // do this for every possible index
-    if (index_t != Const._true && !SMT.proveImplies(st3.L_G(lhs) :: PRestrictU, t, st3.debug)) {
-      throw error.storeGError(line, index, rhs, "L_G(" + lhs + ") && P ==> " + lhs + " doesn't hold for memory store")
+    if (index_t != Const._true && !SMT.proveImplies(st3.L_G(lhs) :: PRestrictU, index_t, st3.debug)) {
+      throw error.StoreLError(line, index, rhs, "L_G(" + lhs + ") && P ==> " + lhs + " doesn't hold for memory store")
     }
 
-    val (st5, m) = st4.storeUpdateP(possibleIndices, _rhs)
-    val st6 = st5.storeUpdateGamma(possibleIndices, t, m)
+    val (st5, m, exists) = st4.storeUpdateP(possibleIndices, _rhs)
+    val st6 = st5.storeUpdateGamma(possibleIndices, t, m, exists)
     st6.updateDStore(possibleIndices, _rhs)
 
   }
@@ -780,20 +799,24 @@ object Exec {
       println("STOREG applying")
     val (_rhs, st1) = eval(rhs, st0) // computes rd
     val (_index, st2) = eval(index, st1)
-    val st3: State = st2.updateWrittenStore // every possible index that could be written to
+    val st3: State = _index match {
+      case Lit(value) =>
+        st2.updateWrittenAccess(value)
+      case _ =>
+        st2.updateWrittenStore
+    }
     val st4 = st3.calculateIndirectUsed
     val PRestrictUIndices = st4.restrictP(st4.used)
 
     // check index is in bounds
-    if (!SMT.prove(BinOp("&&", BinOp(">=", _index, Lit(0)), BinOp("<", _index, Lit(st4.memSize))), PRestrictUIndices, st3.debug))
-      throw error.storeLError(line, index, rhs, "memory access not provably in bounds")
+    if (!SMT.prove(BinOp("&&", BinOp(">=", _index, Lit(0)), BinOp("<=", _index, Lit(st4.memSize))), PRestrictUIndices, st6.debug))
+      throw error.StoreGError(line, index, rhs, "memory access not provably in bounds")
 
     val possibleIndices: Seq[Int] = _index match {
       case Lit(value) =>
         Seq(value)
       case _ =>
-        // instead check only for global variables / global offset table ???
-        for (i <- 0 to st4.memSize if SMT.proveSat(BinOp("==", _index, Lit(i)), PRestrictUIndices, st4.debug))
+        for (i <- 0 to st4.memSize by 4 if SMT.proveSat(BinOp("==", _index, Lit(i)), PRestrictUIndices, st4.debug))
           yield i
     }
 
@@ -808,44 +831,44 @@ object Exec {
 
     // check index is low
     // check index_t <:_P L_G(x)
-    // L_G(x) && P ==> index_t
-    if (st3.debug) {
-      println("checking L_G(x) && P /restrict u ==> index_t holds")
+    // L_G(mem[index]) && P ==> index_t
+    if (st6.debug) {
+      println("checking L_G(mem[index]) && P /restrict u ==> index_t holds")
     }
     // do this for every possible index
-    if (index_t != Const._true && !SMT.proveImplies(st3.L_G(lhs) :: PRestrictU, t, st3.debug)) {
-      throw error.storeGError(line, index, rhs, "L_G(" + lhs + ") && P ==> " + lhs + " doesn't hold for memory store")
+    if (index_t != Const._true && !SMT.proveImplies(st6.L_G(lhs) :: PRestrictU, index_t, st6.debug)) {
+      throw error.StoreGError(line, index, rhs, "L_G(" + lhs + ") && P ==> " + lhs + " doesn't hold for memory store")
     }
 
     // check guar P(x := e)
-    val guarUnchanged: List[Expression] = {for (g <- st3.globals - lhs)
+    val guarUnchanged: List[Expression] = {for (g <- st6.globals - lhs)
       yield BinOp("==", g, g.prime)}.toList
-    val guarP: Predicate = st1.P.add(BinOp("==", lhs.prime, _rhs) :: guarUnchanged) ++ PRestrictU
+    val guarP: Predicate = st6.P.add(BinOp("==", lhs.prime, _rhs) :: guarUnchanged) ++ PRestrictU
 
-    if (st3.debug) {
+    if (st6.debug) {
       println("checking assignment conforms to guarantee")
     }
-    if (!SMT.proveImplies(guarP, st3.G, st3.debug)) {
-      throw error.AssignGError(line, lhs, rhs, "assignment doesn't conform to guarantee " + st3.G)
+    if (!SMT.proveImplies(guarP, st6.G, st6.debug)) {
+      throw error.AssignGError(line, lhs, rhs, "assignment doesn't conform to guarantee " + st6.G)
     }
 
     // check t <:_P L_G(x)
     // L_G(x) && P ==> t
-    if (st3.debug) {
+    if (st6.debug) {
       println("checking L_G(x) && P /restrict u ==> t holds")
     }
-    if (t.predicates != List(Const._true) && !SMT.proveImplies(PRestrictU.add(st3.L_G(lhs)), t, st3.debug)) {
+    if (!t.isConstTrue && !SMT.proveImplies(PRestrictU.add(st6.L_G(lhs)), t, st6.debug)) {
       throw error.AssignGError(line, lhs, rhs, "L_G(" + lhs + ") && P ==> " + t + " doesn't hold for assignment")
     }
 
-    val PRestrictUState = st3.copy(P = PRestrictU)
+    val PRestrictUState = st6.copy(P = PRestrictU)
     val PPlusR = PRestrictUState.PPlusRUpdate(lhs, _rhs)
-    val knownU = st3.knownU
-    val knownW = st3.knownW
-    val knownR = st3.knownR
+    val knownU = st6.knownU
+    val knownW = st6.knownW
+    val knownR = st6.knownR
 
     val toSubstC: Subst = Map(lhs -> _rhs)  // to get c[e/x]
-    if (st3.debug) {
+    if (st6.debug) {
       println("checking weaker")
     }
     /*
@@ -861,18 +884,18 @@ object Exec {
      */
 
     var weaker: Set[Var] = Set()
-    for (y <- st3.R_var.keySet) {
+    for (y <- st6.R_var.keySet) {
       // check !(P && c ==> c[e/x])
       var yAdded = false
-      for ((c, _) <- st3.R_var(y) if !yAdded && c != Const._true) {
-        if (!SMT.proveImplies(PRestrictU.add(c), c.subst(toSubstC), st3.debug)) {
+      for ((c, _) <- st6.R_var(y) if !yAdded && c != Const._true) {
+        if (!SMT.proveImplies(PRestrictU.add(c), c.subst(toSubstC), st6.debug)) {
           weaker +=y
           yAdded = true
         }
       }
     }
 
-    if (st3.debug) {
+    if (st6.debug) {
       println("weaker: " + weaker)
       println("knownU " + knownU)
     }
@@ -881,22 +904,22 @@ object Exec {
       throw error.AssignGError(line, lhs, rhs, "weaker set: " + weaker + " is not subset of knownU: " + knownU)
     }
 
-    if (st3.debug) {
+    if (st6.debug) {
       println("checking falling")
     }
-    val falling: Set[Var] = for (x <- st3.globals if (st3.written & st3.L(x).variables).nonEmpty &&
-      !SMT.proveImplies(PRestrictU, st3.L_G(x), st3.debug) &&
-      !SMT.proveImplies(PPlusR, PreOp("!", st3.L_G(x)), st3.debug))
+    val falling: Set[Var] = for (x <- st6.globals if (st6.written & st6.L(x).variables).nonEmpty &&
+      !SMT.proveImplies(PRestrictU, st6.L_G(x), st6.debug) &&
+      !SMT.proveImplies(PPlusR, PreOp("!", st6.L_G(x)), st6.debug))
       yield x
 
-    if (st3.debug) {
+    if (st6.debug) {
       println("falling: " + falling)
     }
 
-    val fallingCompare: Set[Var] = for (y <- knownW & st3.gamma.keySet if SMT.proveImplies(PRestrictU, st3.gamma(y), st3.debug))
+    val fallingCompare: Set[Var] = for (y <- knownW & st6.gamma.keySet if SMT.proveImplies(PRestrictU, st6.gamma(y), st6.debug))
       yield y
 
-    if (st3.debug) {
+    if (st6.debug) {
       println("fallingCompare: " + fallingCompare)
     }
 
@@ -904,15 +927,15 @@ object Exec {
       throw error.AssignGError(line, lhs, rhs, "falling set: " + falling + " is not subset of: " + fallingCompare)
     }
 
-    if (st3.debug) {
+    if (st6.debug) {
       println("checking rising")
     }
-    val rising: Set[Var] = for (x <- st3.globals if (st3.written & st3.L(x).variables).nonEmpty &&
-      !SMT.proveImplies(PRestrictU, PreOp("!", st3.L(x)), st3.debug) &&
-      !SMT.proveImplies(PPlusR, st3.L(x), st3.debug))
+    val rising: Set[Var] = for (x <- st6.globals if (st6.written & st6.L(x).variables).nonEmpty &&
+      !SMT.proveImplies(PRestrictU, PreOp("!", st6.L(x)), st6.debug) &&
+      !SMT.proveImplies(PPlusR, st6.L(x), st6.debug))
       yield x
 
-    if (st3.debug) {
+    if (st6.debug) {
       println("rising: " + rising)
       println("knownR " + knownR)
     }
@@ -921,26 +944,26 @@ object Exec {
       throw error.AssignGError(line, lhs, rhs, "rising set: " + rising + " is not subset of knownR: " + knownR)
     }
 
-    if (st3.debug) {
+    if (st6.debug) {
       println("checking shrink")
     }
     var shrink: Set[Var] = Set()
-    for (x <- st3.globals) {
-      val cIdentities: List[Expression] = if (st3.R_var.contains(x)) {
-        for ((c, r) <- st3.R_var(x) if r == BinOp("==", x, x.prime) || r == BinOp("==", x.prime, x))
+    for (x <- st6.globals) {
+      val cIdentities: List[Expression] = if (st6.R_var.contains(x)) {
+        for ((c, r) <- st6.R_var(x) if r == BinOp("==", x, x.prime) || r == BinOp("==", x.prime, x))
           yield c
       } else {
         List()
       }
-      val low_or_eq_exp = State.orPredicates(st3.L_R(x) :: cIdentities)
-      if ((st3.written & low_or_eq_exp.variables).nonEmpty &&
-        !SMT.proveImplies(PRestrictU, PreOp("!", low_or_eq_exp), st3.debug) &&
-        !SMT.proveImplies(PPlusR, low_or_eq_exp, st3.debug)) {
+      val low_or_eq_exp = State.orPredicates(st6.L_R(x) :: cIdentities)
+      if ((st6.written & low_or_eq_exp.variables).nonEmpty &&
+        !SMT.proveImplies(PRestrictU, PreOp("!", low_or_eq_exp), st6.debug) &&
+        !SMT.proveImplies(PPlusR, low_or_eq_exp, st6.debug)) {
         shrink += x
       }
     }
 
-    if (st3.debug) {
+    if (st6.debug) {
       println("shrink: " + shrink)
       println("knownR " + knownR)
     }
@@ -949,24 +972,24 @@ object Exec {
       throw error.AssignGError(line, lhs, rhs, "shrink set: " + shrink + " is not subset of knownR: " + knownR)
     }
 
-    if (st3.debug) {
+    if (st6.debug) {
       println("checking stronger")
     }
     var stronger: Set[Var] = Set()
-    for (x <- st3.G_var.keySet) {
+    for (x <- st6.G_var.keySet) {
       // check !(P ==> c) && !(P + R ==> !c)
       var xAdded = false
-      for ((c, _) <- st3.G_var(x)) {
-        if (!xAdded && (st3.written & c.variables).nonEmpty &&
-          !SMT.proveImplies(PRestrictU, c, st3.debug) &&
-          !SMT.proveImplies(PPlusR, PreOp("!", c), st3.debug)) {
+      for ((c, _) <- st6.G_var(x)) {
+        if (!xAdded && (st6.written & c.variables).nonEmpty &&
+          !SMT.proveImplies(PRestrictU, c, st6.debug) &&
+          !SMT.proveImplies(PPlusR, PreOp("!", c), st6.debug)) {
           stronger += x
           xAdded = true
         }
       }
     }
 
-    if (st3.debug) {
+    if (st6.debug) {
       println("stronger: " + stronger)
       println("knownW " + knownW)
     }
@@ -975,13 +998,9 @@ object Exec {
       throw error.AssignGError(line, lhs, rhs, "stronger set: " + stronger + " is not subset of knownW: " + knownW)
     }
 
-    val (st4, m, exists) = st3.assignUpdateP(lhs, _rhs)
-    val st5 = st4.assignUpdateGamma(lhs, t, m, exists)
-    st5.updateDAssign(lhs, _rhs)
-
-    val (st5, m) = st4.storeUpdateP(possibleIndices, _rhs)
-    val st6 = st5.storeUpdateGamma(possibleIndices, t, m)
-    st6.updateDStore(possibleIndices, _rhs)
+    val (st7, m, exists) = st6.storeUpdateP(possibleIndices, _rhs)
+    val st8 = st7.storeUpdateGamma(possibleIndices, t, m, exists)
+    st8.updateDStore(possibleIndices, _rhs)
 
 
 
@@ -996,6 +1015,13 @@ object Exec {
     val st2 = st1.updateWritten(lhs)
     val st3 = st2.calculateIndirectUsed
     val t = st3.security(_rhs)
+
+    // check all array indices on rhs are low
+    for (i <- _rhs.arrays) {
+      if (st3.security(i.index, PRestrict) == High) {
+        throw error.ArrayCError(line, a, index, rhs, "array index " + i.index + " is high")
+      }
+    }
 
     val (st4, m, exists) = st3.assignUpdateP(lhs, _rhs)
     val st5 = st4.assignUpdateGamma(lhs, t, m, exists)
@@ -1014,10 +1040,17 @@ object Exec {
 
     val PRestrictU = st3.restrictP(st3.used)
 
+    // check all array indices on rhs are low
+    for (i <- _rhs.arrays) {
+      val access_t = st3.accessSecurity(i.index)
+      if (!access_t.isConstTrue && !SMT.proveImplies(PRestrictU.add(st3.L_G(lhs), access_t, st3.debug)))
+        throw error.AssignGError(line, lhs, rhs, "memory access index " + i.index + " is high")
+    }
+
     // check guar P(x := e)
     val guarUnchanged: List[Expression] = {for (g <- st3.globals - lhs)
       yield BinOp("==", g, g.prime)}.toList
-    val guarP: Predicate = st1.P.add(BinOp("==", lhs.prime, _rhs) :: guarUnchanged) ++ PRestrictU
+    val guarP: Predicate = st3.P.add(BinOp("==", lhs.prime, _rhs) :: guarUnchanged) ++ PRestrictU
 
     if (st3.debug) {
       println("checking assignment conforms to guarantee")
@@ -1025,13 +1058,12 @@ object Exec {
     if (!SMT.proveImplies(guarP, st3.G, st3.debug)) {
       throw error.AssignGError(line, lhs, rhs, "assignment doesn't conform to guarantee " + st3.G)
     }
-
     // check t <:_P L_G(x)
     // L_G(x) && P ==> t
     if (st3.debug) {
       println("checking L_G(x) && P /restrict u ==> t holds")
     }
-    if (t.predicates != List(Const._true) && !SMT.proveImplies(PRestrictU.add(st3.L_G(lhs)), t, st3.debug)) {
+    if (!t.isConstTrue && !SMT.proveImplies(PRestrictU.add(st3.L_G(lhs)), t, st3.debug)) {
       throw error.AssignGError(line, lhs, rhs, "L_G(" + lhs + ") && P ==> " + t + " doesn't hold for assignment")
     }
 
