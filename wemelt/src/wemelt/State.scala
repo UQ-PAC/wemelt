@@ -1109,6 +1109,14 @@ case class State(
     copy(indirect = indirectPrime, used = usedPrime)
   }
 
+  def getMemoryVar(index: Int, size: Int): Var = {
+    if (indexToGlobal.contains(index)) {
+      indexToGlobal(index)
+    } else {
+      Var("mem[" + index + "]", size)
+    }
+  }
+
 }
 
 object State {
