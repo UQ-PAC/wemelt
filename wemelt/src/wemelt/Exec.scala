@@ -742,7 +742,7 @@ object Exec {
     val PRestrictUIndices = st4.restrictP(st4.used)
 
     // check index is in bounds
-    if (!SMT.prove(BinOp("&&", BinOp(">=", _index, Lit(0)), BinOp("<=", _index, Lit(st4.memSize))), PRestrictUIndices, st6.debug))
+    if (!SMT.prove(BinOp("&&", BinOp(">=", _index, Lit(0)), BinOp("<=", _index, Lit(st4.memSize))), PRestrictUIndices, st4.debug))
       throw error.StoreError(line, index, rhs, "memory access not provably in bounds")
 
     val possibleIndices: Seq[Int] = _index match {

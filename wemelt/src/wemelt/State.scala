@@ -940,11 +940,36 @@ case class State(
     gammaOut
   }
 
+  def accessSecurity(a: Access): Predicate = {
+    a.index match {
+      case Lit(n) =>
+        security(getMemoryVar(n))
+      case _ =>
+        // if index possibly out of bounds, return False (high security)
+        if (!SMT.prove(BinOp("&&", BinOp(">=", a.index, Lit(0)), BinOp("<=", a.index, Lit(memSize))), PRestrictUIndices, debug)) {
+          Predicate(List(Const._false), Set(), Set())
+        }
+        // calculate possible indices
+        val possibleIndices: Seq[Int] = a.index match {
+          case Lit(value) =>
+            Seq(value)
+          case _ =>
+            for (i <- 0 to memSize by 4 if SMT.proveSat(BinOp("==", a.index, Lit(i)), PRestrictUIndices, debug))
+              yield i
+        }
+
+        for (i <- possibleIndices) yield {
+          security(getMemoryVar(i))
+        }
+    }
+  }
+
   // e is expression to get security of, returns predicate t
   def security(e: Expression): Predicate = {
     if (debug)
       println("checking classification of " + e)
     val varE = e.variables
+    val accesses = e.arrays
 
     val t = e match {
       case l: Lit =>
@@ -953,6 +978,8 @@ case class State(
       case _ =>
         val tList: List[Predicate] = {for (x <- varE)
           yield security(x)
+        }.toList ++ {for (a <- accesses)
+          yield accessSecurity(a)
         }.toList
 
         val preds = tList flatMap {p => p.predicates}
