@@ -76,6 +76,7 @@
 //%typeof lpredindex = "Expression";
 
 %typeof cast = "Cast"
+%typeof nat = "Nat"
 
 %goal unit;
 
@@ -127,7 +128,7 @@ statement1
     | BV64.n ASG    expr.b                             {: return new Assignment(n, 64, b);  :}
     | BV1.n  ASG    expr.b                            {: return new Assignment(n, 1, b);  :}
     | ID.n ASG    expr.b                            {: return new Assignment(n, b);  :}
-    | MEM ASG MEM WITH LBRACK expr.e2 COMMA ENDIAN RBRACK COLON NAT LARROW expr.e3 {: return new Store(e2, e2); :}
+    | MEM ASG MEM WITH LBRACK expr.e2 COMMA ENDIAN RBRACK COLON  nat.n LARROW expr.e3 {: return new Store(e2, e3, n); :}
     | SPECIAL LPAREN FENCE ISH RPAREN                 {: return Fence.self();  :}
     | IF LPAREN expr.a RPAREN statement.b   {: return new If(a, b);  :}
     | IF LPAREN expr.a RPAREN statement.b ELSE statement.c     {: return new If(a, b, c);   :}
@@ -143,7 +144,7 @@ expr
     | BV1.n                             {: return new Var(n, 1);  :}
     | ID.n                              {: return new Id(n);  :}
     | GOT ID.n                              {: return new GOTAccess(new Id(n));  :}
-    | MEM LBRACK expr.i COMMA ENDIAN RBRACK COLON NAT      {: return new Access(n, i); :}
+    | MEM LBRACK expr.i COMMA ENDIAN RBRACK COLON nat.n      {: return new Access(i, n); :}
     | NUM.n                             {: return new Lit(n); :}
     | PLUS  expr.a @ PREFIX             {: return new PreOp("+", a);    :}
     | MINUS expr.a @ PREFIX             {: return new PreOp("-", a);    :}
@@ -233,4 +234,8 @@ gamma_mapping
 
 endian = EL | BE;
 
-nat = U32 | U64 | S32 | S64;
+nat = U32 {: return U32.self(); :}
+    | U64 {: return U64.self(); :}
+    | S32 {: return S32.self(); :}
+    | S64 {: return S64.self(); :}
+    ;

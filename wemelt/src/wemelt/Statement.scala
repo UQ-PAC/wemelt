@@ -22,7 +22,13 @@ case class Assignment(lhs: Var, expression: Expression) extends Statement {
   override def toString: String = lhs + " = " + expression
 }
 
-case class Store(index: Expression, rhs: Expression) extends Statement {
+case class Store(index: Expression, rhs: Expression, size: Int) extends Statement {
+  def this(index: Expression, rhs: Expression, size: Nat) = this(index, rhs, size match {
+    case U32 => 32
+    case U64 => 64
+    case S32 => 32
+    case S64 => 64
+  })
   override def toString: String = "mem[" + index + "] = " + rhs
 }
 

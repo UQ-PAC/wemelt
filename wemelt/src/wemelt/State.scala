@@ -940,32 +940,39 @@ case class State(
     gammaOut
   }
 
-  def accessSecurity(a: Access): Predicate = {
+  def accessSecurity(a: Access, P: Predicate): Predicate = {
     a.index match {
       case Lit(n) =>
-        security(getMemoryVar(n))
+        security(getMemoryVar(n, a.size))
       case _ =>
         // if index possibly out of bounds, return False (high security)
-        if (!SMT.prove(BinOp("&&", BinOp(">=", a.index, Lit(0)), BinOp("<=", a.index, Lit(memSize))), PRestrictUIndices, debug)) {
+        if (!SMT.prove(BinOp("&&", BinOp(">=", a.index, Lit(0)), BinOp("<=", a.index, Lit(memSize))), P, debug)) {
           Predicate(List(Const._false), Set(), Set())
-        }
-        // calculate possible indices
-        val possibleIndices: Seq[Int] = a.index match {
-          case Lit(value) =>
-            Seq(value)
-          case _ =>
-            for (i <- 0 to memSize by 4 if SMT.proveSat(BinOp("==", a.index, Lit(i)), PRestrictUIndices, debug))
-              yield i
-        }
+        } else {
+          // calculate possible indices
+          val possibleIndices: Seq[Int] = a.index match {
+            case Lit(value) =>
+              Seq(value)
+            case _ =>
+              for (i <- 0 to memSize by 4 if SMT.proveSat(BinOp("==", a.index, Lit(i)), P, debug))
+                yield i
+          }
 
-        for (i <- possibleIndices) yield {
-          security(getMemoryVar(i))
+          val securities = for (i <- possibleIndices) yield {
+            val indexSecurity = security(getMemoryVar(i, a.size))
+            val predicate = BinOp("==>", BinOp("==", a.index, Lit(i)), State.andPredicates(indexSecurity.predicates))
+            Predicate(List(predicate), indexSecurity.exists, indexSecurity.forall)
+          }
+          val preds = (securities flatMap {p => p.predicates}).toList
+          val exists: Set[Var] = (securities flatMap {p => p.exists}).toSet
+          val forall: Set[Var] = (securities flatMap {p => p.forall}).toSet
+          Predicate(preds, exists, forall)
         }
     }
   }
 
   // e is expression to get security of, returns predicate t
-  def security(e: Expression): Predicate = {
+  def security(e: Expression, P: Predicate): Predicate = {
     if (debug)
       println("checking classification of " + e)
     val varE = e.variables
@@ -979,7 +986,7 @@ case class State(
         val tList: List[Predicate] = {for (x <- varE)
           yield security(x)
         }.toList ++ {for (a <- accesses)
-          yield accessSecurity(a)
+          yield accessSecurity(a, P)
         }.toList
 
         val preds = tList flatMap {p => p.predicates}
@@ -1153,14 +1160,6 @@ object State {
     val localDefs: Set[LocalVarDef] = definitions collect {case l: LocalVarDef => l}
     val globals: Set[Var] = globalDefs map {g => g.variable}
     val labels: Map[Id, Var] = (globals map {g => (Id(g.name), g)}).toMap
-    val locals: Set[Var] = (localDefs map {l => l.variable}) ++ {{
-      for (i <- 0 to 30)
-        yield Var("w" + i, 32)
-    } ++ {
-      for (i <- 0 to 30)
-        yield Var("x" + i, 64)
-    }}.toSet ++ Set(Var("sp", 64),Var("wsp", 32), Var("wzr", 32), Var("xzr", 64),
-      Var("Z", 1), Var("N", 1), Var("C", 1), Var("V", 1))
     val definedLocals: Map[Id, Var] = {localDefs map {l => Id(l.variable.name) -> l.variable}}.toMap
     var memory: Map[Id, Int] = Map()
     var indexToGlobal: Map[Int, Var] = Map()
@@ -1182,6 +1181,21 @@ object State {
       globalOffsetTable += (Id(g.name) -> lastIndex)
       lastIndex += 8
     }
+
+    val locals: Set[Var] = (localDefs map {l => l.variable}) ++ {{
+      for (i <- 0 to 30)
+        yield Var("w" + i, 32)
+    } ++ {
+      for (i <- 0 to 30)
+        yield Var("x" + i, 64)
+    } ++ {
+      for (i <- lastIndex to memSize by 4)
+        yield Var("mem[" + i + "]", 32)
+    } ++ {
+      for (i <- lastIndex to memSize by 4)
+        yield Var("mem[" + i + "]", 64)
+    }}.toSet ++ Set(Var("sp", 64),Var("wsp", 32), Var("wzr", 32), Var("xzr", 64),
+      Var("Z", 1), Var("N", 1), Var("C", 1), Var("V", 1))
 
     var controls: Set[Var] = Set()
     var controlled: Set[Var] = Set()
@@ -1256,9 +1270,9 @@ object State {
     }.toMap
 
     val initMem: List[Expression] = {for ((v, i) <- memory) yield {
-      BinOp("==", Access(Lit(i)), labels(v))
+      BinOp("==", Access(Lit(i), labels(v).size), labels(v))
     }}.toList ++ {for ((v, i) <- globalOffsetTable) yield {
-      BinOp("==", Access(Lit(i)), Lit(memory(v)))
+      BinOp("==", Access(Lit(i), 64), Lit(memory(v)))
     }}.toList
 
     // initialise R & G

@@ -44,10 +44,10 @@ object Exec {
       Cont.next(state1)
 
 
-    case Store(index, rhs) =>
+    case Store(index, rhs, size) =>
       if (state0.toLog)
         println("line " + statement.line + " " + statement.toString + ":")
-      val state1 = storeRule(index, rhs, state0, statement.line)
+      val state1 = storeRule(index, rhs, size, state0, statement.line)
       state1.log
       Cont.next(state1)
 
@@ -489,15 +489,15 @@ object Exec {
     val state2 = state1.calculateIndirectUsed
 
     // check guard is LOW
-    val guardGamma = state2.security(_guard)
     val PRestrictU = state2.restrictP(state2.used)
+    val guardGamma = state2.security(_guard, PRestrictU)
     if (!guardGamma.isConstTrue && !SMT.proveImplies(PRestrictU, guardGamma, state2.debug)) {
       throw error.IfError(line, guard, "guard expression is HIGH")
     }
 
     // check all memory access indices in guard are low
     for (i <- _guard.arrays) {
-      val access_t = state2.security(i.index)
+      val access_t = state2.security(i.index, PRestrictU)
       if (!access_t.isConstTrue && !SMT.proveImplies(PRestrictU, access_t, state2.debug))
         throw error.IfError(line, guard, "array index " + i.index + " is HIGH")
     }
@@ -640,8 +640,8 @@ object Exec {
     val state3 = state2.calculateIndirectUsed
 
     // check guard is LOW with regards to P', gamma'
-    val guardGamma = state3.security(_guard)
     val PRestrictU = state3.restrictP(state3.used)
+    val guardGamma = state3.security(_guard, PRestrictU)
     if (state0.debug) {
       println("checking guard is LOW")
     }
@@ -651,7 +651,7 @@ object Exec {
 
     // check all memory access indices in guard are low
     for (i <- _guard.arrays) {
-      val access_t = state3.security(i.index)
+      val access_t = state3.security(i.index, PRestrictU)
       if (!access_t.isConstTrue && !SMT.proveImplies(PRestrictU, access_t, state3.debug))
         throw error.WhileError(line, guard, "array index " + i.index + " is HIGH")
     }
@@ -727,7 +727,7 @@ object Exec {
     state9.updateDGuard(notGuard)
   }
 
-  def storeRule(index: Expression, rhs: Expression, st0: State, line: Int): State = {
+  def storeRule(index: Expression, rhs: Expression, size: Int, st0: State, line: Int): State = {
     if (st0.toLog)
       println("STORE applying")
     val (_rhs, st1) = eval(rhs, st0) // computes rd
@@ -758,8 +758,8 @@ object Exec {
     val PRestrictU = st6.restrictP(st6.used)
 
     // rest of assignG goes here
-    val t = st6.security(_rhs)
-    val index_t = st6.security(_index)
+    val t = st6.security(_rhs, PRestrictU)
+    val index_t = st6.security(_index, PRestrictU)
 
     // need to get all possible indices that correspond to global variables
     val possibleGlobals = for (i <- possibleIndices.toSet & st6.indexToGlobal.keySet)
@@ -933,9 +933,9 @@ object Exec {
       }
     }
 
-    val (st7, m, exists) = st6.storeUpdateP(possibleIndices, _rhs)
-    val st8 = st7.storeUpdateGamma(possibleIndices, t, m, exists)
-    st8.updateDStore(possibleIndices, _rhs)
+    val (st7, m, exists) = st6.storeUpdateP(possibleIndices, size, _rhs)
+    val st8 = st7.storeUpdateGamma(possibleIndices, size, t, m, exists)
+    st8.updateDStore(possibleIndices, size, _rhs)
   }
 
   def assignLRule(lhs: Var, rhs: Expression, st0: State, line: Int): State = {
@@ -946,13 +946,13 @@ object Exec {
     val (_rhs, st1) = eval(rhs, st0)
     val st2 = st1.updateWritten(lhs)
     val st3 = st2.calculateIndirectUsed
-    val t = st3.security(_rhs)
 
     val PRestrictU = st3.restrictP(st3.used)
+    val t = st3.security(_rhs, PRestrictU)
 
     // check all memory access indices on rhs are low
     for (i <- _rhs.arrays) {
-      val access_t = st3.security(i.index)
+      val access_t = st3.security(i.index, PRestrictU)
       if (!access_t.isConstTrue && !SMT.proveImplies(PRestrictU.add(st3.L_G(lhs)), access_t, st3.debug))
         throw error.AssignGError(line, lhs, rhs, "memory access index " + i.index + " is high")
     }
@@ -970,13 +970,13 @@ object Exec {
     val (_rhs, st1) = eval(rhs, st0)
     val st2 = st1.updateWritten(lhs)
     val st3 = st2.calculateIndirectUsed
-    val t = st3.security(_rhs)
 
     val PRestrictU = st3.restrictP(st3.used)
+    val t = st3.security(_rhs, PRestrictU)
 
     // check all memory access indices on rhs are low
     for (i <- _rhs.arrays) {
-      val access_t = st3.security(i.index)
+      val access_t = st3.security(i.index, PRestrictU)
       if (!access_t.isConstTrue && !SMT.proveImplies(PRestrictU.add(st3.L_G(lhs)), access_t, st3.debug))
         throw error.AssignGError(line, lhs, rhs, "memory access index " + i.index + " is high")
     }

@@ -41,6 +41,22 @@ case class GlobalVarDef(variable: Var, lpredr: Expression, lpredg: Expression, r
   def this(name: String, size: Int, gvar: Array[Relation], lpredr: Expression, lpredg: Expression) = this(Var(name, size, None), lpredr, lpredg, None, Some(gvar.toList))
 }
 
+sealed trait Nat extends beaver.Symbol
+
+case object U32 extends Nat {
+  def self = this
+}
+case object U64 extends Nat {
+  def self = this
+}
+case object S32 extends Nat {
+  def self = this
+}
+case object S64 extends Nat {
+  def self = this
+}
+
+
 /*
 case class ArrayDef(name: Var, size: Int, preds: IndexedSeq[Expression], mode: Mode) extends Definition {
   def this(name: String, size: Int, lpred: Expression, mode: Mode) = this(name, size, ArrayDef.predArray(size, lpred), mode)

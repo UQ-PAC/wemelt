@@ -26,10 +26,16 @@ case class Lit(arg: Int) extends Expression {
 object CFence extends Var("cfence", 0)
 
 // memory access parsed from input
-case class Access(index: Expression) extends Expression {
+case class Access(index: Expression, size: Int) extends Expression {
+  def this(index: Expression, size: Nat) = this(index, size match {
+    case U32 => 32
+    case U64 => 64
+    case S32 => 32
+    case S64 => 64
+  })
   def variables: Set[Var] = index.variables
   def bound: Set[Var] = index.bound
-  def subst(su: Subst): Expression = Access(index.subst(su))
+  def subst(su: Subst): Expression = Access(index.subst(su), size)
   override def toString: String = "mem[" + index + "]"
   override def arrays = Set(this)
 }
