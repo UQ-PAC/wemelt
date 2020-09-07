@@ -1,11 +1,12 @@
 BIL stuff:
 -updates for memory stores
+-use if then else to handle branches even in if statements
+-handle substituting m for accesses
 
 to check for memory accesses:
 -index is low
 -index in bounds
 -rules hold for all possible indices
--for gamma update, use if then else to handle branches?
 
 -make P_inv optional in parsing
 -remove unnecessary SMT calls in R-var part of P + R ?? - check this ??

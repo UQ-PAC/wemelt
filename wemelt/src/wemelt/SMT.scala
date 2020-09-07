@@ -271,7 +271,7 @@ object SMT {
    and bitwise arithmetic operations for better simulation of the assembly semantics if this ends up being important
   https://z3prover.github.io/api/html/classcom_1_1microsoft_1_1z3_1_1_context.html */
   def translate(prop: Expression): z3.Expr = prop match {
-    case x: Var => ctx.mkBVConst(x.name, x.size)
+    case x: Var => ctx.mkBVConst(x.toString, x.size)
 
     case Const._true => ctx.mkTrue
     case Const._false => ctx.mkFalse
@@ -311,7 +311,7 @@ object SMT {
     case BinOp(">>>", arg1, arg2) => ctx.mkBVASHR(bitwise(arg1), bitwise(arg2))
     case BinOp("<<", arg1, arg2) => ctx.mkBVSHL(bitwise(arg1), bitwise(arg2))
 
-    case Question(test, arg1, arg2) => ctx.mkITE(formula(test), translate(arg1), translate(arg2))
+    case IfThenElse(test, arg1, arg2) => ctx.mkITE(formula(test), translate(arg1), translate(arg2))
 
     case ForAll(bound, body) =>
       ctx.mkForall(bound.toArray map translate, translate(body), 0, scala.Array(), null, null, null)
@@ -334,7 +334,7 @@ object SMT {
       ctx.mkZeroExt(arg1, bitwise(arg2))
 
       // array index
-    case Access(index) => ctx.mkSelect(ctx.mkArrayConst("mem", ctx.getIntSort, ctx.getIntSort), translate(index))
+    case Access(index, size, freshIndex) => ctx.mkSelect(ctx.mkArrayConst("mem" __ freshIndex, ctx.mkBitVecSort(64), ctx.mkBitVecSort(size)), translate(index))
 
     case _ =>
       throw error.InvalidProgram("cannot translate to SMT", prop)

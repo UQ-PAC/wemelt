@@ -26,18 +26,31 @@ case class Lit(arg: Int) extends Expression {
 object CFence extends Var("cfence", 0)
 
 // memory access parsed from input
-case class Access(index: Expression, size: Int) extends Expression {
+case class Access(index: Expression, size: Int, freshIndex: Option[Int] = None) extends Expression {
+  def this (index: Expression, size: Int) = this(index, size, None)
   def this(index: Expression, size: Nat) = this(index, size match {
     case U32 => 32
     case U64 => 64
     case S32 => 32
     case S64 => 64
-  })
+  }, None)
   def variables: Set[Var] = index.variables
   def bound: Set[Var] = index.bound
-  def subst(su: Subst): Expression = Access(index.subst(su), size)
-  override def toString: String = "mem[" + index + "]"
+  def subst(su: Subst): Expression = if (su.keySet.contains(this)) {
+    su.getOrElse(this, this)
+  } else {
+    Access(index.subst(su), size)
+  }
+  override def toString: String = ("mem" __ freshIndex) + "[" + index + "]"
   override def arrays = Set(this)
+}
+
+object Access {
+  var freshIndex = 0
+  def fresh(index: Expression, size: Int): Access = {
+    freshIndex += 1
+    Access(index, size, Some(freshIndex))
+  }
 }
 
 case class Id(id: String) extends Var(id, 0, None) {
@@ -180,11 +193,11 @@ case class BinOp(op: String, arg1: Expression, arg2: Expression) extends Express
   override def arrays: Set[Access] = arg1.arrays ++ arg2.arrays
 }
 
-case class Question(test: Expression, left: Expression, right: Expression) extends Expression {
-  override def toString: String = "(" + test + " ? " + left + " : " + right + ")"
+case class IfThenElse(test: Expression, left: Expression, right: Expression) extends Expression {
+  override def toString: String = "if " + test + " then " + left + " else " + right + ""
   override def variables: Set[Var] = test.variables ++ left.variables ++ right.variables
   override def bound: Set[Var] = test.bound ++ left.bound ++ right.bound
-  def subst(su: Subst): Question = Question(test.subst(su), left.subst(su), right.subst(su))
+  def subst(su: Subst): IfThenElse = IfThenElse(test.subst(su), left.subst(su), right.subst(su))
   //def subst(su: Subst, num: Int) = Question(test.subst(su, num), left.subst(su, num), right.subst(su, num))
   override def arrays: Set[Access] = test.arrays ++ left.arrays ++ right.arrays
 }

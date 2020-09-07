@@ -933,9 +933,7 @@ object Exec {
       }
     }
 
-    val (st7, m, exists) = st6.storeUpdateP(possibleIndices, size, _rhs)
-    val st8 = st7.storeUpdateGamma(possibleIndices, size, t, m, exists)
-    st8.updateDStore(possibleIndices, size, _rhs)
+    st6.storeUpdate(Access(index, size), _rhs, possibleIndices, t)
   }
 
   def assignLRule(lhs: Var, rhs: Expression, st0: State, line: Int): State = {
