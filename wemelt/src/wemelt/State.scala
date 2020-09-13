@@ -498,8 +498,16 @@ case class State(
     val freshIndex = fresh.freshIndex
     // create mapping from variable to fresh variable
     val accesses: Set[Access] = arg.arrays - access
-    val accessesSubst: Subst = {for (a <- accesses) yield
-      (a -> IfThenElse(BinOp("==", access.index, a.index), Access(a.index, a.size, freshIndex), a))
+    val accessesSubst: Subst = {for (a <- accesses) yield {
+      a.index match {
+        case Lit(n) if n != index =>
+          a -> a
+        case Lit(n) if n == index =>
+          a -> fresh
+        case _ =>
+          a -> IfThenElse(BinOp("==", access.index, a.index), Access(a.index, a.size, freshIndex), a)
+      }
+    }
     }.toMap
     val toSubst: Subst = accessesSubst ++ Map(access -> fresh)
 
@@ -512,7 +520,6 @@ case class State(
 
     // add new assignment statement to P
     val PPrime = PReplace.add(BinOp("==", access, argReplace)).addExists(Set(fresh))
-
 
     val v = getMemoryVar(index, access.size)
     // calculate new_var
@@ -556,7 +563,7 @@ case class State(
     val domM = new_var ++ weaker -- equals
 
     var exists: Set[Var] = Set() // set of newly created variables to bind
-    // map all of domM to fresh temporary variables - probably change to different fresh allocator
+    // map all of domM to fresh temporary variables
     val m: Subst = {
       for (v <- domM)
         yield {
@@ -640,21 +647,40 @@ case class State(
     copy(gamma = gammaPlusR)
   }
 
+
+  // redo this so instead of just keeping one common and branching
+  // have like if index == 1 then (1 specific predicates) else (the non-1 version of those predicates)
+  // if index == 2 then (
+  // and so on?
   def mergeStates(access: Access, indices: Seq[Int], states: Seq[State]): State = {
-    val PPrime: Predicate = {
-      for (i <- indices) {
-        IfThenElse(BinOp("==", access.index, Lit(i)), arg, a)
-      }
-
-
-      Predicate(preds, exists, forall)
+    var common: List[Expression] = states.head.P.predicates
+    for (s <- states) {
+      common = common.intersect(s.P.predicates)
     }
-    val gammaPrime =
+    val predicates: List[List[Expression]] = {
+      for (s <- states) yield
+        for (p <- s.P.predicates if !common.contains(p)) yield p
+    }.toList
+
+    val preds = List(mergePs(access.index, predicates, indices)) ::: common
+    val exists = (states flatMap {s => s.P.exists}).toSet
+    val forall = (states flatMap {s => s.P.forall}).toSet
+    val PPrime: Predicate = Predicate(preds, exists, forall)
+
+
+    val gammaPrime: Map[Var, Predicate] =
+      //
     copy(P = PPrime, gamma = gammaPrime)
   }
 
-  def mergePs(accessIndex: Expression, p1: List[Expression], p2: List[Expression], index: Int): Predicate = {
-    IfThenElse(BinOp("==", accessIndex, Lit(index)), State.andPredicates(p1), State.andPredicates(p2))
+  def mergePs(accessIndex: Expression, predicates: List[List[Expression]], indices: Seq[Int]): Expression = {
+    if (indices.isEmpty) {
+      Const._true
+    } else if (indices.length == 1) {
+      IfThenElse(BinOp("==", accessIndex, Lit(indices.head)), State.andPredicates(predicates.head), Const._false)
+    } else {
+      IfThenElse(BinOp("==", accessIndex, Lit(indices.head)), State.andPredicates(predicates.head), mergePs(accessIndex, predicates.drop(1), indices.drop(1)))
+    }
   }
 
   /*

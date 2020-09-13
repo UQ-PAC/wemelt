@@ -1,7 +1,8 @@
 BIL stuff:
--updates for memory stores
--use if then else to handle branches even in if statements
--handle substituting m for accesses
+-merging gamma for ambiguous stores
+-use if then else to handle branches even in if statements - do later?
+-handle substituting m for accesses - do we actually need to? do locals actually matter for m/new_var?
+-new pplusr
 
 to check for memory accesses:
 -index is low

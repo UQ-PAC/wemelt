@@ -807,7 +807,7 @@ object Exec {
       }
 
       val PRestrictUState = st6.copy(P = PRestrictU)
-      fix this line val PPlusR = PRestrictUState.PPlusRUpdate(v, _rhs) // fix this needs to be a new method?
+      val PPlusR = PRestrictUState.PPlusRStoreUpdate(Access(index, size), _rhs, possibleIndices) // fix this needs to be a new method?
       val knownU = st6.knownU
       val knownW = st6.knownW
       val knownR = st6.knownR

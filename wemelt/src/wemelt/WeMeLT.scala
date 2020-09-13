@@ -31,13 +31,14 @@ object WeMeLT {
             val P_0 = res.P_0
             val gamma_0 = res.gamma_0
             val P_inv = res.P_inv
+            val memSize = res.memSize
             if (debug) {
               println(statements)
               println(variables)
               println(P_0)
               println(gamma_0)
             }
-            val state0: State = State.init(variables, P_0, gamma_0, P_inv, toLog, debug, noInfeasible)
+            val state0: State = State.init(variables, P_0, gamma_0, P_inv, memSize, toLog, debug, noInfeasible)
             Var.index = 0
             Switch.index = 0
             Exec.execute(statements, state0)

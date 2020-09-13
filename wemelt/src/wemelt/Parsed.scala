@@ -1,11 +1,11 @@
 package wemelt
 
 // highest level parsed data structure
-case class Parsed(variables: Set[Definition], P_inv: List[Expression], P_0: Option[List[Expression]], gamma_0: Option[List[GammaMapping]], statements: List[Statement]) extends beaver.Symbol {
-  def this(variables: Array[Definition], P_inv: Array[Expression],  P_0: Array[Expression], gamma_0: Array[GammaMapping], statements: Array[Statement]) = this(variables.toSet, P_inv.toList,  Some(P_0.toList), Some(gamma_0.toList), statements.toList)
-  def this(variables: Array[Definition], P_inv: Array[Expression],  P_0: Array[Expression], statements: Array[Statement]) = this(variables.toSet, P_inv.toList, Some(P_0.toList), None, statements.toList)
-  def this(variables: Array[Definition], P_inv: Array[Expression],  gamma_0: Array[GammaMapping], statements: Array[Statement]) = this(variables.toSet, P_inv.toList, None, Some(gamma_0.toList), statements.toList)
-  def this(variables: Array[Definition], P_inv: Array[Expression],  statements: Array[Statement]) = this(variables.toSet, P_inv.toList, None, None, statements.toList)
+case class Parsed(variables: Set[Definition], P_inv: List[Expression], P_0: Option[List[Expression]], gamma_0: Option[List[GammaMapping]], statements: List[Statement], memSize: Int) extends beaver.Symbol {
+  def this(variables: Array[Definition], P_inv: Array[Expression],  P_0: Array[Expression], gamma_0: Array[GammaMapping], statements: Array[Statement], memSize: Int) = this(variables.toSet, P_inv.toList,  Some(P_0.toList), Some(gamma_0.toList), statements.toList, memSize)
+  def this(variables: Array[Definition], P_inv: Array[Expression],  P_0: Array[Expression], statements: Array[Statement], memSize: Int) = this(variables.toSet, P_inv.toList, Some(P_0.toList), None, statements.toList, memSize)
+  def this(variables: Array[Definition], P_inv: Array[Expression],  gamma_0: Array[GammaMapping], statements: Array[Statement], memSize: Int) = this(variables.toSet, P_inv.toList, None, Some(gamma_0.toList), statements.toList, memSize)
+  def this(variables: Array[Definition], P_inv: Array[Expression],  statements: Array[Statement], memSize: Int) = this(variables.toSet, P_inv.toList, None, None, statements.toList, memSize)
 }
 
 case class GammaMapping(label: Id, security: Expression) extends beaver.Symbol {
