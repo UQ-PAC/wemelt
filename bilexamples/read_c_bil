@@ -2,11 +2,11 @@ _global var z:
 size: 32
 _L: TRUE
 _R_var: (TRUE, z' >= z)
-_G_var: (TRUE, z' == z)
+_G_var: (TRUE, z' = z)
 
 _global var x:
 size: 32
-_L_R: z % 2 == 0
+_L_R: z % 2 = 0
 _L_G: TRUE
 
 _local var Temp1:
@@ -19,7 +19,7 @@ _local var Result:
 size: 32
 
 _P_inv: TRUE
-_P_0: r1 % 2 == 0, sp == 40
+_P_0: r1 % 2 = 0, sp = 40
 memory_size: 40
 
             sp := sp - 16

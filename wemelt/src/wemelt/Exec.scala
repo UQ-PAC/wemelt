@@ -37,8 +37,10 @@ object Exec {
           } else {
             throw error.InvalidProgram("assignment to " + i + " when " + i + "is not a local variable")
           }
-        case l: _ =>
-          assignLRule(l, rhs, state0, statement.line)
+        case v: Var =>
+          assignLRule(v, rhs, state0, statement.line)
+        case _ =>
+          throw error.InvalidProgram("lhs of assignment: " + lhs + " cannot be assigned to")
       }
       state1.log
       Cont.next(state1)
@@ -181,6 +183,10 @@ object Exec {
         println("}")
       Cont.next(state2)
 
+      // returns not implemented meaningfully yet
+    case Return =>
+      Cont.next(state0)
+
     case _ =>
       throw error.InvalidProgram("unimplemented statement " + statement + " at line " + statement.line)
 
@@ -248,18 +254,54 @@ object Exec {
 
     case Assignment(lhs, rhs) =>
       val (_rhs, st1) = eval(rhs, st0)
-      val st2 = st1.updateWritten(lhs)
-      val st3 = st2.calculateIndirectUsed
-      val (st4, _, _) = st3.assignUpdateP(lhs, _rhs)
-      st4.updateDAssign(lhs, _rhs)
+      lhs match {
+        //check if lhs is a local variable
+        case i: Id =>
+          if (st1.definedLocals.keySet.contains(i)) {
+            val local = st1.definedLocals(i)
+            val st2 = st1.updateWritten(local)
+            val st3 = st2.calculateIndirectUsed
+            val (st4, _, _) = st3.assignUpdateP(local, _rhs)
+            st4.updateDAssign(local, _rhs)
+          } else {
+            throw error.InvalidProgram("assignment to " + i + " when " + i + "is not a local variable")
+          }
+        case v: Var =>
+          val st2 = st1.updateWritten(v)
+          val st3 = st2.calculateIndirectUsed
+          val (st4, _, _) = st3.assignUpdateP(v, _rhs)
+          st4.updateDAssign(v, _rhs)
 
-      /*
-    case ArrayAssignment(name, index, rhs) =>
-      val st1 = DFixedPoint(rhs, st0)
-      val st2 = DFixedPoint(index, st1)
-      val st3 = st2.updateWritten(st2.arrays(name))
-      st3.updateDArrayAssign(name, rhs)
-       */
+        case _ =>
+          throw error.InvalidProgram("lhs of assignment: " + lhs + " cannot be assigned to")
+      }
+
+    case Store(index, rhs, size) =>
+      val (_rhs, st1) = eval(rhs, st0) // computes rd
+      val (_index, st2) = eval(index, st1)
+      val st3: State = _index match {
+        case Lit(value) =>
+          st2.updateWrittenAccess(value, size)
+        case _ =>
+          st2.updateWrittenStoreAll(size)
+      }
+      val st4 = st3.calculateIndirectUsed
+      val PRestrictUIndices = st4.restrictP(st4.used)
+      val possibleIndices: Seq[Int] = _index match {
+        case Lit(value) =>
+          Seq(value)
+        case _ =>
+          for (i <- 0 to st4.memSize by 4 if SMT.proveSat(BinOp("==", _index, Lit(i)), PRestrictUIndices, st4.debug))
+            yield i
+      }
+      if (possibleIndices.size != 1) {
+        throw error.ProgramError("ambiguous accesses not fully implemented yet")
+      }
+      val st5: State = st2.updateWrittenStore(possibleIndices, size) // only possible indices
+      val st6 = st5.calculateIndirectUsed
+      val access = Access(index, size)
+      val (st7, _, _) = st6.storeUpdateP(access, _rhs, possibleIndices.head)
+      st7.updateDStore(access, possibleIndices, _rhs)
 
     case Fence =>
       // reset D
@@ -293,15 +335,11 @@ object Exec {
       st4.copy(D =_left.mergeD(_right), P = _left.P.merge(_right.P))
 
     case While(test, invariants, _, body) =>
-      val primeMap: Map[Var, Var] = {
-        {for (v <- st0.variables)
-          yield v.prime -> v.fresh} ++
-          {for (v <- st0.variables)
-            yield v.prime.prime -> v.fresh} ++
-          {for (v <- st0.variables)
-            yield v.prime.prime.prime -> v.fresh} ++
-          {for (v <- st0.variables)
-            yield v.prime.prime.prime.prime -> v.fresh}
+      val primeMap: Map[Id, Var] = {
+        {for (v <- st0.variables) yield Id(v.prime.name) -> v.fresh} ++
+          {for (v <- st0.variables) yield Id(v.prime.prime.name)-> v.fresh} ++
+          {for (v <- st0.variables) yield Id(v.prime.prime.prime.name) -> v.fresh} ++
+          {for (v <- st0.variables) yield Id(v.prime.prime.prime.prime.name) -> v.fresh}
       }.toMap
       val toSubst: Subst = {
         {
@@ -309,20 +347,16 @@ object Exec {
             yield Id(g.name) -> g
         } ++ primeMap
       }.toMap
-      val PPrime = Predicate(invariants map {i => i.subst(toSubst)}, (invariants flatMap { p => p.variables } collect {case i if i.name.endsWith("'") => primeMap(i)}).toSet, Set())
+      val PPrime = Predicate(invariants map {i => i.subst(toSubst)}, (invariants flatMap { p => p.labels} collect {case i if i.name.endsWith("'") => primeMap(i)}).toSet, Set())
       st0.copy(D = DFixedPoint(test, body, st0, PPrime), P = PPrime)
 
     case DoWhile(test, invariants, _, body) =>
       val st1 = DFixedPoint(body, st0)
-      val primeMap: Map[Var, Var] = {
-        {for (v <- st0.variables)
-          yield v.prime -> v.fresh} ++
-          {for (v <- st0.variables)
-            yield v.prime.prime -> v.fresh} ++
-          {for (v <- st0.variables)
-            yield v.prime.prime.prime -> v.fresh} ++
-          {for (v <- st0.variables)
-            yield v.prime.prime.prime.prime -> v.fresh}
+      val primeMap: Map[Id, Var] = {
+        {for (v <- st0.variables) yield Id(v.prime.name) -> v.fresh} ++
+          {for (v <- st0.variables) yield Id(v.prime.prime.name)-> v.fresh} ++
+          {for (v <- st0.variables) yield Id(v.prime.prime.prime.name) -> v.fresh} ++
+          {for (v <- st0.variables) yield Id(v.prime.prime.prime.prime.name) -> v.fresh}
       }.toMap
       val toSubst: Subst = {
         {
@@ -330,7 +364,7 @@ object Exec {
             yield Id(g.name) -> g
         } ++ primeMap
       }.toMap
-      val PPrime = Predicate(invariants map {i => i.subst(toSubst)}, (invariants flatMap { p => p.variables } collect {case i if i.name.endsWith("'") => primeMap(i)}).toSet, Set())
+      val PPrime = Predicate(invariants map {i => i.subst(toSubst)}, (invariants flatMap { p => p.labels } collect {case i if i.name.endsWith("'") => primeMap(i)}).toSet, Set())
       st1.copy(D = DFixedPoint(test, body, st0, PPrime), P = PPrime)
       /*
     case CompareAndSwap(r3, x, r1, r2) =>
@@ -368,7 +402,7 @@ object Exec {
 
     // get pointer from global offset table
     case g: GOTAccess =>
-      (Lit(st0.globalOffsetTable(g.id)), st0)
+      (Lit(st0.globalOffsetTable(g.label)), st0)
 
     case res: Lit =>
       (res, st0)
@@ -376,12 +410,10 @@ object Exec {
     case res: Const =>
       (res, st0)
 
-      /*
-    case Access(name, index) =>
+    case Access(index, size, None) =>
       val (_index, st1) = eval(index, st0)
-      val st2 = st1.updateRead(st1.arrays(name))
-      (VarAccess(name., _index), st2)
-       */
+      val st2 = st1.updateReadAccess(size)
+      (Access(_index, size, None), st2)
 
     case BinOp("==", arg1, arg2) =>
       val (List(_arg1, _arg2), st1) = evals(List(arg1, arg2), st0)
@@ -473,6 +505,22 @@ object Exec {
     case PreOp("~", arg) =>
       val (_arg, st1) = eval(arg, st0)
       (PreOp("~", _arg), st1)
+
+    case ExtLow(size, arg) =>
+      val (_arg, st1) = eval(arg, st0)
+      (ExtLow(size, _arg), st1)
+
+    case ExtHigh(size, arg) =>
+      val (_arg, st1) = eval(arg, st0)
+      (ExtHigh(size, _arg), st1)
+
+    case ExtSigned(size, arg) =>
+      val (_arg, st1) = eval(arg, st0)
+      (ExtSigned(size, _arg), st1)
+
+    case ExtUnsigned(size, arg) =>
+      val (_arg, st1) = eval(arg, st0)
+      (ExtUnsigned(size, _arg), st1)
 
     case _ =>
       throw error.InvalidProgram("unimplemented expression: " + expr)
@@ -734,9 +782,9 @@ object Exec {
     val (_index, st2) = eval(index, st1)
     val st3: State = _index match {
       case Lit(value) =>
-        st2.updateWrittenAccess(value)
+        st2.updateWrittenAccess(value, size)
       case _ =>
-        st2.updateWrittenStore
+        st2.updateWrittenStoreAll(size)
     }
     val st4 = st3.calculateIndirectUsed
     val PRestrictUIndices = st4.restrictP(st4.used)
@@ -753,7 +801,7 @@ object Exec {
           yield i
     }
 
-    val st5: State = st2.updateWrittenStore(possibleIndices) // only possible indices
+    val st5: State = st2.updateWrittenStore(possibleIndices, size) // only possible indices
     val st6 = st5.calculateIndirectUsed
     val PRestrictU = st6.restrictP(st6.used)
 
@@ -767,7 +815,7 @@ object Exec {
 
     for (i <- possibleIndices.toSet -- st6.indexToGlobal.keySet) {
       // check even local memory accesses have low index
-      if (!index_t.isConstTrue && !SMT.proveImplies(PRestrictU, index_t, st6.debug)) {
+      if (!index_t.isConstTrue && !SMT.proveImplies(PRestrictU.combine(st6.gamma(st6.getMemoryVar(i, size))), index_t, st6.debug)) {
         throw error.StoreError(line, index, rhs, "P ==> " + index_t + " doesn't hold for memory store")
       }
     }
@@ -807,7 +855,7 @@ object Exec {
       }
 
       val PRestrictUState = st6.copy(P = PRestrictU)
-      val PPlusR = PRestrictUState.PPlusRStoreUpdate(Access(index, size), _rhs, possibleIndices) // fix this needs to be a new method?
+      val PPlusR = PRestrictUState.PPlusRStoreUpdate(Access(index, size), _rhs, possibleIndices)
       val knownU = st6.knownU
       val knownW = st6.knownW
       val knownR = st6.knownR
@@ -951,8 +999,13 @@ object Exec {
     // check all memory access indices on rhs are low
     for (i <- _rhs.arrays) {
       val access_t = st3.security(i.index, PRestrictU)
-      if (!access_t.isConstTrue && !SMT.proveImplies(PRestrictU.add(st3.L_G(lhs)), access_t, st3.debug))
-        throw error.AssignGError(line, lhs, rhs, "memory access index " + i.index + " is high")
+      if (st3.globals.contains(lhs)) {
+        if (!access_t.isConstTrue && !SMT.proveImplies(PRestrictU.add(st3.L_G(lhs)), access_t, st3.debug))
+          throw error.AssignGError(line, lhs, rhs, "memory access index " + i.index + " is high")
+      } else {
+        if (!access_t.isConstTrue && !SMT.proveImplies(PRestrictU.combine(st3.security(lhs)), access_t, st3.debug))
+          throw error.AssignGError(line, lhs, rhs, "memory access index " + i.index + " is high")
+      }
     }
 
     val (st4, m, exists) = st3.assignUpdateP(lhs, _rhs)

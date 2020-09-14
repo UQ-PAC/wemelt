@@ -16,7 +16,7 @@ case class Block(statements: List[Statement]) extends Statement {
   def this(statements: Array[Statement]) = this(statements.toList)
 }
 
-case class Assignment(lhs: Var, expression: Expression) extends Statement {
+case class Assignment(lhs: Expression, expression: Expression) extends Statement {
   def this(name: String, expression: Expression) = this(Id(name), expression)
   def this(name: String, size: Int, expression: Expression) = this(Var(name, size, None), expression)
   override def toString: String = lhs + " = " + expression
@@ -57,10 +57,12 @@ case class Return(expression: Option[Expression]) extends Statement {
   def this(expression: Expression) = this(Some(expression))
 }
 
-object Return extends (Option[Expression] => Return) {
-  val none = Return(None)
-}
+
  */
+case object Return extends Statement {
+  val self = this
+}
+
 
 case object Fence extends Statement {
   def self = this

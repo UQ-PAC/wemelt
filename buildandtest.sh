@@ -1,3 +1,3 @@
 make clean
 make
-./wemelt.sh examples/* tests/*
+./wemelt.sh bilexamples/*

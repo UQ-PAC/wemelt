@@ -87,7 +87,7 @@ WS = {NL} | [ \t\f]
     ";"         { return newToken(Terminals.SEMICOLON);}
     //"::"        { return newToken(Terminals.DCOLON);   }
 
-    "CAS"       { return newToken(Terminals.CAS);      }
+    //"CAS"       { return newToken(Terminals.CAS);      }
 
     "do"        { return newToken(Terminals.DO);       }
     "while"     { return newToken(Terminals.WHILE);    }
@@ -95,7 +95,7 @@ WS = {NL} | [ \t\f]
     "else"      { return newToken(Terminals.ELSE);     }
 
     "fence"     { return newToken(Terminals.FENCE);    }
-    "cfence"    { return newToken(Terminals.CFENCE);    }
+    //"cfence"    { return newToken(Terminals.CFENCE);    }
     "_L"        { return newToken(Terminals.LPRED);      }
     "_L_G"      { return newToken(Terminals.LPREDGUAR);      }
     "_L_R"      { return newToken(Terminals.LPREDRELY);      }
@@ -119,7 +119,7 @@ WS = {NL} | [ \t\f]
 
     "with" { return newToken(Terminals.WITH);    }
     "<-" { return newToken(Terminals.LARROW);    }
-    "extract" { return newToken(Terminals.EXTRACT);    }
+    //"extract" { return newToken(Terminals.EXTRACT);    }
     "el" { return newToken(Terminals.EL);    }
     "be" { return newToken(Terminals.BE);    }
     "low" { return newToken(Terminals.LOW);    }
@@ -145,9 +145,10 @@ WS = {NL} | [ \t\f]
     ":got:" {return newToken(Terminals.GOT);}
     "size" {return newToken(Terminals.SIZE);}
     "memory_size" {return newToken(Terminals.MEMSIZE);}
+    "then" {return newToken(Terminals.THEN);}
 
-    x(30|[12][0-9]|[0-9]) {return newToken(Terminals.REG64, yytext());}
-    w(30|[12][0-9]|[0-9]) {return newToken(Terminals.REG32, yytext());}
+    x("30"|[12][0-9]|[0-9]) {return newToken(Terminals.BV64, yytext());}
+    w("30"|[12][0-9]|[0-9]) {return newToken(Terminals.BV32, yytext());}
 
     //"exists"    { return newToken(Terminals.EXISTS);   }
     //"forall"    { return newToken(Terminals.FORALL);   }

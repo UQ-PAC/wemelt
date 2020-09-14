@@ -1,8 +1,7 @@
 package wemelt
 
 import com.microsoft.z3
-import com.microsoft.z3.Solver
-import com.microsoft.z3.Params
+import com.microsoft.z3.{BitVecExpr, Params, Solver}
 
 object SMT {
   val intSize = 32 // size of bitvectors used
@@ -14,20 +13,11 @@ object SMT {
     if (debug)
       println("smt checking !(" + cond + ") given " + given)
     solver.push()
-    val res = try {
-      solver.add(convertPredicate(given))
-      // check that (NOT cond) AND P is unsatisfiable
-      solver.add(formula(PreOp("!", cond)))
-      solver.check
-    } catch {
-      case e: java.lang.UnsatisfiedLinkError if e.getMessage.equals("com.microsoft.z3.Native.INTERNALgetErrorMsgEx(JI)Ljava/lang/String;")=>
-        // weird unintuitive error z3 can have when an input type is incorrect in a way it doesn't check
-        throw error.Z3Error("Z3 failed", cond, given, "incorrect z3 expression type, probably involving ForAll/Exists")
-      case e: Throwable =>
-        throw error.Z3Error("Z3 failed", cond, given, e)
-    } finally {
-      solver.pop()
-    }
+    solver.add(convertPredicate(given))
+    // check that (NOT cond) AND P is unsatisfiable
+    solver.add(formula(PreOp("!", cond)))
+    val res = solver.check
+    solver.pop()
 
     if (debug) {
       println(res)
@@ -43,21 +33,11 @@ object SMT {
     if (debug)
       println("smt checking " + cond + " given " + given)
     solver.push()
-    val res = try {
-      solver.add(convertPredicate(given))
-      // check that cond AND P is satisfiable
-      solver.add(formula(cond))
-
-      solver.check
-    } catch {
-      case e: java.lang.UnsatisfiedLinkError if e.getMessage.equals("com.microsoft.z3.Native.INTERNALgetErrorMsgEx(JI)Ljava/lang/String;")=>
-        // weird unintuitive error z3 can have when an input type is incorrect in a way it doesn't check
-        throw error.Z3Error("Z3 failed", cond, given, "incorrect z3 expression type, probably involving ForAll/Exists")
-      case e: Throwable =>
-        throw error.Z3Error("Z3 failed", cond, given, e)
-    } finally {
-      solver.pop()
-    }
+    solver.add(convertPredicate(given))
+    // check that cond AND P is satisfiable
+    solver.add(formula(cond))
+    val res =solver.check
+    solver.pop()
 
     if (debug) {
       println(res)
@@ -72,18 +52,9 @@ object SMT {
     if (debug)
       println("smt checking " + given)
     solver.push()
-    val res = try {
-      solver.add(convertPredicate(given))
-      solver.check
-    } catch {
-      case e: java.lang.UnsatisfiedLinkError if e.getMessage.equals("com.microsoft.z3.Native.INTERNALgetErrorMsgEx(JI)Ljava/lang/String;")=>
-        // weird unintuitive error z3 can have when an input type is incorrect in a way it doesn't check
-        throw error.Z3Error("Z3 failed", given, "incorrect z3 expression type, probably involving ForAll/Exists")
-      case e: Throwable =>
-        throw error.Z3Error("Z3 failed", given, e)
-    } finally {
-      solver.pop()
-    }
+    solver.add(convertPredicate(given))
+    val res = solver.check
+    solver.pop()
 
     if (debug) {
       println(res)
@@ -98,18 +69,9 @@ object SMT {
     if (debug)
       println("smt checking !(" + given + ")")
     solver.push()
-    val res = try {
-      solver.add(ctx.mkNot(PToAnd(given)))
-      solver.check
-    } catch {
-      case e: java.lang.UnsatisfiedLinkError if e.getMessage.equals("com.microsoft.z3.Native.INTERNALgetErrorMsgEx(JI)Ljava/lang/String;")=>
-        // weird unintuitive error z3 can have when an input type is incorrect in a way it doesn't check
-        throw error.Z3Error("Z3 failed", given, "incorrect z3 expression type, probably involving ForAll/Exists")
-      case e: Throwable =>
-        throw error.Z3Error("Z3 failed", given, e)
-    } finally {
-      solver.pop()
-    }
+    solver.add(ctx.mkNot(PToAnd(given)))
+    val res = solver.check
+    solver.pop()
 
     if (debug) {
       println(res)
@@ -124,18 +86,9 @@ object SMT {
     if (debug)
       println("smt checking !(" + given.OrStr + ")")
     solver.push()
-    val res = try {
-      solver.add(ctx.mkNot(PToOr(given)))
-      solver.check
-    } catch {
-      case e: java.lang.UnsatisfiedLinkError if e.getMessage.equals("com.microsoft.z3.Native.INTERNALgetErrorMsgEx(JI)Ljava/lang/String;")=>
-        // weird unintuitive error z3 can have when an input type is incorrect in a way it doesn't check
-        throw error.Z3Error("Z3 failed", given.OrStr, "incorrect z3 expression type, probably involving ForAll/Exists")
-      case e: Throwable =>
-        throw error.Z3Error("Z3 failed", given.OrStr, e)
-    } finally {
-      solver.pop()
-    }
+    solver.add(ctx.mkNot(PToOr(given)))
+    val res = solver.check
+    solver.pop()
 
     if (debug) {
       println(res)
@@ -150,15 +103,9 @@ object SMT {
     if (debug)
       println("smt checking !(" + strong + newline + "==> " + newline + weak + ")")
     solver.push()
-    val res = try {
-      solver.add(ctx.mkNot(ctx.mkImplies(convertPredicate(strong), convertPredicate(weak))))
-      solver.check
-    } catch {
-      case e: Throwable =>
-        throw error.Z3Error("Z3 failed", strong, weak, e)
-    } finally {
-      solver.pop()
-    }
+    solver.add(ctx.mkNot(ctx.mkImplies(convertPredicate(strong), convertPredicate(weak))))
+    val res = solver.check
+    solver.pop()
     if (debug) {
       println(res)
       if (res == z3.Status.SATISFIABLE) {
@@ -176,19 +123,10 @@ object SMT {
     if (debug)
       println("smt checking !(" + cond + ")")
     solver.push()
-    val res = try {
-      // check that (NOT cond) is unsatisfiable
-      solver.add(ctx.mkNot(formula(cond)))
-      solver.check
-    } catch {
-      case e: java.lang.UnsatisfiedLinkError if e.getMessage.equals("com.microsoft.z3.Native.INTERNALgetErrorMsgEx(JI)Ljava/lang/String;")=>
-        // weird unintuitive error z3 can have when an input type is incorrect in a way it doesn't check
-        throw error.Z3Error("Z3 failed", cond, "incorrect z3 expression type, probably involving ForAll/Exists")
-      case e: Throwable =>
-        throw error.Z3Error("Z3 failed", cond, e)
-    } finally {
-      solver.pop()
-    }
+    // check that (NOT cond) is unsatisfiable
+    solver.add(ctx.mkNot(formula(cond)))
+    val res = solver.check
+    solver.pop()
 
     if (debug) {
       println(res)
@@ -267,6 +205,20 @@ object SMT {
       throw error.InvalidProgram("not a bitwise expression", prop, e)
   }
 
+  def bitwiseSameSize(lhs: z3.BitVecExpr, rhs: z3.BitVecExpr): (z3.BitVecExpr, z3.BitVecExpr) = {
+    val lhSize = lhs.getSortSize
+    val rhSize = rhs.getSortSize
+    if (lhSize > rhSize) {
+      val rhExt = ctx.mkSignExt(lhSize - rhSize, rhs)
+      (lhs, rhExt)
+    } else if (rhSize < lhSize) {
+      val lhExt = ctx.mkSignExt(rhSize - lhSize, lhs)
+      (lhExt, rhs)
+    } else {
+      (lhs, rhs)
+    }
+  }
+
   /* currently doing all arithmetic operations on ints - may want to switch to bitvectors
    and bitwise arithmetic operations for better simulation of the assembly semantics if this ends up being important
   https://z3prover.github.io/api/html/classcom_1_1microsoft_1_1z3_1_1_context.html */
@@ -282,7 +234,22 @@ object SMT {
 
     case MultiSwitch(n: Int) => ctx.mkConst("MultiSwitch" + n, ctx.getIntSort)
 
-    case BinOp("==", arg1, arg2) => ctx.mkEq(translate(arg1), translate(arg2))
+    case BinOp("==", arg1, arg2) =>
+      val lhs = translate(arg1)
+      val rhs = translate(arg2)
+      lhs match {
+        case bv: BitVecExpr =>
+          rhs match {
+            case bv2: BitVecExpr =>
+              val (_lhs, _rhs) = bitwiseSameSize(bv, bv2)
+              ctx.mkEq(_lhs, _rhs)
+            case _ =>
+              // error due to nonmatching types
+              ctx.mkEq(lhs, rhs)
+          }
+        case _ =>
+          ctx.mkEq(lhs, rhs)
+      }
 
     case PreOp("!", arg) => ctx.mkNot(formula(arg))
     case BinOp("&&", arg1, arg2) => ctx.mkAnd(formula(arg1), formula(arg2))
@@ -290,26 +257,56 @@ object SMT {
     case BinOp("==>", arg1, arg2) => ctx.mkImplies(formula(arg1), formula(arg2))
 
     case PreOp("-", arg) => ctx.mkBVNeg(bitwise(arg))
-    case BinOp("+", arg1, arg2) => ctx.mkBVAdd(bitwise(arg1), bitwise(arg2))
-    case BinOp("-", arg1, arg2) => ctx.mkBVSub(bitwise(arg1), bitwise(arg2))
-    case BinOp("*", arg1, arg2) => ctx.mkBVMul(bitwise(arg1), bitwise(arg2))
-    case BinOp("/", arg1, arg2) => ctx.mkBVUDiv(bitwise(arg1), bitwise(arg2))
-    case BinOp("%", arg1, arg2) => ctx.mkBVURem(bitwise(arg1), bitwise(arg2))
+    case BinOp("+", arg1, arg2) =>
+      val (_arg1, _arg2) = bitwiseSameSize(bitwise(arg1), bitwise(arg2))
+      ctx.mkBVAdd(_arg1, _arg2)
+    case BinOp("-", arg1, arg2) =>
+      val (_arg1, _arg2) = bitwiseSameSize(bitwise(arg1), bitwise(arg2))
+      ctx.mkBVSub(_arg1, _arg2)
+    case BinOp("*", arg1, arg2) =>
+      val (_arg1, _arg2) = bitwiseSameSize(bitwise(arg1), bitwise(arg2))
+      ctx.mkBVMul(_arg1, _arg2)
+    case BinOp("/", arg1, arg2) =>
+      val (_arg1, _arg2) = bitwiseSameSize(bitwise(arg1), bitwise(arg2))
+      ctx.mkBVUDiv(_arg1, _arg2)
+    case BinOp("%", arg1, arg2) =>
+      val (_arg1, _arg2) = bitwiseSameSize(bitwise(arg1), bitwise(arg2))
+      ctx.mkBVURem(_arg1, _arg2)
 
-    case BinOp("<=", arg1, arg2) => ctx.mkBVULE(bitwise(arg1), bitwise(arg2))
-    case BinOp("<", arg1, arg2) => ctx.mkBVULT(bitwise(arg1), bitwise(arg2))
-    case BinOp(">=", arg1, arg2) => ctx.mkBVUGE(bitwise(arg1), bitwise(arg2))
-    case BinOp(">", arg1, arg2) => ctx.mkBVUGT(bitwise(arg1), bitwise(arg2))
+    case BinOp("<=", arg1, arg2) =>
+      val (_arg1, _arg2) = bitwiseSameSize(bitwise(arg1), bitwise(arg2))
+      ctx.mkBVULE(_arg1, _arg2)
+    case BinOp("<", arg1, arg2) =>
+      val (_arg1, _arg2) = bitwiseSameSize(bitwise(arg1), bitwise(arg2))
+      ctx.mkBVULT(_arg1, _arg2)
+    case BinOp(">=", arg1, arg2) =>
+      val (_arg1, _arg2) = bitwiseSameSize(bitwise(arg1), bitwise(arg2))
+      ctx.mkBVUGE(_arg1, _arg2)
+    case BinOp(">", arg1, arg2) =>
+      val (_arg1, _arg2) = bitwiseSameSize(bitwise(arg1), bitwise(arg2))
+      ctx.mkBVUGT(_arg1, _arg2)
 
-    case BinOp("|", arg1, arg2) => ctx.mkBVOR(bitwise(arg1), bitwise(arg2))
-    case BinOp("&", arg1, arg2) => ctx.mkBVAND(bitwise(arg1), bitwise(arg2))
-    case BinOp("^", arg1, arg2) => ctx.mkBVXOR(bitwise(arg1), bitwise(arg2))
+    case BinOp("|", arg1, arg2) =>
+      val (_arg1, _arg2) = bitwiseSameSize(bitwise(arg1), bitwise(arg2))
+      ctx.mkBVOR(_arg1, _arg2)
+    case BinOp("&", arg1, arg2) =>
+      val (_arg1, _arg2) = bitwiseSameSize(bitwise(arg1), bitwise(arg2))
+      ctx.mkBVAND(_arg1, _arg2)
+    case BinOp("^", arg1, arg2) =>
+      val (_arg1, _arg2) = bitwiseSameSize(bitwise(arg1), bitwise(arg2))
+      ctx.mkBVXOR(_arg1, _arg2)
     case PreOp("~", arg) => ctx.mkBVNot(bitwise(arg))
 
       // defining normal right shift as logical shift right
-    case BinOp(">>", arg1, arg2) => ctx.mkBVLSHR(bitwise(arg1), bitwise(arg2))
-    case BinOp(">>>", arg1, arg2) => ctx.mkBVASHR(bitwise(arg1), bitwise(arg2))
-    case BinOp("<<", arg1, arg2) => ctx.mkBVSHL(bitwise(arg1), bitwise(arg2))
+    case BinOp(">>", arg1, arg2) =>
+      val (_arg1, _arg2) = bitwiseSameSize(bitwise(arg1), bitwise(arg2))
+      ctx.mkBVLSHR(bitwise(arg1), bitwise(arg2))
+    case BinOp(">>>", arg1, arg2) =>
+      val (_arg1, _arg2) = bitwiseSameSize(bitwise(arg1), bitwise(arg2))
+      ctx.mkBVASHR(bitwise(arg1), bitwise(arg2))
+    case BinOp("<<", arg1, arg2) =>
+      val (_arg1, _arg2) = bitwiseSameSize(bitwise(arg1), bitwise(arg2))
+      ctx.mkBVSHL(bitwise(arg1), bitwise(arg2))
 
     case IfThenElse(test, arg1, arg2) => ctx.mkITE(formula(test), translate(arg1), translate(arg2))
 
@@ -328,13 +325,24 @@ object SMT {
       ctx.mkExtract(arg1, 0, bitwise(arg2))
 
     case ExtSigned(arg1, arg2) =>
-      ctx.mkSignExt(arg1, bitwise(arg2))
+      val bv = bitwise(arg2)
+      val size = bv.getSortSize
+      ctx.mkSignExt(arg1 - size, bv)
 
     case ExtUnsigned(arg1, arg2) =>
-      ctx.mkZeroExt(arg1, bitwise(arg2))
+      val bv = bitwise(arg2)
+      val size = bv.getSortSize
+      ctx.mkZeroExt(arg1 - size, bv)
 
       // array index
-    case Access(index, size, freshIndex) => ctx.mkSelect(ctx.mkArrayConst("mem" __ freshIndex, ctx.mkBitVecSort(64), ctx.mkBitVecSort(size)), translate(index))
+      // to fix!!!
+    case Access(index, size, freshIndex) =>
+        val array = ctx.mkArrayConst("mem" __ freshIndex, ctx.mkBitVecSort(64), ctx.mkBitVecSort(size))
+        val bv = bitwise(index)
+        val bvSize = bv.getSortSize
+        val ext = ctx.mkSignExt(64 - bvSize, bv)
+        val test = ctx.mkSelect(array, ext)
+        test
 
     case _ =>
       throw error.InvalidProgram("cannot translate to SMT", prop)

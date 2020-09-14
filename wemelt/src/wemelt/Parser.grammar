@@ -28,13 +28,30 @@
 %terminals ASG;
 %terminals COMMA, SEMICOLON;
 
-%terminals CAS;
-%terminals FENCE, CFENCE;
+//%terminals CAS;
+%terminals FENCE;
+//%terminals CFENCE;
 %terminals INVARIANT, GAMMA, P_0, GAMMA_0;
 %terminals P_INV, R_VAR, G_VAR;
 %terminals LPRED, LPREDGUAR, LPREDRELY;
 %terminals MAPSTO;
 %terminals PRIMEID;
+
+%terminals WITH;
+%terminals LARROW;
+//%terminals EXTRACT;
+%terminals EL, BE;
+%terminals LOW, HIGH;
+%terminals SIGNED, UNSIGNED;
+%terminals U32, U64, S32, S64;
+%terminals SPECIAL;
+%terminals ISH;
+%terminals RET;
+%terminals MEM;
+%terminals BV64, BV32, BV1;
+%terminals GOT;
+%terminals SIZE, MEMSIZE;
+%terminals THEN;
 
 %nonassoc IF;
 %nonassoc ELSE;
@@ -56,6 +73,9 @@
 
 %typeof ID      = "String";
 %typeof PRIMEID      = "String";
+%typeof BV32 = "String";
+%typeof BV64 = "String";
+%typeof BV1 = "String";
 
 %typeof NUM     = "Integer";
 
@@ -75,8 +95,7 @@
 %typeof gamma_mapping = "GammaMapping";
 //%typeof lpredindex = "Expression";
 
-%typeof cast = "Cast"
-%typeof nat = "Nat"
+%typeof nat = "Nat";
 
 %goal unit;
 
@@ -128,8 +147,9 @@ statement1
     | BV64.n ASG    expr.b                             {: return new Assignment(n, 64, b);  :}
     | BV1.n  ASG    expr.b                            {: return new Assignment(n, 1, b);  :}
     | ID.n ASG    expr.b                            {: return new Assignment(n, b);  :}
-    | MEM ASG MEM WITH LBRACK expr.e2 COMMA ENDIAN RBRACK COLON  nat.n LARROW expr.e3 {: return new Store(e2, e3, n); :}
+    | MEM ASG MEM WITH LBRACK expr.e2 COMMA endian RBRACK COLON  nat.n LARROW expr.e3 {: return new Store(e2, e3, n); :}
     | SPECIAL LPAREN FENCE ISH RPAREN                 {: return Fence.self();  :}
+    | SPECIAL LPAREN RET RPAREN                 {: return Return.self();  :}
     | IF LPAREN expr.a RPAREN statement.b   {: return new If(a, b);  :}
     | IF LPAREN expr.a RPAREN statement.b ELSE statement.c     {: return new If(a, b, c);   :}
     | WHILE LPAREN expr.a RPAREN INVARIANT COLON rgexprs.i GAMMA COLON gamma_mappings.g statement.b      {: return new While(a, i, g, b);   :}
@@ -144,7 +164,7 @@ expr
     | BV1.n                             {: return new Var(n, 1);  :}
     | ID.n                              {: return new Id(n);  :}
     | GOT ID.n                              {: return new GOTAccess(new Id(n));  :}
-    | MEM LBRACK expr.i COMMA ENDIAN RBRACK COLON nat.n      {: return new Access(i, n); :}
+    | MEM LBRACK expr.i COMMA endian RBRACK COLON nat.n      {: return new Access(i, n); :}
     | NUM.n                             {: return new Lit(n); :}
     | PLUS  expr.a @ PREFIX             {: return new PreOp("+", a);    :}
     | MINUS expr.a @ PREFIX             {: return new PreOp("-", a);    :}
@@ -176,7 +196,7 @@ expr
     | HIGH COLON NUM.n LBRACK expr.e RBRACK {: return new ExtHigh(n, e); :}
     | SIGNED COLON NUM.n LBRACK expr.e RBRACK {: return new ExtSigned(n, e); :}
     | UNSIGNED COLON NUM.n LBRACK expr.e RBRACK {: return new ExtUnsigned(n, e); :}
-    | IF expr.e1 THEN expr.e2 ELSE expr.e3 {: return new Question(e1, e2, e3); :}
+    | IF expr.e1 THEN expr.e2 ELSE expr.e3 {: return new IfThenElse(e1, e2, e3); :}
     ;
 
 rgexpr = ID.n                              {: return new Id(n);  :}

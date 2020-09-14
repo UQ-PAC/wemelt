@@ -1,8 +1,13 @@
 BIL stuff:
--merging gamma for ambiguous stores
--use if then else to handle branches even in if statements - do later?
 -handle substituting m for accesses - do we actually need to? do locals actually matter for m/new_var?
--new pplusr
+-debug
+-handle wzr/xzr properly
+-fix substituting accesses
+
+later:
+-merging gamma for ambiguous stores
+-use if then else to handle branches even in if statements
+-CAS and arrays?
 
 to check for memory accesses:
 -index is low

@@ -195,7 +195,7 @@ case class State(
       for (y <- varE -- gamma.keySet)
         yield L(y).variables
     }.flatten
-    val new_var: Set[Var] = Set(v) ++ varE ++ varLY
+    val new_var: Set[Var] = Set(v) ++ varE ++ varLY -- locals
 
 
     // calculate weaker
@@ -302,7 +302,7 @@ case class State(
     val PPrime = PRestrictInd.add(guard)
 
     // calculate new_var
-    val new_var: Set[Var] = vars
+    val new_var: Set[Var] = vars -- locals
 
     // calculate equals - this can be improved too
     // separate method for identity relation? check all identity relations at the start?
@@ -401,7 +401,7 @@ case class State(
       for (y <- varE -- gamma.keySet)
         yield L(y).variables
     }.flatten
-    val new_var: Set[Var] = Set(v) ++ varE ++ varLY
+    val new_var: Set[Var] = Set(v) ++ varE ++ varLY -- locals
 
 
     // calculate weaker
@@ -479,14 +479,15 @@ case class State(
     val POut = if (possible.size == 1) {
       val (st1, m, exists) = storeUpdateP(access, arg, possible.head)
       val st2 = st1.storeUpdateGamma(access, possible.head, t, m, exists)
-      st2.updateDArrayAssign(access, possible, arg)
+      st2.updateDStore(access, possible, arg)
     } else {
+      throw error.ProgramError("ambiguous accesses not fully implemented yet")
       val states: Seq[State] = for (i <- possible) yield {
         val (st1, m, exists) = storeUpdateP(access, arg, i)
         st1.storeUpdateGamma(access, possible.head, t, m, exists)
       }
       val st2: State = mergeStates(access, possible, states)
-      st2.updateDArrayAssign(access, possible, arg)
+      st2.updateDStore(access, possible, arg)
     }
     POut
   }
@@ -519,7 +520,7 @@ case class State(
     // don't need to replace index as can't have nested accesses here
 
     // add new assignment statement to P
-    val PPrime = PReplace.add(BinOp("==", access, argReplace)).addExists(Set(fresh))
+    val PPrime = PReplace.add(BinOp("==", access, argReplace))
 
     val v = getMemoryVar(index, access.size)
     // calculate new_var
@@ -528,7 +529,7 @@ case class State(
       for (y <- varE -- gamma.keySet)
         yield L(y).variables
     }.flatten
-    val new_var: Set[Var] = Set(v) ++ varE ++ varLY
+    val new_var: Set[Var] = Set(v) ++ varE ++ varLY -- locals
 
     // calculate weaker
     val accessesSubstC: Subst = {for (a <- accesses) yield
@@ -629,24 +630,119 @@ case class State(
     copy(gamma = gammaPlusR)
   }
 
-  def assignUpdateGamma(v: Var, t: Predicate, m: Subst, exists: Set[Var]): State = {
-    val domGamma = low_or_eq(P)
-    val gammaPrime = if (domGamma.contains(v)) {
-      gamma + (v -> t.bindForAll(indirect & (t.predicates flatMap (p => p.variables)).toSet))
+  def PPlusRStoreUpdate(access: Access, arg: Expression, possible: Seq[Int]): Predicate = {
+    val index = if (possible.size == 1) {
+      possible.head
     } else {
-      gamma
+      throw error.ProgramError("ambiguous memory accesses not fully implemented yet")
     }
-    val gammaPrimeRestrict = gammaPrime -- (gammaPrime.keySet -- domGamma)
-    val gammaPlusR: Map[Var, Predicate] = {
-      for (g <- gammaPrimeRestrict.keySet)
-        yield g -> gammaPrimeRestrict(g).subst(m).addExists(exists)
+    val fresh = Access.fresh(access.index, access.size)
+    val freshIndex = fresh.freshIndex
+    // create mapping from variable to fresh variable
+    val accesses: Set[Access] = arg.arrays - access
+    val accessesSubst: Subst = {for (a <- accesses) yield {
+      a.index match {
+        case Lit(n) if n != index =>
+          a -> a
+        case Lit(n) if n == index =>
+          a -> fresh
+        case _ =>
+          a -> IfThenElse(BinOp("==", access.index, a.index), Access(a.index, a.size, freshIndex), a)
+      }
+    }
     }.toMap
-    if (debug) {
-      println("Gamma + R: " + gammaPlusR.gammaStr)
-    }
-    copy(gamma = gammaPlusR)
-  }
+    val toSubst: Subst = accessesSubst ++ Map(access -> fresh)
 
+    // substitute variable in P for fresh variable
+    val PReplace = P.subst(toSubst)
+
+    // substitute variable in expression for fresh variable
+    val argReplace = arg.subst(toSubst)
+    // don't need to replace index as can't have nested accesses here
+
+    // add new assignment statement to P
+    val PPrime = PReplace.add(BinOp("==", access, argReplace))
+
+    val v = getMemoryVar(index, access.size)
+    // calculate new_var
+    val varE = arg.variables
+    val varLY: Set[Var] = {
+      for (y <- varE -- gamma.keySet)
+        yield L(y).variables
+    }.flatten
+    val new_var: Set[Var] = Set(v) ++ varE ++ varLY -- locals
+
+    // calculate weaker
+    val accessesSubstC: Subst = {for (a <- accesses) yield
+      a -> IfThenElse(BinOp("==", access.index, a.index), arg, a)
+    }.toMap
+    val toSubstC: Subst = accessesSubstC ++ Map(access -> arg) // for c[e/x]
+    var weaker: Set[Var] = Set()
+    for (y <- R_var.keySet) {
+      // check !(P && c ==> c[e/x])
+      var yAdded = false
+      for ((c, r) <- R_var(y) if !yAdded && c != Const._true) {
+        if (!SMT.proveImplies(PPrime.add(c), c.subst(toSubstC), debug)) {
+          weaker +=y
+          yAdded = true
+        }
+      }
+    }
+
+    // calculate equals
+    // possible improvement:
+    // separate method for identity relation? check all identity relations at the start?
+    val equals: Set[Var] = {
+      for (y <- R_var.keySet)
+        yield {
+          // check P ==> c && r is identity relation
+          for ((c, r) <- R_var(y) if (r == BinOp("==", y, y.prime) || r == BinOp("==", y.prime, y))
+            && (c == Const._true || SMT.proveImplies(PPrime ::: P_inv, c, debug)))
+            yield y
+        }
+    }.flatten
+
+    val domM = new_var ++ weaker -- equals
+
+    var exists: Set[Var] = Set() // set of newly created variables to bind
+    // map all of domM to fresh temporary variables
+    val m: Subst = {
+      for (v <- domM)
+        yield {
+          val newFresh = v.fresh
+          exists += newFresh
+          v -> newFresh
+        }
+    }.toMap
+
+    val mPlusMPrime: Subst = m ++ {
+      for (v <- domM)
+        yield v.prime -> v
+    }.toMap
+
+    val PPlus = PPrime.subst(m).addExists(exists)
+
+    if (debug) {
+      println("dom R_var: " + R_var.keySet)
+      println("dom m: " + domM)
+    }
+    val RPlus: List[Expression] = {for (y <- R_var.keySet & domM) yield {
+      for ((c, r) <- R_var(y))
+        yield if (c == Const._true) {
+          r.subst(mPlusMPrime)
+        } else {
+          BinOp("==>", ForAll(indirect, c), r.subst(mPlusMPrime))
+        }
+    }
+    }.flatten.toList
+
+    if (debug) {
+      println("P +: " + PPlus)
+      println("+ R: " + RPlus)
+    }
+    PPlus.add(RPlus)
+
+  }
 
   // redo this so instead of just keeping one common and branching
   // have like if index == 1 then (1 specific predicates) else (the non-1 version of those predicates)
@@ -667,9 +763,8 @@ case class State(
     val forall = (states flatMap {s => s.P.forall}).toSet
     val PPrime: Predicate = Predicate(preds, exists, forall)
 
-
-    val gammaPrime: Map[Var, Predicate] =
-      //
+    // todo
+    val gammaPrime: Map[Var, Predicate] = Map()
     copy(P = PPrime, gamma = gammaPrime)
   }
 
@@ -786,6 +881,13 @@ case class State(
     copy(read = read ++ id)
   }
 
+  def updateReadAccess(size: Int): State = {
+    val vars: Set[Var] = {for (i <- 0 to memSize by 4) yield
+      getMemoryVar(i, size)
+    }.toSet
+    updateRead(vars)
+  }
+
   def updateWritten(id: Var): State = {
     if (debug)
       println("updating written (" + written + ") with " + id)
@@ -796,6 +898,23 @@ case class State(
     if (debug)
       println("updating written (" + written + ") with " + id)
     copy(written = written ++ id)
+  }
+
+  def updateWrittenStore(possible: Seq[Int], size: Int): State = {
+    val vars: Set[Var] = {for (p <- possible) yield
+      getMemoryVar(p, size)}.toSet
+    updateWritten(vars)
+  }
+
+  def updateWrittenAccess(index: Int, size: Int): State = {
+    updateWritten(getMemoryVar(index, size))
+  }
+
+  def updateWrittenStoreAll(size: Int): State = {
+    val vars: Set[Var] = {for (i <- 0 to memSize by 4) yield
+      getMemoryVar(i, size)
+    }.toSet
+    updateWritten(vars)
   }
 
   /*
@@ -968,7 +1087,7 @@ case class State(
     copy(D = DPrimePrime, read = Set(), written = Set(), indirect = Set(), used = Set())
   }
 
-  def updateDArrayAssign(a: Access, indices: Seq[Int], e: Expression) : State = {
+  def updateDStore(a: Access, indices: Seq[Int], e: Expression) : State = {
     val varE = e.variables // var(e)
     val canForward = varE.intersect(globals).isEmpty
     val laterW: Set[Var] = varE
@@ -1009,40 +1128,6 @@ case class State(
     } */
     copy(D = DPrimePrime, read = Set(), written = Set(), indirect = Set(), used = Set())
   }
-
-
-  /*
-  def updateDArrayAssign(x: Var, e: Expression) : State = {
-    val varE = e.variables // var(e)
-    val laterW: Set[Var] = varE
-    val laterR: Set[Var] = varE.intersect(globals)
-    if (debug) {
-      println("laterW: " + laterW)
-      println("laterR: " + laterR)
-      println("rd: " + read)
-      println("wr: " + written)
-    }
-    val DPrime: DType = updateD(laterW, laterR)
-
-    // updated forwarding
-    val DPrimePrime = if (varE.intersect(globals).isEmpty) {
-      val toUpdate = for (i <- arrays(x).array) yield {
-        val w_r = {for (v <- read)
-          yield W_r(v)
-          }.flatten -- written
-        val r_r = {for (v <- read)
-          yield R_r(v)
-          }.flatten -- read
-        i -> (DPrime(i)._1, w_r, DPrime(i)._3, r_r)
-      }
-      DPrime ++ toUpdate
-    } else {
-      DPrime
-    }
-
-    copy(D = DPrimePrime, read = Set(), written = Set())
-  }
-   */
 
   /*
   def updateDCAS(r3: Var, x: Var, r1: Expression, r2: Expression) : State = {
@@ -1427,12 +1512,6 @@ object State {
       }
     }
 
-    var globalOffsetTable: Map[Id, Int] = Map()
-    for (g <- globals) {
-      globalOffsetTable += (Id(g.name) -> lastIndex)
-      lastIndex += 8
-    }
-
     val locals: Set[Var] = (localDefs map {l => l.variable}) ++ {{
       for (i <- 0 to 30)
         yield Var("w" + i, 32)
@@ -1448,13 +1527,15 @@ object State {
     }}.toSet ++ Set(Var("sp", 64),Var("wsp", 32), Var("wzr", 32), Var("xzr", 64),
       Var("Z", 1), Var("N", 1), Var("C", 1), Var("V", 1))
 
+    var globalOffsetTable: Map[Id, Int] = Map()
+    for (g <- globals) {
+      globalOffsetTable += (Id(g.name) -> lastIndex)
+      lastIndex += 8
+    }
+
     var controls: Set[Var] = Set()
     var controlled: Set[Var] = Set()
     var controlledBy: Map[Var, Set[Var]] = Map()
-
-    if (debug) {
-      //println(variables)
-    }
 
     val ids: Set[Var] = globals ++ locals // ++ Set(CFence)
 
@@ -1497,7 +1578,6 @@ object State {
         yield i -> (ids, ids, ids, ids, ids, ids, ids, ids)
     }.toMap
 
-
     if (debug) {
       println("variables: " + ids)
       //println("array indices: " + arrayIndices)
@@ -1510,14 +1590,17 @@ object State {
     }
 
     // for replacing labels in predicates with variables
-    val toSubst: Subst = {
+    val toSubst: Subst = {{
       for (g <- globals)
         yield Id(g.name) -> g
-    }.toMap
+    } ++ {
+      for (g <- globals)
+        yield Id(g.prime.name) -> g.prime
+    }}.toMap
 
     val primed: Subst = {
-      for (v <- ids)
-        yield v -> v.prime
+      for (i <- ids)
+        yield i -> i.prime
     }.toMap
 
     val initMem: List[Expression] = {for ((v, i) <- memory) yield {
@@ -1591,6 +1674,14 @@ object State {
         Predicate(p map {i => i.subst(toSubst)})
     }
 
+
+    if (debug) {
+      println("R: " + R)
+      println("R_var: " + R_var)
+      println("P_inv: " + P_inv)
+      println("G: " + G)
+    }
+
     // check P_0 is stable
     val PPrime = P.subst(primed)
     if (!SMT.proveImplies(P ++ R, PPrime, debug)) {
@@ -1621,6 +1712,12 @@ object State {
         }
       }
     }.toMap
+
+    if (debug) {
+      println("L_R: " + L_R)
+      println("L_G: " + L_G)
+      println("L: " + L)
+    }
 
     val PAnd = P.toAnd
     val PPlusRAnd = (P ++ R).toAnd
@@ -1654,15 +1751,6 @@ object State {
       throw error.InvalidProgram("Gamma is not stable")
     }
 
-    if (debug) {
-      println("L_R: " + L_R)
-      println("L_G: " + L_G)
-      println("L: " + L)
-      println("R: " + R)
-      println("R_var: " + R_var)
-      println("P_inv: " + P_inv)
-      println("G: " + G)
-    }
     if (toLog) {
       println("Gamma: " + gamma.gammaStr)
       println("P: " + P)
