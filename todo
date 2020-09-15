@@ -1,8 +1,7 @@
 BIL stuff:
 -handle substituting m for accesses - do we actually need to? do locals actually matter for m/new_var?
 -debug
--handle wzr/xzr properly
--fix substituting accesses
+-fix managing types
 
 later:
 -merging gamma for ambiguous stores

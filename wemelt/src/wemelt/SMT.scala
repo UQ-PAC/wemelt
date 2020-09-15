@@ -208,11 +208,15 @@ object SMT {
   def bitwiseSameSize(lhs: z3.BitVecExpr, rhs: z3.BitVecExpr): (z3.BitVecExpr, z3.BitVecExpr) = {
     val lhSize = lhs.getSortSize
     val rhSize = rhs.getSortSize
+    println("lhs: " + lhs + " size: " + lhSize)
+    println("rhs: " + rhs + " size: " + rhSize)
     if (lhSize > rhSize) {
       val rhExt = ctx.mkSignExt(lhSize - rhSize, rhs)
+      println("extsize: " + rhExt.getSortSize)
       (lhs, rhExt)
-    } else if (rhSize < lhSize) {
+    } else if (rhSize > lhSize) {
       val lhExt = ctx.mkSignExt(rhSize - lhSize, lhs)
+      println("extsize: " + lhExt.getSortSize)
       (lhExt, rhs)
     } else {
       (lhs, rhs)
@@ -242,10 +246,15 @@ object SMT {
           rhs match {
             case bv2: BitVecExpr =>
               val (_lhs, _rhs) = bitwiseSameSize(bv, bv2)
-              ctx.mkEq(_lhs, _rhs)
+              try {
+                ctx.mkEq(_lhs, _rhs)
+              } catch {
+                case e: Throwable =>
+                throw error.ProgramError("== type error lhs: " + lhs + "( " + lhs.getSort + ") rhs: " + rhs + "( " + rhs.getSort + ")")
+              }
             case _ =>
               // error due to nonmatching types
-              ctx.mkEq(lhs, rhs)
+              throw error.ProgramError("== type error lhs: " + lhs + "( " + lhs.getSort + ") rhs: " + rhs + "( " + rhs.getSort + ")")
           }
         case _ =>
           ctx.mkEq(lhs, rhs)

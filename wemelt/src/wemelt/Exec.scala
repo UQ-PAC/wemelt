@@ -382,9 +382,14 @@ object Exec {
 
   def eval(expr: Expression, st0: State): (Expression, State) = expr match {
     case v: Var =>
-      // value has been READ
-      val st1 = st0.updateRead(v)
-      (v, st1)
+      // special case: wzr and xzr registers
+      if (v.name == "wzr" || v.name == "xzr") {
+        (Lit(0), st0)
+      } else {
+        // value has been READ
+        val st1 = st0.updateRead(v)
+        (v, st1)
+      }
 
     // look up id
     case i: Id =>
@@ -815,7 +820,7 @@ object Exec {
 
     for (i <- possibleIndices.toSet -- st6.indexToGlobal.keySet) {
       // check even local memory accesses have low index
-      if (!index_t.isConstTrue && !SMT.proveImplies(PRestrictU.combine(st6.gamma(st6.getMemoryVar(i, size))), index_t, st6.debug)) {
+      if (!index_t.isConstTrue && !SMT.proveImplies(PRestrictU, index_t, st6.debug)) {
         throw error.StoreError(line, index, rhs, "P ==> " + index_t + " doesn't hold for memory store")
       }
     }

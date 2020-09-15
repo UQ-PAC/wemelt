@@ -184,7 +184,13 @@ case class State(
     val PReplace = PRestrictInd.subst(toSubst)
 
     // substitute variable in expression for fresh variable
-    val argReplace = arg.subst(toSubst)
+    val argReplace = arg match {
+        // special case - needed to convert equalities to binary
+      case BinOp("==", _, _) =>
+        IfThenElse(arg, Lit(1), Lit(0)).subst(toSubst)
+      case _ =>
+        arg.subst(toSubst)
+    }
 
     // add new assignment statement to P
     val PPrime = PReplace.add(BinOp("==", v, argReplace)).addExists(Set(fresh))
@@ -1571,7 +1577,6 @@ object State {
         + controlAndControlled.mkString(", "))
     }
 
-
     // init D - every variable maps to Var
     val D: DType = {
       for (i <- ids)
@@ -1731,7 +1736,7 @@ object State {
     // init Gamma
     val gamma: Map[Var, Predicate] = gamma_0 match {
       // all locals low by default
-      case None => (locals map {l => l -> Predicate(List(Const._false))}).toMap
+      case None => (locals map {l => l -> Predicate(List(Const._true))}).toMap
       // user provided
       case Some(gs) => {
         //gs flatMap {g => g.toPair(arrays)}
