@@ -286,3 +286,11 @@ case class GOTAccess(label: Id) extends Expression {
   override def arrays: Set[Access] = Set()
   override def labels: Set[Id] = Set(label)
 }
+
+case class Size(e: Expression, size: Int) extends Expression {
+  override def subst(su: Subst): Expression = Size(e.subst(su), size)
+  override def arrays: Set[Access] = e.arrays
+  override def variables: Set[Var] = e.variables
+  override def bound: Set[Var] = e.bound
+  override def labels: Set[Id] = e.labels
+}

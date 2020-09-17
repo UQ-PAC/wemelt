@@ -299,7 +299,7 @@ object Exec {
       }
       val st5: State = st2.updateWrittenStore(possibleIndices, size) // only possible indices
       val st6 = st5.calculateIndirectUsed
-      val access = Access(index, size)
+      val access = Access(_index, size)
       val (st7, _, _) = st6.storeUpdateP(access, _rhs, possibleIndices.head)
       st7.updateDStore(access, possibleIndices, _rhs)
 
@@ -860,7 +860,7 @@ object Exec {
       }
 
       val PRestrictUState = st6.copy(P = PRestrictU)
-      val PPlusR = PRestrictUState.PPlusRStoreUpdate(Access(index, size), _rhs, possibleIndices)
+      val PPlusR = PRestrictUState.PPlusRStoreUpdate(Access(_index, size), _rhs, possibleIndices)
       val knownU = st6.knownU
       val knownW = st6.knownW
       val knownR = st6.knownR
@@ -986,7 +986,7 @@ object Exec {
       }
     }
 
-    st6.storeUpdate(Access(index, size), _rhs, possibleIndices, t)
+    st6.storeUpdate(Access(_index, size), _rhs, possibleIndices, t)
   }
 
   def assignLRule(lhs: Var, rhs: Expression, st0: State, line: Int): State = {

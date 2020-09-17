@@ -201,6 +201,12 @@ object SMT {
   def bitwise(prop: Expression): z3.BitVecExpr = translate(prop) match {
     case bitVec: z3.BitVecExpr => bitVec
     case arith: z3.IntExpr => ctx.mkInt2BV(intSize, arith)
+    case bool: z3.BoolExpr => ctx.mkITE(bool, ctx.mkBV(0, 1), ctx.mkBV(1, 1)) match {
+      case bv: z3.BitVecExpr =>
+        bv
+      case e =>
+        throw error.InvalidProgram("not a bitwise expression", prop, e)
+    }
     case e =>
       throw error.InvalidProgram("not a bitwise expression", prop, e)
   }
@@ -208,15 +214,15 @@ object SMT {
   def bitwiseSameSize(lhs: z3.BitVecExpr, rhs: z3.BitVecExpr): (z3.BitVecExpr, z3.BitVecExpr) = {
     val lhSize = lhs.getSortSize
     val rhSize = rhs.getSortSize
-    println("lhs: " + lhs + " size: " + lhSize)
-    println("rhs: " + rhs + " size: " + rhSize)
+    //println("lhs: " + lhs + " size: " + lhSize)
+    //println("rhs: " + rhs + " size: " + rhSize)
     if (lhSize > rhSize) {
       val rhExt = ctx.mkSignExt(lhSize - rhSize, rhs)
-      println("extsize: " + rhExt.getSortSize)
+      //println("extsize: " + rhExt.getSortSize)
       (lhs, rhExt)
     } else if (rhSize > lhSize) {
       val lhExt = ctx.mkSignExt(rhSize - lhSize, lhs)
-      println("extsize: " + lhExt.getSortSize)
+      //println("extsize: " + lhExt.getSortSize)
       (lhExt, rhs)
     } else {
       (lhs, rhs)
@@ -352,6 +358,17 @@ object SMT {
         val ext = ctx.mkSignExt(64 - bvSize, bv)
         val test = ctx.mkSelect(array, ext)
         test
+
+    case Size(arg, size) =>
+      val bv = bitwise(arg)
+      val bvSize = bv.getSortSize
+      if (size > bvSize) {
+        ctx.mkSignExt(size - bvSize, bv)
+      } else if (size < bvSize) {
+        ctx.mkExtract(size, 0, bv)
+      } else {
+        bv
+      }
 
     case _ =>
       throw error.InvalidProgram("cannot translate to SMT", prop)

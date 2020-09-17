@@ -184,16 +184,10 @@ case class State(
     val PReplace = PRestrictInd.subst(toSubst)
 
     // substitute variable in expression for fresh variable
-    val argReplace = arg match {
-        // special case - needed to convert equalities to binary
-      case BinOp("==", _, _) =>
-        IfThenElse(arg, Lit(1), Lit(0)).subst(toSubst)
-      case _ =>
-        arg.subst(toSubst)
-    }
+    val argReplace = arg.subst(toSubst)
 
     // add new assignment statement to P
-    val PPrime = PReplace.add(BinOp("==", v, argReplace)).addExists(Set(fresh))
+    val PPrime = PReplace.add(BinOp("==", v, Size(argReplace, v.size))).addExists(Set(fresh))
 
     // calculate new_var
     val varE = arg.variables
@@ -399,7 +393,7 @@ case class State(
     val argReplace = arg.subst(toSubst)
 
     // add new assignment statement to P
-    val PPrime = PReplace.add(BinOp("==", v, argReplace)).addExists(Set(fresh))
+    val PPrime = PReplace.add(BinOp("==", v, Size(argReplace, v.size))).addExists(Set(fresh))
 
     // calculate new_var
     val varE = arg.variables
@@ -526,7 +520,7 @@ case class State(
     // don't need to replace index as can't have nested accesses here
 
     // add new assignment statement to P
-    val PPrime = PReplace.add(BinOp("==", access, argReplace))
+    val PPrime = PReplace.add(BinOp("==", access, Size(argReplace, access.size)))
 
     val v = getMemoryVar(index, access.size)
     // calculate new_var
@@ -1519,19 +1513,12 @@ object State {
     }
 
     val locals: Set[Var] = (localDefs map {l => l.variable}) ++ {{
-      for (i <- 0 to 30)
-        yield Var("w" + i, 32)
-    } ++ {
-      for (i <- 0 to 30)
-        yield Var("x" + i, 64)
-    } ++ {
       for (i <- lastIndex to memSize by 4)
         yield Var("mem[" + i + "]", 32)
     } ++ {
       for (i <- lastIndex to memSize by 4)
         yield Var("mem[" + i + "]", 64)
-    }}.toSet ++ Set(Var("sp", 64),Var("wsp", 32), Var("wzr", 32), Var("xzr", 64),
-      Var("Z", 1), Var("N", 1), Var("C", 1), Var("V", 1))
+    }}.toSet
 
     var globalOffsetTable: Map[Id, Int] = Map()
     for (g <- globals) {
@@ -1601,6 +1588,9 @@ object State {
     } ++ {
       for (g <- globals)
         yield Id(g.prime.name) -> g.prime
+    } ++ {
+      for (l <- locals)
+        yield Id(l.name) -> l
     }}.toMap
 
     val primed: Subst = {

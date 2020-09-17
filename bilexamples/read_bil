@@ -18,6 +18,30 @@ size: 32
 _local var Result:
 size: 32
 
+_local var w0:
+size: 32
+
+_local var w1:
+size: 32
+
+_local var sp:
+size: 64
+
+_local var x0:
+size: 64
+
+_local var Z:
+size: 1
+
+_local var C:
+size: 1
+
+_local var N:
+size: 1
+
+_local var V:
+size: 1
+
 _P_inv: TRUE
 _P_0: sp = 40
 memory_size: 40
@@ -27,11 +51,11 @@ memory_size: 40
             mem := mem with [sp + 4, el]:u32 <- wzr
 
 do
-_invariant: z >= z'
-_Gamma: z -> TRUE
+_invariant: TRUE
+_Gamma: z -> TRUE, Z -> TRUE, C -> TRUE, Temp1 -> TRUE, w1 -> TRUE
 {
 do
-_invariant: z >= z'
+_invariant: TRUE
 _Gamma: z -> TRUE
 {
             x0 := z - low:12[z]

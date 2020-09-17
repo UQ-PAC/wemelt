@@ -136,19 +136,19 @@ WS = {NL} | [ \t\f]
     "mem" { return newToken(Terminals.MEM);    }
     "xzr" { return newToken(Terminals.BV64, "xzr");    }
     "wzr" { return newToken(Terminals.BV32, "wzr");    }
-    "sp"  { return newToken(Terminals.BV64, "sp");    }
-    "wsp" { return newToken(Terminals.BV32, "wsp");    }
-    "Z" {return newToken(Terminals.BV1, "Z");}
-    "C" {return newToken(Terminals.BV1, "C");}
-    "N" {return newToken(Terminals.BV1, "N");}
-    "V" {return newToken(Terminals.BV1, "V");}
+    //"sp"  { return newToken(Terminals.BV64, "sp");    }
+    //"wsp" { return newToken(Terminals.BV32, "wsp");    }
+    //"Z" {return newToken(Terminals.BV1, "Z");}
+    //"C" {return newToken(Terminals.BV1, "C");}
+    //"N" {return newToken(Terminals.BV1, "N");}
+    //"V" {return newToken(Terminals.BV1, "V");}
     ":got:" {return newToken(Terminals.GOT);}
     "size" {return newToken(Terminals.SIZE);}
     "memory_size" {return newToken(Terminals.MEMSIZE);}
     "then" {return newToken(Terminals.THEN);}
 
-    x("30"|[12][0-9]|[0-9]) {return newToken(Terminals.BV64, yytext());}
-    w("30"|[12][0-9]|[0-9]) {return newToken(Terminals.BV32, yytext());}
+    //x("30"|[12][0-9]|[0-9]) {return newToken(Terminals.BV64, yytext());}
+    //w("30"|[12][0-9]|[0-9]) {return newToken(Terminals.BV32, yytext());}
 
     //"exists"    { return newToken(Terminals.EXISTS);   }
     //"forall"    { return newToken(Terminals.FORALL);   }
