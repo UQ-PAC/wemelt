@@ -93,7 +93,7 @@ case class Var(name: String, size: Int, index: Option[Int] = None) extends Expre
   override def arrays = Set()
   override def labels: Set[Id] = Set()
 
-  override def toString: String = name __ index
+  override def toString: String = name + ":" + size __ index
   //override def toString = "VAR_" + name __ index
 }
 

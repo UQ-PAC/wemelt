@@ -11,6 +11,7 @@ case class Parsed(variables: Set[Definition], P_inv: List[Expression], P_0: Opti
 case class GammaMapping(label: Id, security: Expression) extends beaver.Symbol {
   //def this(variable: Var, index: Int, security: Expression) = this(Var(variable.name + "[" + index + "]"), security)
   def this(name: String, security: Expression) = this(Id(name), security)
+  def this(num: Int, nat: Nat, security: Expression) = this(Id("mem[" + num + "]:" + nat), security)
   /*
   def toPair(arrays: Map[Var, VarArray] ): Seq[(Var, Security)] = this match {
     // array wildcard case
@@ -45,15 +46,19 @@ sealed trait Nat extends beaver.Symbol
 
 case object U32 extends Nat {
   def self = this
+  override def toString: String = "u32"
 }
 case object U64 extends Nat {
   def self = this
+  override def toString: String = "u64"
 }
 case object S32 extends Nat {
   def self = this
+  override def toString: String = "s32"
 }
 case object S64 extends Nat {
   def self = this
+  override def toString: String = "s64"
 }
 
 

@@ -481,7 +481,7 @@ case class State(
       val st2 = st1.storeUpdateGamma(access, possible.head, t, m, exists)
       st2.updateDStore(access, possible, arg)
     } else {
-      throw error.ProgramError("ambiguous accesses not fully implemented yet")
+      throw error.ProgramError("ambiguous accesses not fully implemented yet " + access + ", " + arg + ", " + possible)
       val states: Seq[State] = for (i <- possible) yield {
         val (st1, m, exists) = storeUpdateP(access, arg, i)
         st1.storeUpdateGamma(access, possible.head, t, m, exists)
@@ -1495,7 +1495,6 @@ object State {
     val globalDefs: Set[GlobalVarDef] = definitions collect {case g: GlobalVarDef => g}
     val localDefs: Set[LocalVarDef] = definitions collect {case l: LocalVarDef => l}
     val globals: Set[Var] = globalDefs map {g => g.variable}
-    val labels: Map[Id, Var] = (globals map {g => (Id(g.name), g)}).toMap
     val definedLocals: Map[Id, Var] = {localDefs map {l => Id(l.variable.name) -> l.variable}}.toMap
     var memory: Map[Id, Int] = Map()
     var indexToGlobal: Map[Int, Var] = Map()
@@ -1519,6 +1518,15 @@ object State {
       for (i <- lastIndex to memSize by 4)
         yield Var("mem[" + i + "]", 64)
     }}.toSet
+
+    val labels: Map[Id, Var] = (globals map {g => (Id(g.name), g)}).toMap ++ definedLocals ++ {
+      {
+        for (i <- lastIndex to memSize by 4)
+          yield Id("mem[" + i + "]:u32") -> Var("mem[" + i + "]", 32)
+      } ++ {
+        for (i <- lastIndex to memSize by 4)
+          yield Id("mem[" + i + "]:u64") -> Var("mem[" + i + "]", 64)
+    }}
 
     var globalOffsetTable: Map[Id, Int] = Map()
     for (g <- globals) {

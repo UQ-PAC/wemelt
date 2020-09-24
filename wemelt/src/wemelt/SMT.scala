@@ -186,6 +186,9 @@ object SMT {
 
   def formula(prop: Expression): z3.BoolExpr = translate(prop) match {
     case b: z3.BoolExpr => b
+    case bv: z3.BitVecExpr =>
+      val size = bv.getSortSize
+      ctx.mkNot(ctx.mkEq(bv, ctx.mkBV(0, size)))
     case e =>
       throw error.InvalidProgram("not a boolean expression", prop, e)
   }

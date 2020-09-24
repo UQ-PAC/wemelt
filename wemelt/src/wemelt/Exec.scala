@@ -124,9 +124,7 @@ object Exec {
       }.toMap
 
       val toSubst: Subst = {
-        {for (g <- state0.globals)
-            yield Id(g.name) -> g
-        } ++ primeMap
+        state0.labels ++ primeMap
       }.toMap
 
       // existentially quantify any prime variables
@@ -160,9 +158,7 @@ object Exec {
       }.toMap
 
       val toSubst: Subst = {
-        {for (g <- state0.globals)
-          yield Id(g.name) -> g
-        } ++ primeMap
+        state0.labels ++ primeMap
       }.toMap
 
       // existentially quantify any prime variables
@@ -295,7 +291,7 @@ object Exec {
             yield i
       }
       if (possibleIndices.size != 1) {
-        throw error.ProgramError("ambiguous accesses not fully implemented yet")
+        throw error.ProgramError("ambiguous accesses not fully implemented yet " + statement)
       }
       val st5: State = st2.updateWrittenStore(possibleIndices, size) // only possible indices
       val st6 = st5.calculateIndirectUsed
@@ -342,12 +338,9 @@ object Exec {
           {for (v <- st0.variables) yield Id(v.prime.prime.prime.prime.name) -> v.fresh}
       }.toMap
       val toSubst: Subst = {
-        {
-          for (g <- st0.globals)
-            yield Id(g.name) -> g
-        } ++ primeMap
+        st0.labels ++ primeMap
       }.toMap
-      val PPrime = Predicate(invariants map {i => i.subst(toSubst)}, (invariants flatMap { p => p.labels} collect {case i if i.name.endsWith("'") => primeMap(i)}).toSet, Set())
+      val PPrime = Predicate(invariants map {i => i.subst(toSubst)}, (invariants flatMap {p => p.labels} collect {case i if i.name.endsWith("'") => primeMap(i)}).toSet, Set())
       st0.copy(D = DFixedPoint(test, body, st0, PPrime), P = PPrime)
 
     case DoWhile(test, invariants, _, body) =>
@@ -359,12 +352,9 @@ object Exec {
           {for (v <- st0.variables) yield Id(v.prime.prime.prime.prime.name) -> v.fresh}
       }.toMap
       val toSubst: Subst = {
-        {
-          for (g <- st0.globals)
-            yield Id(g.name) -> g
-        } ++ primeMap
+        st0.labels ++ primeMap
       }.toMap
-      val PPrime = Predicate(invariants map {i => i.subst(toSubst)}, (invariants flatMap { p => p.labels } collect {case i if i.name.endsWith("'") => primeMap(i)}).toSet, Set())
+      val PPrime = Predicate(invariants map {i => i.subst(toSubst)}, (invariants flatMap {p => p.labels} collect {case i if i.name.endsWith("'") => primeMap(i)}).toSet, Set())
       st1.copy(D = DFixedPoint(test, body, st0, PPrime), P = PPrime)
       /*
     case CompareAndSwap(r3, x, r1, r2) =>

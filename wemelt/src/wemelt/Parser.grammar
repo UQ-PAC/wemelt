@@ -248,6 +248,7 @@ gamma_mappings
 
 gamma_mapping
     = ID.n MAPSTO rgexpr.e {: return new GammaMapping(n, e); :}
+    | MEM LBRACK NUM.i RBRACK COLON nat.n MAPSTO rgexpr.e {: return new GammaMapping(i, n, e); :}
     //| ID.n LBRACK NUM.i RBRACK MAPSTO expr.e {: return new GammaMapping(n, i, s); :}
     //| ID.n LBRACK STAR RBRACK MAPSTO expr.e {: return new GammaMapping(n, s); :}
     ;

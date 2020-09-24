@@ -51,12 +51,12 @@ memory_size: 40
             mem := mem with [sp + 4, el]:u32 <- wzr
 
 do
-_invariant: TRUE
-_Gamma: z -> TRUE, Z -> TRUE, C -> TRUE, Temp1 -> TRUE, w1 -> TRUE
+_invariant: sp = 24
+_Gamma: Z -> TRUE, V -> TRUE, mem[12]:u32 -> TRUE, mem[16]:u32 -> TRUE, mem[40]:u32 -> TRUE, mem[36]:u32 -> TRUE, mem[20]:u32 -> TRUE, mem[12]:u32 -> TRUE, Temp2 -> TRUE, mem[32]:u32 -> TRUE, w0 -> TRUE, mem[8]:u32 -> TRUE, mem[24]:u32 -> TRUE, sp -> TRUE, mem[32]:u32 -> TRUE, mem[28]:u32 -> TRUE, mem[24]:u32 -> TRUE, mem[36]:u32 -> TRUE, N -> TRUE, C -> TRUE, Result -> TRUE, mem[28]:u32 -> TRUE, x0 -> TRUE, mem[20]:u32 -> TRUE, mem[8]:u32 -> TRUE, z -> TRUE, mem[40]:u32 -> TRUE, mem[16]:u32 -> TRUE, Temp1 -> TRUE, w1 -> TRUE
 {
 do
-_invariant: TRUE
-_Gamma: z -> TRUE
+_invariant: sp = 24
+_Gamma: Z -> TRUE, V -> TRUE, Temp2 -> TRUE, w0 -> TRUE, sp -> TRUE, N -> TRUE, C -> TRUE, Result -> TRUE, x0 -> TRUE, z -> TRUE, Temp1 -> TRUE, w1 -> TRUE,  mem[12]:u64 -> TRUE, mem[16]:u64 -> TRUE, mem[40]:u64 -> TRUE, mem[36]:u32 -> TRUE, mem[20]:u32 -> TRUE, mem[12]:u32 -> TRUE, mem[32]:u32 -> TRUE, mem[8]:u32 -> TRUE, mem[24]:u64 -> TRUE, mem[32]:u64 -> TRUE, mem[28]:u32 -> TRUE, mem[24]:u32 -> TRUE, mem[36]:u64 -> TRUE, mem[28]:u64 -> TRUE, mem[20]:u64 -> TRUE, mem[8]:u64 -> TRUE, mem[40]:u32 -> TRUE, mem[16]:u32 -> TRUE
 {
             x0 := z - low:12[z]
             x0 := x0 + low:12[z]
